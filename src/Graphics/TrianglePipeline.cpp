@@ -4,6 +4,9 @@
 //=============================================================================
 #include "TrianglePipeline.h"
 
+#include "CommandQueue.h"
+#include "DescriptorHeap.h"
+
 #include <cstdio>   // printf（シェーダーのコンパイルエラーをコンソールに出す）
 #include <cstring>  // memcpy
 #include <format>
@@ -49,20 +52,20 @@ namespace
 /// 何も表示されなくなります。「三角形が出ない」ときの定番の原因です。
 constexpr Vertex kTriangleVertices[] = {
     // --- 1 枚目 : 手前 (z = 0.25) 青系。右上寄りに配置 -------------------------
-    // 位置 { x, y, z }              色 { r, g, b, a }
-    { {  0.25f,  0.45f, 0.25f }, { 0.35f, 0.65f, 1.00f, 1.0f } }, // 上
-    { {  0.60f, -0.18f, 0.25f }, { 0.10f, 0.25f, 0.90f, 1.0f } }, // 右下
-    { { -0.10f, -0.18f, 0.25f }, { 0.55f, 0.85f, 1.00f, 1.0f } }, // 左下
+    // 位置 { x, y, z }              色 { r, g, b, a }                UV { u, v }
+    { {  0.25f,  0.45f, 0.25f }, { 0.35f, 0.65f, 1.00f, 1.0f }, { 0.5f, 0.0f } }, // 上
+    { {  0.60f, -0.18f, 0.25f }, { 0.10f, 0.25f, 0.90f, 1.0f }, { 1.0f, 1.0f } }, // 右下
+    { { -0.10f, -0.18f, 0.25f }, { 0.55f, 0.85f, 1.00f, 1.0f }, { 0.0f, 1.0f } }, // 左下
 
     // --- 2 枚目 : 中間 (z = 0.50) 緑系。下寄りに配置 ---------------------------
-    { {  0.00f,  0.20f, 0.50f }, { 0.40f, 1.00f, 0.40f, 1.0f } }, // 上
-    { {  0.35f, -0.43f, 0.50f }, { 0.10f, 0.70f, 0.20f, 1.0f } }, // 右下
-    { { -0.35f, -0.43f, 0.50f }, { 0.70f, 1.00f, 0.30f, 1.0f } }, // 左下
+    { {  0.00f,  0.20f, 0.50f }, { 0.40f, 1.00f, 0.40f, 1.0f }, { 0.5f, 0.0f } }, // 上
+    { {  0.35f, -0.43f, 0.50f }, { 0.10f, 0.70f, 0.20f, 1.0f }, { 1.0f, 1.0f } }, // 右下
+    { { -0.35f, -0.43f, 0.50f }, { 0.70f, 1.00f, 0.30f, 1.0f }, { 0.0f, 1.0f } }, // 左下
 
     // --- 3 枚目 : 奥 (z = 0.75) 赤系。左上寄りに配置 ---------------------------
-    { { -0.25f,  0.45f, 0.75f }, { 1.00f, 0.45f, 0.35f, 1.0f } }, // 上
-    { {  0.10f, -0.18f, 0.75f }, { 0.90f, 0.15f, 0.15f, 1.0f } }, // 右下
-    { { -0.60f, -0.18f, 0.75f }, { 1.00f, 0.70f, 0.30f, 1.0f } }, // 左下
+    { { -0.25f,  0.45f, 0.75f }, { 1.00f, 0.45f, 0.35f, 1.0f }, { 0.5f, 0.0f } }, // 上
+    { {  0.10f, -0.18f, 0.75f }, { 0.90f, 0.15f, 0.15f, 1.0f }, { 1.0f, 1.0f } }, // 右下
+    { { -0.60f, -0.18f, 0.75f }, { 1.00f, 0.70f, 0.30f, 1.0f }, { 0.0f, 1.0f } }, // 左下
 };
 
 /// @brief シェーダーファイルの場所（プロジェクトルートからの相対パス）。
@@ -76,6 +79,15 @@ constexpr float kSecondsPerRotation = 4.0f;
 /// ルートシグネチャに登録した順番（0 始まり）です。`SetGraphicsRootConstantBufferView` の第 1 引数
 /// に渡す値であり、HLSL の `register(b0)` の番号とは別物である点に注意してください。
 constexpr uint32_t kSceneConstantsRootParameterIndex = 0;
+
+/// @brief テクスチャ（SRV）を結び付けるルートパラメータの番号。
+constexpr uint32_t kTextureRootParameterIndex = 1;
+
+/// @brief 生成するテクスチャの一辺のピクセル数。
+constexpr uint32_t kTextureSize = 256;
+
+/// @brief 市松模様 1 マスのピクセル数。
+constexpr uint32_t kTextureCellSize = 32;
 } // namespace
 
 
@@ -83,7 +95,9 @@ constexpr uint32_t kSceneConstantsRootParameterIndex = 0;
 void TrianglePipeline::Initialize(ID3D12Device* device,
                                   DXGI_FORMAT renderTargetFormat,
                                   DXGI_FORMAT depthStencilFormat,
-                                  uint32_t frameCount)
+                                  uint32_t frameCount,
+                                  CommandQueue& commandQueue,
+                                  DescriptorHeap& descriptorHeap)
 {
     CreateRootSignature(device);
     CreatePipelineState(device, renderTargetFormat, depthStencilFormat);
@@ -93,6 +107,15 @@ void TrianglePipeline::Initialize(ID3D12Device* device,
     // フレーム数ぶん確保することで、GPU が読んでいる領域を CPU が
     // 書き換えてしまう事故を防ぐ（詳細は ConstantBuffer のコメント参照）。
     m_constantBuffer.Initialize(device, sizeof(SceneConstants), frameCount);
+
+    // 三角形に貼るテクスチャ。画像ファイルは使わず、市松模様をコードで生成する。
+    // テクスチャは DEFAULT ヒープに置くため、内部で GPU 転送と完了待ちを行う。
+    m_texture.Initialize(device,
+                         commandQueue,
+                         descriptorHeap,
+                         kTextureSize,
+                         kTextureSize,
+                         CreateCheckerboardPixels(kTextureSize, kTextureSize, kTextureCellSize));
 
     Log(L"三角形描画パイプラインを構築しました。");
 }
@@ -128,7 +151,7 @@ void TrianglePipeline::CreateRootSignature(ID3D12Device* device)
     //     大きくすると溢れてメモリ経由になり遅くなるため、
     //     「本当に必要なものだけ」を並べるのが原則です。
     //-------------------------------------------------------------------------
-    D3D12_ROOT_PARAMETER rootParameters[1] = {};
+    D3D12_ROOT_PARAMETER rootParameters[2] = {};
 
     // 0 番 : シーン共通の定数バッファ（変換行列）
     rootParameters[kSceneConstantsRootParameterIndex].ParameterType =
@@ -145,11 +168,78 @@ void TrianglePipeline::CreateRootSignature(ID3D12Device* device)
     rootParameters[kSceneConstantsRootParameterIndex].ShaderVisibility =
         D3D12_SHADER_VISIBILITY_VERTEX;
 
+    //-------------------------------------------------------------------------
+    // 1 番 : テクスチャ（ディスクリプタテーブル）
+    //
+    //   ★ ここが Step 6 の定数バッファとの違いです。
+    //     定数バッファは「ルートディスクリプタ」で GPU アドレスを直接渡せました。
+    //     しかしテクスチャ (SRV) はルートディスクリプタでは渡せません。
+    //     ディスクリプタヒープ上の範囲を指す「ディスクリプタテーブル」を使います。
+    //
+    //   ディスクリプタレンジ = 「ヒープのどこから何個ぶんを、何番のレジスタに割り当てるか」
+    //   ここでは「SRV を 1 個、t0 に」という指定です。
+    //   テクスチャを 10 枚まとめて渡したければ NumDescriptors を 10 にするだけで、
+    //   ルートシグネチャのサイズは変わりません。これがテーブルの利点です。
+    //-------------------------------------------------------------------------
+    D3D12_DESCRIPTOR_RANGE srvRange = {};
+    srvRange.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    srvRange.NumDescriptors     = 1;
+    srvRange.BaseShaderRegister = 0;   // HLSL の register(t0) に対応
+    srvRange.RegisterSpace      = 0;
+
+    // テーブル先頭からのオフセット。APPEND は「直前のレンジの続きから」の意味。
+    srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    rootParameters[kTextureRootParameterIndex].ParameterType =
+        D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParameters[kTextureRootParameterIndex].DescriptorTable.NumDescriptorRanges = 1;
+    rootParameters[kTextureRootParameterIndex].DescriptorTable.pDescriptorRanges   = &srvRange;
+
+    // テクスチャを読むのはピクセルシェーダーだけなので PIXEL に限定する。
+    rootParameters[kTextureRootParameterIndex].ShaderVisibility =
+        D3D12_SHADER_VISIBILITY_PIXEL;
+
+    //-------------------------------------------------------------------------
+    // 静的サンプラー (Static Sampler)
+    //
+    //   サンプラーは「テクスチャをどう読むか」の設定です。
+    //   本来はディスクリプタヒープに置きますが、実行中に変わらないものは
+    //   ルートシグネチャに直接埋め込めます。これが静的サンプラーです。
+    //   サンプラー用のヒープを作らずに済むため、固定の設定ならこちらが有利です。
+    //-------------------------------------------------------------------------
+    D3D12_STATIC_SAMPLER_DESC staticSampler = {};
+
+    //   Filter : ピクセルとテクセルがぴったり一致しないときの読み方。
+    //     MIN_MAG_MIP_LINEAR … 周囲 4 テクセルを混ぜる。なめらかになる（本実装）
+    //     MIN_MAG_MIP_POINT  … 最も近い 1 テクセルをそのまま使う。くっきりする
+    //     ドット絵を拡大表示したいときは POINT が正解です。
+    staticSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+
+    //   AddressU/V/W : UV が 0〜1 の外に出たときの扱い。
+    //     WRAP   … 繰り返す（タイル状に敷き詰める）
+    //     CLAMP  … 端の色を引き伸ばす
+    //     MIRROR … 折り返す
+    //   今回の UV は 0〜1 に収まっているのでどれでも同じ見た目になりますが、
+    //   模様を敷き詰めたくなったときのために WRAP にしています。
+    staticSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    staticSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    staticSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+
+    staticSampler.MipLODBias       = 0.0f;
+    staticSampler.MaxAnisotropy    = 0;
+    staticSampler.ComparisonFunc   = D3D12_COMPARISON_FUNC_NEVER;
+    staticSampler.BorderColor      = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+    staticSampler.MinLOD           = 0.0f;
+    staticSampler.MaxLOD           = D3D12_FLOAT32_MAX;
+    staticSampler.ShaderRegister   = 0;   // HLSL の register(s0) に対応
+    staticSampler.RegisterSpace    = 0;
+    staticSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
     D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
     rootSignatureDesc.NumParameters     = _countof(rootParameters);
     rootSignatureDesc.pParameters       = rootParameters;
-    rootSignatureDesc.NumStaticSamplers = 0;
-    rootSignatureDesc.pStaticSamplers   = nullptr;
+    rootSignatureDesc.NumStaticSamplers = 1;
+    rootSignatureDesc.pStaticSamplers   = &staticSampler;
 
     //-------------------------------------------------------------------------
     // ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT フラグ
@@ -282,7 +372,11 @@ void TrianglePipeline::CreatePipelineState(ID3D12Device* device,
     //   Vertex のメモリ配置:
     //     オフセット  0 〜 11 : position[3]  (float 3 個 = 12 バイト)
     //     オフセット 12 〜 27 : color[4]     (float 4 個 = 16 バイト)
-    //     合計 28 バイト
+    //     オフセット 28 〜 35 : uv[2]        (float 2 個 =  8 バイト)
+    //     合計 36 バイト
+    //
+    //   要素を増やすときは、この 3 か所を必ず同時に直すこと:
+    //     C++ の Vertex 構造体 / ここの入力レイアウト / HLSL の VSInput
     //
     //   各フィールドの意味:
     //     SemanticName         シェーダー側のセマンティクス名と一致させる
@@ -308,6 +402,15 @@ void TrianglePipeline::CreatePipelineState(ID3D12Device* device,
             DXGI_FORMAT_R32G32B32A32_FLOAT,              // float4
             0,
             12,                                          // position の 12 バイト後ろ
+            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+            0
+        },
+        {
+            "TEXCOORD",                                  // シェーダー側の : TEXCOORD に対応
+            0,
+            DXGI_FORMAT_R32G32_FLOAT,                    // float2
+            0,
+            28,                                          // position(12) + color(16) の後ろ
             D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
             0
         },
@@ -677,6 +780,20 @@ void TrianglePipeline::RecordDrawCommands(ID3D12GraphicsCommandList* commandList
     commandList->SetGraphicsRootConstantBufferView(
         kSceneConstantsRootParameterIndex,
         m_constantBuffer.GpuAddress(frameIndex));
+
+    //-------------------------------------------------------------------------
+    // (1-c) テクスチャをルートパラメータ 1 番に結び付ける
+    //
+    //   ★ 前提として、呼び出し側が SetDescriptorHeaps() で
+    //     シェーダー可視ヒープを設定しておく必要があります（Renderer が行う）。
+    //     設定を忘れると、このハンドルはどのヒープの何番目か解決できず、
+    //     デバッグレイヤーがエラーを出します。
+    //
+    //   渡すのは GPU ハンドルです。CPU ハンドルを渡すとまったく別の場所を指します。
+    //-------------------------------------------------------------------------
+    commandList->SetGraphicsRootDescriptorTable(
+        kTextureRootParameterIndex,
+        m_texture.ShaderResourceView());
 
     //-------------------------------------------------------------------------
     // (2) プリミティブトポロジ（頂点の結び方）を設定する
