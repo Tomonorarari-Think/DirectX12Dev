@@ -70,7 +70,10 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
     CreateCommandObjects();
 
     // (5) 三角形描画用のパイプライン
-    m_trianglePipeline.Initialize(device, SwapChain::kBackBufferFormat);
+    //     定数バッファをフレーム数ぶん確保させるため、バックバッファ枚数を渡す
+    m_trianglePipeline.Initialize(device,
+                                  SwapChain::kBackBufferFormat,
+                                  SwapChain::kBackBufferCount);
 
     // (6) ビューポート／シザー矩形
     UpdateViewportAndScissor(width, height);
@@ -232,6 +235,24 @@ void Renderer::Render()
     //=========================================================================
     DX_CHECK(m_commandList->Reset(m_commandAllocators[frameIndex].Get(), nullptr));
 
+    //=========================================================================
+    // (2-b) このフレームの定数（変換行列）を更新する
+    //
+    //   ★ ここで書き込んでよい理由
+    //     (0) で frameIndex のフェンスを待っているため、
+    //     GPU はもう frameIndex 番の定数バッファ領域を読んでいません。
+    //     待たずに書き換えると、描画中に値が変わって絵が壊れます。
+    //
+    //   縦横比は毎フレーム取得します。ウィンドウがリサイズされても
+    //   三角形の形が歪まないようにするためです。
+    //=========================================================================
+    const float aspectRatio =
+        static_cast<float>(m_swapChain.Width()) / static_cast<float>(m_swapChain.Height());
+
+    m_trianglePipeline.Update(frameIndex,
+                              aspectRatio,
+                              static_cast<float>(m_frameTimer.TotalSeconds()));
+
     ID3D12Resource* backBuffer = m_swapChain.CurrentBackBuffer();
 
     //=========================================================================
@@ -280,7 +301,7 @@ void Renderer::Render()
     //=========================================================================
     // (7) 三角形の描画命令を記録
     //=========================================================================
-    m_trianglePipeline.RecordDrawCommands(m_commandList.Get());
+    m_trianglePipeline.RecordDrawCommands(m_commandList.Get(), frameIndex);
 
     //=========================================================================
     // (8) バリア : RENDER_TARGET → PRESENT

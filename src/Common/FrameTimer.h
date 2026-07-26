@@ -60,6 +60,15 @@ public:
     /// <returns>1 秒あたりのフレーム数。最初の 1 秒が経過するまでは 0。</returns>
     double FramesPerSecond() const noexcept { return m_framesPerSecond; }
 
+    /// <summary>最初の <see cref="Tick"/> からの累計経過秒数を取得します。</summary>
+    /// <returns>経過秒数。</returns>
+    /// <remarks>
+    /// アニメーションの進行に使います。フレーム数ではなく時間を基準にすることで、
+    /// フレームレートが変動しても見た目の速さが一定になります。
+    /// （フレーム数で進めると、120 fps の環境では 60 fps の 2 倍速くなってしまいます）
+    /// </remarks>
+    double TotalSeconds() const noexcept { return m_totalSeconds; }
+
 private:
     /// <summary>
     /// 経過時間の計測に使う時計。
@@ -88,6 +97,9 @@ private:
 
     /// <summary>直前フレームの所要秒数。</summary>
     double m_deltaSeconds = 0.0;
+
+    /// <summary>計測開始からの累計経過秒数。</summary>
+    double m_totalSeconds = 0.0;
 
     /// <summary>直近 1 秒間の平均 FPS。</summary>
     double m_framesPerSecond = 0.0;

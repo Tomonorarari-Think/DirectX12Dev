@@ -46,6 +46,9 @@ void FrameTimer::Tick()
     m_deltaSeconds = std::chrono::duration<double>(now - m_previousTime).count();
     m_previousTime = now;
 
+    // 累計時間。アニメーションの進行はフレーム数ではなくこの値を基準にする。
+    m_totalSeconds += m_deltaSeconds;
+
     ++m_framesSinceReport;
 
     //-------------------------------------------------------------------------

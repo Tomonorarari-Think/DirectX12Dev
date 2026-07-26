@@ -5,9 +5,42 @@
 #pragma once
 
 #include "../Common/GraphicsCommon.h"
+#include "ConstantBuffer.h"
+
+// DirectXMath : Windows SDK に同梱される数学ライブラリ。
+//   ベクトル・行列演算を SIMD 命令（SSE / AVX）で高速に行える。
+//   追加のライブラリのリンクは不要（ヘッダオンリー）。
+#include <DirectXMath.h>
 
 namespace dx12
 {
+
+/// <summary>
+/// シェーダーへ毎フレーム渡す定数の内容。
+/// </summary>
+/// <remarks>
+/// <para>
+/// この構造体のメモリ配置は、HLSL 側の <c>cbuffer SceneConstants</c>
+/// （<c>shaders/Triangle.hlsl</c>）と一致していなければなりません。
+/// 頂点レイアウトと同じく、ずれてもコンパイルエラーにはならず、
+/// 実行時に絵が壊れるだけなので注意が必要です。
+/// </para>
+/// <para>
+/// <c>XMFLOAT4X4</c> は 4x4 の float 行列を「そのままメモリに置く」ための型です。
+/// 計算用の <c>XMMATRIX</c>（SIMD レジスタ向けに 16 バイト境界を要求する型）とは
+/// 別物で、保存・受け渡しにはこちらを使います。
+/// </para>
+/// </remarks>
+struct SceneConstants
+{
+    /// <summary>ワールド × ビュー × プロジェクションをまとめた変換行列。</summary>
+    /// <remarks>
+    /// HLSL 側が列優先で読むため、書き込む前に転置しておく必要があります
+    /// （<see cref="TrianglePipeline::Update"/> を参照）。
+    /// </remarks>
+    DirectX::XMFLOAT4X4 worldViewProjection;
+};
+
 
 /// <summary>
 /// 頂点 1 個ぶんのデータ構造。
@@ -87,24 +120,39 @@ public:
     /// <summary>コピー代入は禁止です。</summary>
     TrianglePipeline& operator=(const TrianglePipeline&) = delete;
 
-    /// <summary>ルートシグネチャ・PSO・頂点バッファを生成します。</summary>
+    /// <summary>ルートシグネチャ・PSO・頂点バッファ・定数バッファを生成します。</summary>
     /// <param name="device">生成に使う D3D12 デバイス。</param>
     /// <param name="renderTargetFormat">
     /// 描画先の形式。PSO はこれを知っている必要があります。
     /// バックバッファの形式と食い違うと PSO の生成が失敗します。
     /// </param>
+    /// <param name="frameCount">
+    /// 定数バッファに用意するフレーム数（通常はバックバッファの枚数）。
+    /// </param>
     /// <exception cref="HrException">いずれかの生成に失敗した場合。</exception>
     /// <exception cref="std::runtime_error">シェーダーファイルが見つからない場合。</exception>
-    void Initialize(ID3D12Device* device, DXGI_FORMAT renderTargetFormat);
+    void Initialize(ID3D12Device* device, DXGI_FORMAT renderTargetFormat, uint32_t frameCount);
+
+    /// <summary>このフレームの変換行列を計算し、定数バッファへ書き込みます。</summary>
+    /// <param name="frameIndex">書き込み先のフレーム番号。</param>
+    /// <param name="aspectRatio">画面の縦横比（幅 ÷ 高さ）。</param>
+    /// <param name="totalSeconds">起動からの経過秒数。回転角の算出に使います。</param>
+    /// <remarks>
+    /// 描画命令を記録する前に呼んでください。
+    /// 呼び出し時点で、そのフレーム番号の GPU 処理は完了している必要があります
+    /// （<c>Renderer::Render</c> の先頭でフェンスを待っています）。
+    /// </remarks>
+    void Update(uint32_t frameIndex, float aspectRatio, float totalSeconds);
 
     /// <summary>コマンドリストに「三角形を描く」命令を記録します。</summary>
     /// <param name="commandList">記録先の（Reset 済みで開いている）コマンドリスト。</param>
+    /// <param name="frameIndex">使用する定数バッファのフレーム番号。</param>
     /// <remarks>
     /// 実際に描かれるのは、このコマンドリストが GPU に投入された後です。
-    /// PSO とルートシグネチャの設定もこのメソッドが行うため、
+    /// PSO・ルートシグネチャ・定数バッファの設定もこのメソッドが行うため、
     /// 呼び出し側は「いつ描くか」だけを制御すれば済みます。
     /// </remarks>
-    void RecordDrawCommands(ID3D12GraphicsCommandList* commandList) const;
+    void RecordDrawCommands(ID3D12GraphicsCommandList* commandList, uint32_t frameIndex) const;
 
 private:
     /// <summary>ルートシグネチャを生成します。</summary>
@@ -159,6 +207,9 @@ private:
 
     /// <summary>頂点データを置く GPU 上のメモリ領域。</summary>
     ComPtr<ID3D12Resource> m_vertexBuffer;
+
+    /// <summary>変換行列をシェーダーへ渡すための定数バッファ（フレーム数ぶん）。</summary>
+    ConstantBuffer m_constantBuffer;
 
     /// <summary>頂点バッファの読み取り方を GPU に伝える構造体。</summary>
     /// <remarks>

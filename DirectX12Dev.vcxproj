@@ -222,6 +222,7 @@
     <ClCompile Include="src\Common\FrameTimer.cpp" />
     <ClCompile Include="src\Common\GraphicsCommon.cpp" />
     <ClCompile Include="src\Graphics\CommandQueue.cpp" />
+    <ClCompile Include="src\Graphics\ConstantBuffer.cpp" />
     <ClCompile Include="src\Graphics\GraphicsDevice.cpp" />
     <ClCompile Include="src\Graphics\Renderer.cpp" />
     <ClCompile Include="src\Graphics\SwapChain.cpp" />
@@ -241,6 +242,7 @@
     <ClInclude Include="src\Common\FrameTimer.h" />
     <ClInclude Include="src\Common\GraphicsCommon.h" />
     <ClInclude Include="src\Graphics\CommandQueue.h" />
+    <ClInclude Include="src\Graphics\ConstantBuffer.h" />
     <ClInclude Include="src\Graphics\GraphicsDevice.h" />
     <ClInclude Include="src\Graphics\Renderer.h" />
     <ClInclude Include="src\Graphics\SwapChain.h" />
