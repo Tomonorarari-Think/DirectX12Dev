@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" width="720" height="300" role="img" aria-label="スワップチェーンによるバッファ入れ替えの図">
+  <style>
+    .bg   { fill: #f6f8fa; }
+    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #24292f; }
+    .ttl  { font-size: 16px; font-weight: 600; }
+    .lbl  { font-size: 14px; }
+    .sub  { font-size: 12px; fill: #57606a; }
+    .front{ fill: #dafbe1; stroke: #1a7f37; stroke-width: 2; }
+    .back { fill: #ddf4ff; stroke: #0969da; stroke-width: 2; }
+    .arrow{ stroke: #bc4c00; stroke-width: 2; fill: none; }
+  </style>
+
+  <rect class="bg" width="720" height="300" rx="8"/>
+  <text class="txt ttl" x="20" y="30">スワップチェーン — 表示中の絵と、裏で描いている絵を入れ替える</text>
+
+  <defs>
+    <marker id="sa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#bc4c00"/>
+    </marker>
+  </defs>
+
+  <!-- フレーム N -->
+  <text class="txt lbl" x="40" y="70">フレーム N</text>
+  <rect class="front" x="40" y="84" width="200" height="60" rx="4"/>
+  <rect class="back"  x="40" y="152" width="200" height="60" rx="4"/>
+  <text class="txt lbl" text-anchor="middle" x="140" y="110">バッファ 0</text>
+  <text class="txt sub" text-anchor="middle" x="140" y="130">フロント（画面に表示中）</text>
+  <text class="txt lbl" text-anchor="middle" x="140" y="178">バッファ 1</text>
+  <text class="txt sub" text-anchor="middle" x="140" y="198">バック（ここに描く）</text>
+
+  <!-- Present -->
+  <path class="arrow" d="M 262 148 L 340 148" marker-end="url(#sa)"/>
+  <text class="txt lbl" text-anchor="middle" x="301" y="138" fill="#bc4c00">Present()</text>
+  <text class="txt sub" text-anchor="middle" x="301" y="170">役割を入れ替え</text>
+
+  <!-- フレーム N+1 -->
+  <text class="txt lbl" x="360" y="70">フレーム N+1</text>
+  <rect class="back"  x="360" y="84" width="200" height="60" rx="4"/>
+  <rect class="front" x="360" y="152" width="200" height="60" rx="4"/>
+  <text class="txt lbl" text-anchor="middle" x="460" y="110">バッファ 0</text>
+  <text class="txt sub" text-anchor="middle" x="460" y="130">バック（ここに描く）</text>
+  <text class="txt lbl" text-anchor="middle" x="460" y="178">バッファ 1</text>
+  <text class="txt sub" text-anchor="middle" x="460" y="198">フロント（画面に表示中）</text>
+
+  <text class="txt sub" x="580" y="112">FLIP_DISCARD は</text>
+  <text class="txt sub" x="580" y="130">中身をコピーせず</text>
+  <text class="txt sub" x="580" y="148">ポインタを差し替える</text>
+  <text class="txt sub" x="580" y="166">ので高速。</text>
+
+  <rect x="40" y="232" width="640" height="44" rx="6" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.5"/>
+  <text class="txt sub" x="56" y="252">1 枚しかないと「表示中の絵に上書きしながら描く」ことになり、描きかけがそのまま見える（ティアリング・チラつき）。</text>
+  <text class="txt sub" x="56" y="269">現在の番号は自分で計算せず、必ず GetCurrentBackBufferIndex() に問い合わせること。</text>
+</svg>
