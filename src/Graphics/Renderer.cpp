@@ -60,16 +60,22 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
         width,
         height);
 
-    // (4) コマンドアロケータとコマンドリスト
+    // (4) 深度バッファと DSV
+    //     レンダーターゲットと同じ解像度でなければならない
+    m_depthBuffer.Initialize(device, width, height);
+
+    // (5) コマンドアロケータとコマンドリスト
     CreateCommandObjects();
 
-    // (5) 三角形描画用のパイプライン
-    //     定数バッファをフレーム数ぶん確保させるため、バックバッファ枚数を渡す
+    // (6) 三角形描画用のパイプライン
+    //     PSO は描画先の形式（RTV / DSV）を知っている必要があるため両方渡す。
+    //     定数バッファをフレーム数ぶん確保させるため、バックバッファ枚数も渡す。
     m_trianglePipeline.Initialize(device,
                                   SwapChain::kBackBufferFormat,
+                                  DepthBuffer::kFormat,
                                   SwapChain::kBackBufferCount);
 
-    // (6) ビューポート／シザー矩形
+    // (7) ビューポート／シザー矩形
     UpdateViewportAndScissor(width, height);
 
     m_initialized = true;
@@ -276,12 +282,13 @@ void Renderer::Render()
     // (5) レンダーターゲット（描画先）の設定
     //=========================================================================
     const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_swapChain.CurrentRenderTargetView();
+    const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_depthBuffer.DepthStencilView();
 
     m_commandList->OMSetRenderTargets(
         1,             // レンダーターゲットの数
         &rtvHandle,    // RTV ディスクリプタの配列
         FALSE,         // TRUE にすると「連続した複数の RTV」として扱う
-        nullptr);      // 深度ステンシルビュー（今回は使わない）
+        &dsvHandle);   // 深度ステンシルビュー（nullptr にすると深度テストは働かない）
 
     //=========================================================================
     // (6) 画面のクリア
@@ -291,6 +298,25 @@ void Renderer::Render()
     //   0 / nullptr を渡すと全体をクリアします。
     //=========================================================================
     m_commandList->ClearRenderTargetView(rtvHandle, kClearColor, 0, nullptr);
+
+    //=========================================================================
+    // (6-b) 深度バッファのクリア
+    //
+    //   ★ 色のクリアと同じくらい重要です。忘れると前フレームの深度が残り、
+    //     2 フレーム目以降で「何も描かれない」「ちらつく」といった症状になります。
+    //
+    //   一番奥の値 (1.0) で埋めることで、
+    //   これから描くものは必ず「記録済みより手前」と判定されて描画されます。
+    //
+    //   第 2 引数のフラグで、深度とステンシルのどちらをクリアするかを選べます。
+    //   ステンシルは使っていないので DEPTH のみ。
+    //-------------------------------------------------------------------------
+    m_commandList->ClearDepthStencilView(
+        dsvHandle,
+        D3D12_CLEAR_FLAG_DEPTH,     // 深度のみクリア（ステンシルは対象外）
+        DepthBuffer::kClearDepth,   // 一番奥の値。作成時の最適化クリア値と一致必須
+        0,                          // ステンシルのクリア値（未使用）
+        0, nullptr);                // 部分クリアの矩形（0 / nullptr で全体）
 
     //=========================================================================
     // (7) 三角形の描画命令を記録
@@ -358,6 +384,11 @@ void Renderer::Resize(uint32_t width, uint32_t height)
     WaitForGpu();
 
     m_swapChain.Resize(m_graphicsDevice.Device(), width, height);
+
+    // 深度バッファもレンダーターゲットと同じ解像度に作り直す。
+    // サイズが食い違うとデバッグレイヤーがエラーを出す。
+    m_depthBuffer.Resize(m_graphicsDevice.Device(), width, height);
+
     UpdateViewportAndScissor(width, height);
 }
 
