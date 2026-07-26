@@ -12,14 +12,13 @@ namespace dx12
 {
 namespace
 {
-// ログを出力する間隔（秒）。短くしすぎるとログが流れて読めなくなる。
+/// <summary>FPS をログ出力する間隔（秒）。</summary>
+/// <remarks>短くしすぎるとログが流れて読めなくなります。</remarks>
 constexpr double kReportIntervalSeconds = 1.0;
 } // namespace
 
 
-//-----------------------------------------------------------------------------
-// Tick
-//-----------------------------------------------------------------------------
+/// <summary>毎フレーム 1 回だけ呼び出して、経過時間を更新します。</summary>
 void FrameTimer::Tick()
 {
     const TimePoint now = Clock::now();

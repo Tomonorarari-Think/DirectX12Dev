@@ -12,27 +12,29 @@ namespace dx12
 {
 namespace
 {
-//-----------------------------------------------------------------------------
-// 描画する三角形の頂点データ
-//
-//   NDC（正規化デバイス座標）で位置を指定します。
-//     x : 左 -1.0 〜 右 +1.0
-//     y : 下 -1.0 〜 上 +1.0
-//
-//        (0.0, 0.5) 赤
-//              ▲
-//             ╱ ╲
-//            ╱   ╲
-//           ╱     ╲
-//   (-0.5,-0.5)  (0.5,-0.5)
-//       青          緑
-//
-//   ★ 頂点を並べる順番（ワインディング順）が重要です。
-//     DirectX の既定では「時計回り (Clockwise) に見える面が表」です。
-//     上 → 右下 → 左下 の順は画面上で時計回りになるため、表向きとなり描画されます。
-//     順序を逆にすると裏面になり、背面カリング（D3D12_CULL_MODE_BACK）によって
-//     何も表示されなくなります。「三角形が出ない」ときの定番の原因です。
-//-----------------------------------------------------------------------------
+/// <summary>描画する三角形の頂点データ。</summary>
+/// <remarks>
+/// <para>
+/// NDC（正規化デバイス座標）で位置を指定します（x は左 -1.0〜右 +1.0、
+/// y は下 -1.0〜上 +1.0）。
+/// <code>
+///        (0.0, 0.5) 赤
+///              ▲
+///             ╱ ╲
+///            ╱   ╲
+///           ╱     ╲
+///   (-0.5,-0.5)  (0.5,-0.5)
+///       青          緑
+/// </code>
+/// </para>
+/// <para>
+/// 頂点を並べる順番（ワインディング順）が重要です。
+/// DirectX の既定では「時計回り (Clockwise) に見える面が表」です。
+/// 上 → 右下 → 左下 の順は画面上で時計回りになるため、表向きとなり描画されます。
+/// 順序を逆にすると裏面になり、背面カリング（<c>D3D12_CULL_MODE_BACK</c>）によって
+/// 何も表示されなくなります。「三角形が出ない」ときの定番の原因です。
+/// </para>
+/// </remarks>
 constexpr Vertex kTriangleVertices[] = {
     // 位置 { x, y, z }          色 { r, g, b, a }
     { {  0.0f,  0.5f, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } }, // 上　: 赤
@@ -40,14 +42,12 @@ constexpr Vertex kTriangleVertices[] = {
     { { -0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }, // 左下: 青
 };
 
-// シェーダーファイルの場所（プロジェクトルートからの相対パス）
+/// <summary>シェーダーファイルの場所（プロジェクトルートからの相対パス）。</summary>
 constexpr const wchar_t* kShaderRelativePath = L"shaders/Triangle.hlsl";
 } // namespace
 
 
-//-----------------------------------------------------------------------------
-// Initialize
-//-----------------------------------------------------------------------------
+/// <summary>ルートシグネチャ・PSO・頂点バッファを生成します。</summary>
 void TrianglePipeline::Initialize(ID3D12Device* device, DXGI_FORMAT renderTargetFormat)
 {
     CreateRootSignature(device);
@@ -58,9 +58,7 @@ void TrianglePipeline::Initialize(ID3D12Device* device, DXGI_FORMAT renderTarget
 }
 
 
-//-----------------------------------------------------------------------------
-// CreateRootSignature : ルートシグネチャを作る
-//-----------------------------------------------------------------------------
+/// <summary>ルートシグネチャを生成します。</summary>
 void TrianglePipeline::CreateRootSignature(ID3D12Device* device)
 {
     //-------------------------------------------------------------------------
@@ -125,22 +123,7 @@ void TrianglePipeline::CreateRootSignature(ID3D12Device* device)
 }
 
 
-//-----------------------------------------------------------------------------
-// CompileShader : HLSL を実行時にコンパイルする
-//
-//   ■ シェーダーのコンパイル方式は 2 通り
-//     (a) 事前コンパイル（ビルド時に .cso ファイルを生成して読み込む）
-//           起動が速く、製品版ではこちらが基本。
-//     (b) 実行時コンパイル（本実装）
-//           .hlsl を書き換えて再実行するだけで結果を確認できるため、
-//           学習中はこちらが圧倒的に扱いやすい。
-//
-//   ■ D3DCompile と DXC の違い
-//     ここで使う D3DCompileFromFile は「FXC」と呼ばれる旧コンパイラで、
-//     シェーダーモデル 5.1 までの対応です。三角形を描くには十分ですが、
-//     最新機能（シェーダーモデル 6.x、レイトレーシング等）を使う場合は
-//     DXC (DirectX Shader Compiler / dxcompiler.dll) が必要になります。
-//-----------------------------------------------------------------------------
+/// <summary>HLSL ファイルをコンパイルして、GPU 用のバイトコードを得ます。</summary>
 ComPtr<ID3DBlob> TrianglePipeline::CompileShader(const std::wstring& filePath,
                                                  const char* entryPoint,
                                                  const char* target)
@@ -194,9 +177,7 @@ ComPtr<ID3DBlob> TrianglePipeline::CompileShader(const std::wstring& filePath,
 }
 
 
-//-----------------------------------------------------------------------------
-// CreatePipelineState : PSO を作る
-//-----------------------------------------------------------------------------
+/// <summary>HLSL をコンパイルし、パイプラインステートオブジェクトを生成します。</summary>
 void TrianglePipeline::CreatePipelineState(ID3D12Device* device, DXGI_FORMAT renderTargetFormat)
 {
     //-------------------------------------------------------------------------
@@ -366,9 +347,7 @@ void TrianglePipeline::CreatePipelineState(ID3D12Device* device, DXGI_FORMAT ren
 }
 
 
-//-----------------------------------------------------------------------------
-// CreateVertexBuffer : 頂点データを GPU メモリに置く
-//-----------------------------------------------------------------------------
+/// <summary>頂点バッファを作り、頂点データを書き込みます。</summary>
 void TrianglePipeline::CreateVertexBuffer(ID3D12Device* device)
 {
     const UINT vertexBufferSize = sizeof(kTriangleVertices);
@@ -478,9 +457,7 @@ void TrianglePipeline::CreateVertexBuffer(ID3D12Device* device)
 }
 
 
-//-----------------------------------------------------------------------------
-// RecordDrawCommands : 描画命令をコマンドリストに記録する
-//-----------------------------------------------------------------------------
+/// <summary>コマンドリストに「三角形を描く」命令を記録します。</summary>
 void TrianglePipeline::RecordDrawCommands(ID3D12GraphicsCommandList* commandList) const
 {
     //-------------------------------------------------------------------------
