@@ -26,6 +26,12 @@ constexpr float kClearColor[4] = { 0.10f, 0.15f, 0.30f, 1.0f };
 /// フレームバッファリングの効果を数値で確認したいときは `false` にしてください。`true` のままだと、
 /// 改善前も改善後もリフレッシュレートに張り付いて差が見えません。
 constexpr bool kEnableVSync = true;
+
+/// @brief シェーダー可視ディスクリプタヒープに確保する数。
+///
+/// 現在使うのはテクスチャ 1 枚ぶんの SRV だけですが、
+/// ヒープを作り直すのは手間なので、あらかじめ余裕を持たせています。
+constexpr uint32_t kDescriptorHeapCapacity = 16;
 } // namespace
 
 
@@ -67,15 +73,23 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
     // (5) コマンドアロケータとコマンドリスト
     CreateCommandObjects();
 
-    // (6) 三角形描画用のパイプライン
+    // (6) シェーダー可視ディスクリプタヒープ
+    //     テクスチャの SRV を置く場所。今はテクスチャ 1 枚だけだが、
+    //     増えても 1 本のヒープを共有するため、少し余裕を持たせておく。
+    m_descriptorHeap.Initialize(device, kDescriptorHeapCapacity);
+
+    // (7) 三角形描画用のパイプライン
     //     PSO は描画先の形式（RTV / DSV）を知っている必要があるため両方渡す。
     //     定数バッファをフレーム数ぶん確保させるため、バックバッファ枚数も渡す。
+    //     テクスチャの GPU 転送に使うキューと、SRV の置き場も渡す。
     m_trianglePipeline.Initialize(device,
                                   SwapChain::kBackBufferFormat,
                                   DepthBuffer::kFormat,
-                                  SwapChain::kBackBufferCount);
+                                  SwapChain::kBackBufferCount,
+                                  m_commandQueue,
+                                  m_descriptorHeap);
 
-    // (7) ビューポート／シザー矩形
+    // (8) ビューポート／シザー矩形
     UpdateViewportAndScissor(width, height);
 
     m_initialized = true;
@@ -277,6 +291,21 @@ void Renderer::Render()
     //=========================================================================
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
+
+    //=========================================================================
+    // (4-b) シェーダー可視ディスクリプタヒープを設定する
+    //
+    //   ★ SetGraphicsRootDescriptorTable より前に呼ぶ必要があります。
+    //     GPU は「どのヒープの何番目か」でディスクリプタを解決するため、
+    //     ヒープを教えていないとハンドルの意味が決まりません。
+    //
+    //   同時に設定できるのは CBV/SRV/UAV 用と Sampler 用が 1 本ずつだけです。
+    //   だからこそ「巨大なヒープ 1 本を全員で共有する」設計になります。
+    //
+    //   この設定もコマンドリストを Reset するたびに消えるため、毎フレーム必要です。
+    //=========================================================================
+    ID3D12DescriptorHeap* const descriptorHeaps[] = { m_descriptorHeap.Get() };
+    m_commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
     //=========================================================================
     // (5) レンダーターゲット（描画先）の設定

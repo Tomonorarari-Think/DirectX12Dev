@@ -50,6 +50,12 @@
     <ClCompile Include="src\Graphics\DepthBuffer.cpp">
       <Filter>src\Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="src\Graphics\DescriptorHeap.cpp">
+      <Filter>src\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Graphics\Texture2D.cpp">
+      <Filter>src\Graphics</Filter>
+    </ClCompile>
     <ClCompile Include="src\Graphics\GraphicsDevice.cpp">
       <Filter>src\Graphics</Filter>
     </ClCompile>
@@ -81,6 +87,12 @@
       <Filter>src\Graphics</Filter>
     </ClInclude>
     <ClInclude Include="src\Graphics\DepthBuffer.h">
+      <Filter>src\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Graphics\DescriptorHeap.h">
+      <Filter>src\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Graphics\Texture2D.h">
       <Filter>src\Graphics</Filter>
     </ClInclude>
     <ClInclude Include="src\Graphics\GraphicsDevice.h">

@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 420" width="760" height="420" role="img" aria-label="テクスチャを UPLOAD ヒープ経由で DEFAULT ヒープへ転送する流れと行ピッチの整列">
+  <style>
+    .bg    { fill: #f6f8fa; }
+    .txt   { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #24292f; }
+    .ttl   { font-size: 16px; font-weight: 600; }
+    .cap   { font-size: 13px; font-weight: 600; }
+    .sub   { font-size: 12px; fill: #57606a; }
+    .cpu   { fill: #ddf4ff; stroke: #0969da; stroke-width: 2; }
+    .upl   { fill: #fff1e5; stroke: #bc4c00; stroke-width: 2; }
+    .def   { fill: #dafbe1; stroke: #1a7f37; stroke-width: 2; }
+    .pad   { fill: #eaeef2; stroke: #8c959f; stroke-width: 1.2; stroke-dasharray: 3 2; }
+    .data  { fill: #ffd8b5; stroke: #bc4c00; stroke-width: 1.2; }
+    .arrow { stroke: #24292f; stroke-width: 2; fill: none; }
+  </style>
+
+  <rect class="bg" width="760" height="420" rx="8"/>
+  <text class="txt ttl" x="20" y="30">テクスチャの転送 — CPU から DEFAULT ヒープへは直接書けない</text>
+
+  <defs>
+    <marker id="ta" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#24292f"/>
+    </marker>
+  </defs>
+
+  <!-- 3 つの箱 -->
+  <rect class="cpu" x="20"  y="70" width="160" height="94" rx="4"/>
+  <text class="txt cap" text-anchor="middle" x="100" y="96">CPU 側のメモリ</text>
+  <text class="txt sub" text-anchor="middle" x="100" y="120">std::vector&lt;uint8_t&gt;</text>
+  <text class="txt sub" text-anchor="middle" x="100" y="142">隙間なく並んだピクセル</text>
+
+  <rect class="upl" x="300" y="70" width="160" height="94" rx="4"/>
+  <text class="txt cap" text-anchor="middle" x="380" y="96">UPLOAD ヒープ</text>
+  <text class="txt sub" text-anchor="middle" x="380" y="120">中継バッファ</text>
+  <text class="txt sub" text-anchor="middle" x="380" y="142">CPU が書ける</text>
+
+  <rect class="def" x="580" y="70" width="160" height="94" rx="4"/>
+  <text class="txt cap" text-anchor="middle" x="660" y="96">DEFAULT ヒープ</text>
+  <text class="txt sub" text-anchor="middle" x="660" y="120">テクスチャ本体</text>
+  <text class="txt sub" text-anchor="middle" x="660" y="142">GPU 専用・最速</text>
+
+  <!-- 矢印 -->
+  <line class="arrow" x1="184" y1="117" x2="294" y2="117" marker-end="url(#ta)"/>
+  <text class="txt sub" text-anchor="middle" x="239" y="106">memcpy</text>
+  <text class="txt sub" text-anchor="middle" x="239" y="140">1 行ずつ</text>
+
+  <line class="arrow" x1="464" y1="117" x2="574" y2="117" marker-end="url(#ta)"/>
+  <text class="txt sub" text-anchor="middle" x="519" y="106">GPU が実行</text>
+  <text class="txt sub" text-anchor="middle" x="519" y="140">CopyTextureRegion</text>
+
+  <text class="txt sub" x="20" y="188">CPU から DEFAULT ヒープへは書けないため、必ず UPLOAD ヒープを中継する（ステージング）。</text>
+
+  <!-- 行ピッチの説明 -->
+  <text class="txt cap" x="30" y="222">なぜ「1 行ずつ」なのか — 行ピッチの整列</text>
+
+  <!-- CPU 側 -->
+  <text class="txt sub" x="30" y="248">CPU 側（隙間なく詰まっている）</text>
+  <rect class="data" x="30" y="258" width="150" height="20"/>
+  <rect class="data" x="30" y="280" width="150" height="20"/>
+  <rect class="data" x="30" y="302" width="150" height="20"/>
+  <text class="txt sub" text-anchor="middle" x="105" y="273">1 行目</text>
+  <text class="txt sub" text-anchor="middle" x="105" y="295">2 行目</text>
+  <text class="txt sub" text-anchor="middle" x="105" y="317">3 行目</text>
+  <text class="txt sub" x="30" y="340">幅 × 4 バイト</text>
+
+  <!-- 中継バッファ側 -->
+  <text class="txt sub" x="290" y="248">中継バッファ側（1 行が 256 バイト境界に整列）</text>
+  <rect class="data" x="290" y="258" width="150" height="20"/>
+  <rect class="pad"  x="440" y="258" width="60"  height="20"/>
+  <rect class="data" x="290" y="280" width="150" height="20"/>
+  <rect class="pad"  x="440" y="280" width="60"  height="20"/>
+  <rect class="data" x="290" y="302" width="150" height="20"/>
+  <rect class="pad"  x="440" y="302" width="60"  height="20"/>
+  <text class="txt sub" text-anchor="middle" x="365" y="273">1 行目</text>
+  <text class="txt sub" text-anchor="middle" x="470" y="273">詰め物</text>
+  <text class="txt sub" text-anchor="middle" x="365" y="295">2 行目</text>
+  <text class="txt sub" text-anchor="middle" x="470" y="295">詰め物</text>
+  <text class="txt sub" text-anchor="middle" x="365" y="317">3 行目</text>
+  <text class="txt sub" text-anchor="middle" x="470" y="317">詰め物</text>
+  <text class="txt sub" x="290" y="340">RowPitch（256 の倍数）</text>
+
+  <rect x="530" y="248" width="200" height="94" rx="6" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.5"/>
+  <text class="txt sub" x="544" y="270">行の間に詰め物が入るため、</text>
+  <text class="txt sub" x="544" y="290">画像全体を一度に memcpy できない。</text>
+  <text class="txt sub" x="544" y="314">サイズや詰め物の量は自分で計算せず、</text>
+  <text class="txt sub" x="544" y="332">GetCopyableFootprints() に聞く。</text>
+
+  <rect x="30" y="358" width="700" height="46" rx="6" fill="#ffebe9" stroke="#cf222e" stroke-width="1.5"/>
+  <text class="txt sub" x="46" y="378">転送後は必ずバリアで COPY_DEST → PIXEL_SHADER_RESOURCE へ切り替える。</text>
+  <text class="txt sub" x="46" y="396">また、GPU のコピー完了を待ってから中継バッファを破棄すること（待たずに捨てると壊れる）。</text>
+</svg>

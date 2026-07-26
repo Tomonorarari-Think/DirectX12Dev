@@ -8,6 +8,7 @@
 #include "../Common/GraphicsCommon.h"
 #include "CommandQueue.h"
 #include "DepthBuffer.h"
+#include "DescriptorHeap.h"
 #include "GraphicsDevice.h"
 #include "SwapChain.h"
 #include "TrianglePipeline.h"
@@ -160,8 +161,14 @@ private:
     /// フレームバッファリングと併用しても競合しません。
     DepthBuffer m_depthBuffer;
 
-    /// @brief 三角形描画用の PSO と頂点バッファ。
+    /// @brief 三角形描画用の PSO と頂点・定数バッファ、テクスチャ。
     TrianglePipeline m_trianglePipeline;
+
+    /// @brief テクスチャなどをシェーダーへ渡すためのディスクリプタヒープ。
+    ///
+    /// `SHADER_VISIBLE` なヒープはコマンドリストに同時 1 本しか設定できないため、
+    /// レンダラが 1 本だけ持ち、全リソースで共有します。
+    DescriptorHeap m_descriptorHeap;
 
     /// @brief コマンドアロケータ（バックバッファの枚数ぶん用意する）。
     ///
