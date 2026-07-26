@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -74,6 +74,38 @@
 
   <PropertyGroup Label="UserMacros" />
 
+  <!--
+    ==========================================================================
+      出力先の設定
+      ==========================================
+      既定では $(SolutionDir)$(Platform)\$(Configuration)\ に出力されますが、
+      VSCode の tasks.json / launch.json からパスを一意に決めたいので、
+      プロジェクト直下の build/ フォルダに固定します。
+        OutDir  : 実行ファイル (.exe) や PDB の出力先
+        IntDir  : .obj などの中間ファイルの出力先
+      build/ は .gitignore で除外済みです。
+    ==========================================================================
+  -->
+  <PropertyGroup>
+    <OutDir>$(ProjectDir)build\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)build\intermediate\$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+
+  <!--
+    ==========================================================================
+      デバッグ実行時の作業ディレクトリ
+      ==========================================
+      シェーダー (shaders/Triangle.hlsl) を実行時に読み込むため、
+      カレントディレクトリをプロジェクトルートに固定します。
+      （※ ソース側の ResolveAssetPath は親フォルダも探索するので、
+        この設定が無くても動作しますが、明示しておくのが確実です）
+    ==========================================================================
+  -->
+  <PropertyGroup>
+    <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -143,7 +175,92 @@
     </Manifest>
   </ItemDefinitionGroup>
 
-  <ItemGroup></ItemGroup>
+  <!--
+    ==========================================================================
+      全構成に共通するコンパイル / リンク設定
+      ==========================================
+      Condition を付けない ItemDefinitionGroup は全ての構成に適用されます。
+      Debug/Release × Win32/x64 の 4 か所に同じ記述を繰り返さずに済みます。
+    ==========================================================================
+  -->
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <!--
+        /utf-8 : ソースファイルを UTF-8 として読み、実行文字セットも UTF-8 にする。
+                 本プロジェクトのコメントは日本語（UTF-8、BOM なし）で書かれており、
+                 このオプションが無いと MSVC がシステムのコードページ (932) と
+                 誤認して文字化けや警告 C4819 が発生します。
+      -->
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+
+      <!-- ビルドを並列化して高速にする -->
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <!--
+        リンクする DirectX 関連のライブラリ
+          d3d12.lib       : Direct3D 12 本体 (D3D12CreateDevice など)
+          dxgi.lib        : DXGI (CreateDXGIFactory2 など)
+          d3dcompiler.lib : HLSL の実行時コンパイル (D3DCompileFromFile)
+          dxguid.lib      : IID_ID3D12Device などの GUID の実体。
+                            IID_PPV_ARGS を使うとリンク時にこれが必要になります。
+        ※ .lib は「DLL の呼び出し方が書かれた案内書」で、実体の DLL は
+          Windows に標準搭載されています（別途配布は不要）。
+      -->
+      <AdditionalDependencies>d3d12.lib;dxgi.lib;d3dcompiler.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <!--
+    ==========================================================================
+      ビルド対象のソースファイル (.cpp)
+    ==========================================================================
+  -->
+  <ItemGroup>
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\App\Window.cpp" />
+    <ClCompile Include="src\Common\GraphicsCommon.cpp" />
+    <ClCompile Include="src\Graphics\CommandQueue.cpp" />
+    <ClCompile Include="src\Graphics\GraphicsDevice.cpp" />
+    <ClCompile Include="src\Graphics\Renderer.cpp" />
+    <ClCompile Include="src\Graphics\SwapChain.cpp" />
+    <ClCompile Include="src\Graphics\TrianglePipeline.cpp" />
+  </ItemGroup>
+
+  <!--
+    ==========================================================================
+      ヘッダーファイル (.h)
+      ==========================================
+      ビルドには不要ですが、登録しておくと Visual Studio の
+      ソリューションエクスプローラーに表示されて扱いやすくなります。
+    ==========================================================================
+  -->
+  <ItemGroup>
+    <ClInclude Include="src\App\Window.h" />
+    <ClInclude Include="src\Common\GraphicsCommon.h" />
+    <ClInclude Include="src\Graphics\CommandQueue.h" />
+    <ClInclude Include="src\Graphics\GraphicsDevice.h" />
+    <ClInclude Include="src\Graphics\Renderer.h" />
+    <ClInclude Include="src\Graphics\SwapChain.h" />
+    <ClInclude Include="src\Graphics\TrianglePipeline.h" />
+  </ItemGroup>
+
+  <!--
+    ==========================================================================
+      シェーダーファイル (.hlsl)
+      ==========================================
+      本プロジェクトは実行時にシェーダーをコンパイルします。
+      そのため MSBuild にビルドさせる必要はなく、
+      「編集対象として一覧に表示するだけ」の None として登録します。
+
+      ★ ここを ClCompile や FxCompile にすると MSBuild が
+        シェーダーをコンパイルしようとして二重管理になります。
+    ==========================================================================
+  -->
+  <ItemGroup>
+    <None Include="shaders\Triangle.hlsl" />
+  </ItemGroup>
+
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
