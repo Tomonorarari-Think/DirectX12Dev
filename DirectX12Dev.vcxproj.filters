@@ -35,6 +35,9 @@
     <ClCompile Include="src\App\Window.cpp">
       <Filter>src\App</Filter>
     </ClCompile>
+    <ClCompile Include="src\Common\FrameTimer.cpp">
+      <Filter>src\Common</Filter>
+    </ClCompile>
     <ClCompile Include="src\Common\GraphicsCommon.cpp">
       <Filter>src\Common</Filter>
     </ClCompile>
@@ -58,6 +61,9 @@
   <ItemGroup>
     <ClInclude Include="src\App\Window.h">
       <Filter>src\App</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Common\FrameTimer.h">
+      <Filter>src\Common</Filter>
     </ClInclude>
     <ClInclude Include="src\Common\GraphicsCommon.h">
       <Filter>src\Common</Filter>
