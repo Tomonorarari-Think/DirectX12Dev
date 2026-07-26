@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -223,6 +223,7 @@
     <ClCompile Include="src\Common\GraphicsCommon.cpp" />
     <ClCompile Include="src\Graphics\CommandQueue.cpp" />
     <ClCompile Include="src\Graphics\ConstantBuffer.cpp" />
+    <ClCompile Include="src\Graphics\DepthBuffer.cpp" />
     <ClCompile Include="src\Graphics\GraphicsDevice.cpp" />
     <ClCompile Include="src\Graphics\Renderer.cpp" />
     <ClCompile Include="src\Graphics\SwapChain.cpp" />
@@ -243,6 +244,7 @@
     <ClInclude Include="src\Common\GraphicsCommon.h" />
     <ClInclude Include="src\Graphics\CommandQueue.h" />
     <ClInclude Include="src\Graphics\ConstantBuffer.h" />
+    <ClInclude Include="src\Graphics\DepthBuffer.h" />
     <ClInclude Include="src\Graphics\GraphicsDevice.h" />
     <ClInclude Include="src\Graphics\Renderer.h" />
     <ClInclude Include="src\Graphics\SwapChain.h" />

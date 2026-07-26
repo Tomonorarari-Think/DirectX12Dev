@@ -7,6 +7,7 @@
 #include "../Common/FrameTimer.h"
 #include "../Common/GraphicsCommon.h"
 #include "CommandQueue.h"
+#include "DepthBuffer.h"
 #include "GraphicsDevice.h"
 #include "SwapChain.h"
 #include "TrianglePipeline.h"
@@ -150,6 +151,14 @@ private:
 
     /// @brief スワップチェーンとバックバッファ・RTV。
     SwapChain m_swapChain;
+
+    /// @brief 奥行き判定に使う深度バッファと DSV。
+    ///
+    /// バックバッファと違い 1 枚しか作りません。フレームをまたいで内容を持ち越さず、
+    /// 毎フレーム先頭でクリアするためです。コマンドキューは 1 本なので
+    /// フレーム N の書き込みが終わってからフレーム N+1 のクリアが実行され、
+    /// フレームバッファリングと併用しても競合しません。
+    DepthBuffer m_depthBuffer;
 
     /// @brief 三角形描画用の PSO と頂点バッファ。
     TrianglePipeline m_trianglePipeline;

@@ -101,10 +101,14 @@ public:
     /// @param device 生成に使う D3D12 デバイス。
     /// @param renderTargetFormat 描画先の形式。PSO はこれを知っている必要があります。バックバッファの形
     ///     式と食い違うと PSO の生成が失敗します。
+    /// @param depthStencilFormat 深度バッファの形式。`DepthBuffer::kFormat` と一致させること。
     /// @param frameCount 定数バッファに用意するフレーム数（通常はバックバッファの枚数）。
     /// @exception HrException いずれかの生成に失敗した場合。
     /// @exception std::runtime_error シェーダーファイルが見つからない場合。
-    void Initialize(ID3D12Device* device, DXGI_FORMAT renderTargetFormat, uint32_t frameCount);
+    void Initialize(ID3D12Device* device,
+                    DXGI_FORMAT renderTargetFormat,
+                    DXGI_FORMAT depthStencilFormat,
+                    uint32_t frameCount);
 
     /// @brief このフレームの変換行列を計算し、定数バッファへ書き込みます。
     /// @param frameIndex 書き込み先のフレーム番号。
@@ -132,8 +136,11 @@ private:
     /// @brief HLSL をコンパイルし、パイプラインステートオブジェクトを生成します。
     /// @param device 生成に使う D3D12 デバイス。
     /// @param renderTargetFormat 描画先の形式。
+    /// @param depthStencilFormat 深度バッファの形式。
     /// @exception HrException コンパイルまたは PSO 生成に失敗した場合。
-    void CreatePipelineState(ID3D12Device* device, DXGI_FORMAT renderTargetFormat);
+    void CreatePipelineState(ID3D12Device* device,
+                             DXGI_FORMAT renderTargetFormat,
+                             DXGI_FORMAT depthStencilFormat);
 
     /// @brief 頂点バッファを作り、頂点データを書き込みます。
     /// @param device 生成に使う D3D12 デバイス。

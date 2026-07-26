@@ -47,6 +47,9 @@
     <ClCompile Include="src\Graphics\ConstantBuffer.cpp">
       <Filter>src\Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="src\Graphics\DepthBuffer.cpp">
+      <Filter>src\Graphics</Filter>
+    </ClCompile>
     <ClCompile Include="src\Graphics\GraphicsDevice.cpp">
       <Filter>src\Graphics</Filter>
     </ClCompile>
@@ -75,6 +78,9 @@
       <Filter>src\Graphics</Filter>
     </ClInclude>
     <ClInclude Include="src\Graphics\ConstantBuffer.h">
+      <Filter>src\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Graphics\DepthBuffer.h">
       <Filter>src\Graphics</Filter>
     </ClInclude>
     <ClInclude Include="src\Graphics\GraphicsDevice.h">
