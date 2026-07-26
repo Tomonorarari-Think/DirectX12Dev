@@ -10,32 +10,26 @@ namespace dx12
 {
 namespace
 {
-/// <summary>画面のクリア色（RGBA、各 0.0〜1.0）。</summary>
-/// <remarks>
-/// 三角形が描かれていない部分がこの色になります。
-/// 真っ黒 (0,0,0) にすると「描画できているのか、そもそも動いていないのか」の
-/// 区別が付きにくいため、学習用にはっきり分かる濃紺にしています。
-/// </remarks>
+/// @brief 画面のクリア色（RGBA、各 0.0〜1.0）。
+///
+/// 三角形が描かれていない部分がこの色になります。真っ黒 (0,0,0) にすると「描画できているのか、そも
+/// そも動いていないのか」の区別が付きにくいため、学習用にはっきり分かる濃紺にしています。
 constexpr float kClearColor[4] = { 0.10f, 0.15f, 0.30f, 1.0f };
 
-/// <summary>垂直同期 (VSync) を使うかどうか。</summary>
-/// <remarks>
-/// <para>
-/// <c>true</c> … モニタのリフレッシュに同期する。ティアリングが起きず、
-/// GPU の無駄な仕事も減るため通常はこちらが正解。
-/// ただしモニタのリフレッシュレートで頭打ちになります。<br/>
-/// <c>false</c> … 上限を外して描けるだけ描く。
-/// </para>
-/// <para>
-/// フレームバッファリングの効果を数値で確認したいときは <c>false</c> にしてください。
-/// <c>true</c> のままだと、改善前も改善後もリフレッシュレートに張り付いて差が見えません。
-/// </para>
-/// </remarks>
+/// @brief 垂直同期 (VSync) を使うかどうか。
+///
+/// `true` … モニタのリフレッシュに同期する。ティアリングが起きず、GPU の無駄な仕事も減るため通常は
+/// こちらが正解。ただしモニタのリフレッシュレートで頭打ちになります。
+///
+/// `false` … 上限を外して描けるだけ描く。
+///
+/// フレームバッファリングの効果を数値で確認したいときは `false` にしてください。`true` のままだと、
+/// 改善前も改善後もリフレッシュレートに張り付いて差が見えません。
 constexpr bool kEnableVSync = true;
 } // namespace
 
 
-/// <summary>デストラクタ。破棄の前に GPU の作業完了を待ちます。</summary>
+/// @brief デストラクタ。破棄の前に GPU の作業完了を待ちます。
 Renderer::~Renderer()
 {
     if (m_initialized)
@@ -45,7 +39,7 @@ Renderer::~Renderer()
 }
 
 
-/// <summary>DirectX 12 の初期化を一式行います。</summary>
+/// @brief DirectX 12 の初期化を一式行います。
 void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
 {
     // (1) デバイス（DXGI ファクトリ、アダプタ、D3D12 デバイス）
@@ -66,16 +60,22 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
         width,
         height);
 
-    // (4) コマンドアロケータとコマンドリスト
+    // (4) 深度バッファと DSV
+    //     レンダーターゲットと同じ解像度でなければならない
+    m_depthBuffer.Initialize(device, width, height);
+
+    // (5) コマンドアロケータとコマンドリスト
     CreateCommandObjects();
 
-    // (5) 三角形描画用のパイプライン
-    //     定数バッファをフレーム数ぶん確保させるため、バックバッファ枚数を渡す
+    // (6) 三角形描画用のパイプライン
+    //     PSO は描画先の形式（RTV / DSV）を知っている必要があるため両方渡す。
+    //     定数バッファをフレーム数ぶん確保させるため、バックバッファ枚数も渡す。
     m_trianglePipeline.Initialize(device,
                                   SwapChain::kBackBufferFormat,
+                                  DepthBuffer::kFormat,
                                   SwapChain::kBackBufferCount);
 
-    // (6) ビューポート／シザー矩形
+    // (7) ビューポート／シザー矩形
     UpdateViewportAndScissor(width, height);
 
     m_initialized = true;
@@ -83,7 +83,7 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
 }
 
 
-/// <summary>コマンドアロケータ（バックバッファ枚数ぶん）とコマンドリストを生成します。</summary>
+/// @brief コマンドアロケータ（バックバッファ枚数ぶん）とコマンドリストを生成します。
 void Renderer::CreateCommandObjects()
 {
     ID3D12Device* device = m_graphicsDevice.Device();
@@ -130,7 +130,7 @@ void Renderer::CreateCommandObjects()
 }
 
 
-/// <summary>ビューポートとシザー矩形をウィンドウサイズに合わせて更新します。</summary>
+/// @brief ビューポートとシザー矩形をウィンドウサイズに合わせて更新します。
 void Renderer::UpdateViewportAndScissor(uint32_t width, uint32_t height)
 {
     // ビューポート : バックバッファ全体を使う
@@ -152,7 +152,7 @@ void Renderer::UpdateViewportAndScissor(uint32_t width, uint32_t height)
 }
 
 
-/// <summary>リソースの状態遷移バリアをコマンドリストに記録します。</summary>
+/// @brief リソースの状態遷移バリアをコマンドリストに記録します。
 void Renderer::RecordResourceBarrier(ID3D12GraphicsCommandList* commandList,
                                      ID3D12Resource* resource,
                                      D3D12_RESOURCE_STATES stateBefore,
@@ -189,7 +189,7 @@ void Renderer::RecordResourceBarrier(ID3D12GraphicsCommandList* commandList,
 }
 
 
-/// <summary>1 フレーム描画して画面に表示します。</summary>
+/// @brief 1 フレーム描画して画面に表示します。
 void Renderer::Render()
 {
     // フレーム時間を計測する（1 秒ごとに FPS がログに出ます）
@@ -282,12 +282,13 @@ void Renderer::Render()
     // (5) レンダーターゲット（描画先）の設定
     //=========================================================================
     const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_swapChain.CurrentRenderTargetView();
+    const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_depthBuffer.DepthStencilView();
 
     m_commandList->OMSetRenderTargets(
         1,             // レンダーターゲットの数
         &rtvHandle,    // RTV ディスクリプタの配列
         FALSE,         // TRUE にすると「連続した複数の RTV」として扱う
-        nullptr);      // 深度ステンシルビュー（今回は使わない）
+        &dsvHandle);   // 深度ステンシルビュー（nullptr にすると深度テストは働かない）
 
     //=========================================================================
     // (6) 画面のクリア
@@ -297,6 +298,25 @@ void Renderer::Render()
     //   0 / nullptr を渡すと全体をクリアします。
     //=========================================================================
     m_commandList->ClearRenderTargetView(rtvHandle, kClearColor, 0, nullptr);
+
+    //=========================================================================
+    // (6-b) 深度バッファのクリア
+    //
+    //   ★ 色のクリアと同じくらい重要です。忘れると前フレームの深度が残り、
+    //     2 フレーム目以降で「何も描かれない」「ちらつく」といった症状になります。
+    //
+    //   一番奥の値 (1.0) で埋めることで、
+    //   これから描くものは必ず「記録済みより手前」と判定されて描画されます。
+    //
+    //   第 2 引数のフラグで、深度とステンシルのどちらをクリアするかを選べます。
+    //   ステンシルは使っていないので DEPTH のみ。
+    //-------------------------------------------------------------------------
+    m_commandList->ClearDepthStencilView(
+        dsvHandle,
+        D3D12_CLEAR_FLAG_DEPTH,     // 深度のみクリア（ステンシルは対象外）
+        DepthBuffer::kClearDepth,   // 一番奥の値。作成時の最適化クリア値と一致必須
+        0,                          // ステンシルのクリア値（未使用）
+        0, nullptr);                // 部分クリアの矩形（0 / nullptr で全体）
 
     //=========================================================================
     // (7) 三角形の描画命令を記録
@@ -352,7 +372,7 @@ void Renderer::Render()
 }
 
 
-/// <summary>ウィンドウサイズ変更に追従します。</summary>
+/// @brief ウィンドウサイズ変更に追従します。
 void Renderer::Resize(uint32_t width, uint32_t height)
 {
     if (!m_initialized)
@@ -364,11 +384,16 @@ void Renderer::Resize(uint32_t width, uint32_t height)
     WaitForGpu();
 
     m_swapChain.Resize(m_graphicsDevice.Device(), width, height);
+
+    // 深度バッファもレンダーターゲットと同じ解像度に作り直す。
+    // サイズが食い違うとデバッグレイヤーがエラーを出す。
+    m_depthBuffer.Resize(m_graphicsDevice.Device(), width, height);
+
     UpdateViewportAndScissor(width, height);
 }
 
 
-/// <summary>GPU の全作業完了を待ち、全フレームのフェンス値を揃えます。</summary>
+/// @brief GPU の全作業完了を待ち、全フレームのフェンス値を揃えます。
 void Renderer::WaitForGpu()
 {
     // GPU の全作業が終わるまで待つ

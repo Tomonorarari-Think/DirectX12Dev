@@ -13,14 +13,13 @@ namespace dx12
 namespace
 {
 
-/// <summary>HRESULT を人間が読める説明文に変換します。</summary>
-/// <param name="hr">変換する HRESULT。</param>
-/// <returns>説明文。取得できなかった場合は <c>"(説明文なし)"</c>。</returns>
-/// <remarks>
-/// <c>FormatMessageW</c> は Windows が持つ「エラーコード → 環境の言語の説明文」
-/// の変換 API です。DirectX 固有のコード（例: <c>DXGI_ERROR_DEVICE_REMOVED</c>）は
-/// 変換できないことがあるため、その場合は説明なしを返します。
-/// </remarks>
+/// @brief HRESULT を人間が読める説明文に変換します。
+/// @param hr 変換する HRESULT。
+/// @returns 説明文。取得できなかった場合は `"(説明文なし)"`。
+///
+/// `FormatMessageW` は Windows が持つ「エラーコード → 環境の言語の説明文」の変換 API です。DirectX
+/// 固有のコード（例: `DXGI_ERROR_DEVICE_REMOVED`）は変換できないことがあるため、その場合は説明なし
+/// を返します。
 std::wstring HResultToMessage(HRESULT hr)
 {
     LPWSTR buffer = nullptr;
@@ -57,8 +56,8 @@ std::wstring HResultToMessage(HRESULT hr)
     return message;
 }
 
-/// <summary>実行中の exe が置かれているフォルダを取得します。</summary>
-/// <returns>exe のあるディレクトリのパス。取得に失敗した場合はカレントディレクトリ。</returns>
+/// @brief 実行中の exe が置かれているフォルダを取得します。
+/// @returns exe のあるディレクトリのパス。取得に失敗した場合はカレントディレクトリ。
 std::filesystem::path GetExecutableDirectory()
 {
     // MAX_PATH (260) を超える長いパスにも耐えられるよう、余裕を持ったバッファを使う
@@ -75,8 +74,8 @@ std::filesystem::path GetExecutableDirectory()
     return std::filesystem::path(buffer).parent_path();
 }
 
-/// <summary>コンソールとデバッガ出力の両方へ 1 行書き出します。</summary>
-/// <param name="line">出力する行（改行は内部で付与します）。</param>
+/// @brief コンソールとデバッガ出力の両方へ 1 行書き出します。
+/// @param line 出力する行（改行は内部で付与します）。
 void WriteLine(const std::wstring& line)
 {
     // (1) コンソールへ。std::wcout はワイド文字（UTF-16）用の出力ストリーム。
@@ -90,7 +89,7 @@ void WriteLine(const std::wstring& line)
 } // 無名 namespace（このファイルの外からは見えない ＝ 内部実装専用）
 
 
-/// <summary>HRESULT が失敗を示していれば HrException を送出します。</summary>
+/// @brief HRESULT が失敗を示していれば HrException を送出します。
 void ThrowIfFailed(HRESULT hr, const char* expression, const char* file, int line)
 {
     // SUCCEEDED / FAILED は HRESULT の最上位ビットを見るマクロ。
@@ -120,19 +119,19 @@ void ThrowIfFailed(HRESULT hr, const char* expression, const char* file, int lin
     throw HrException(hr, message);
 }
 
-/// <summary>情報ログを 1 行出力します。</summary>
+/// @brief 情報ログを 1 行出力します。
 void Log(const std::wstring& message)
 {
     WriteLine(L"[INFO ] " + message);
 }
 
-/// <summary>エラーログを 1 行出力します。</summary>
+/// @brief エラーログを 1 行出力します。
 void LogError(const std::wstring& message)
 {
     WriteLine(L"[ERROR] " + message);
 }
 
-/// <summary>リソースファイルの実際の場所を探して絶対パスを返します。</summary>
+/// @brief リソースファイルの実際の場所を探して絶対パスを返します。
 std::wstring ResolveAssetPath(const std::wstring& relativePath)
 {
     namespace fs = std::filesystem;

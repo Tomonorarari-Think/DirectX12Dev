@@ -12,59 +12,81 @@ namespace dx12
 {
 namespace
 {
-/// <summary>描画する三角形の頂点データ。</summary>
-/// <remarks>
-/// <para>
-/// NDC（正規化デバイス座標）で位置を指定します（x は左 -1.0〜右 +1.0、
-/// y は下 -1.0〜上 +1.0）。
-/// <code>
-///        (0.0, 0.5) 赤
-///              ▲
-///             ╱ ╲
-///            ╱   ╲
-///           ╱     ╲
-///   (-0.5,-0.5)  (0.5,-0.5)
-///       青          緑
-/// </code>
-/// </para>
-/// <para>
-/// 頂点を並べる順番（ワインディング順）が重要です。
+/// @brief 描画する三角形の頂点データ（3 枚ぶん = 9 頂点）。
+///
+/// NDC（正規化デバイス座標）で位置を指定します（x は左 -1.0〜右 +1.0、y は下 -1.0〜上 +1.0、
+/// z は手前 0.0〜奥 1.0）。
+///
+/// **深度テストを実証するための配置**
+///
+/// 3 枚を少しずつずらして重ね、それぞれ別の奥行き (z) に置いています。
+///
+/// ```
+///        奥 (z=0.75) 赤        中 (z=0.50) 緑        手前 (z=0.25) 青
+///              ▲                    ▲                     ▲
+///             ╱ ╲                  ╱ ╲                   ╱ ╲
+///            ╱   ╲ ── 重なる ──   ╱   ╲  ── 重なる ──   ╱   ╲
+///           ╱     ╲              ╱     ╲               ╱     ╲
+///          ▔▔▔▔▔▔               ▔▔▔▔▔▔                ▔▔▔▔▔▔
+/// ```
+///
+/// **★ わざと「手前 → 奥」の順に並べています**
+///
+/// 配列の先頭が手前 (z=0.25)、末尾が奥 (z=0.75) です。GPU は配列順に描くため、
+/// **奥の三角形を最後に描く**ことになります。
+///
+/// 深度テストが無ければ、あとから描いた奥の三角形が手前を上書きしてしまい、
+/// 前後関係が逆に見えます。深度テストを有効にすると、奥のピクセルは
+/// 「すでに手前のものが描かれている」と判定されて捨てられ、正しく見えます。
+///
+/// つまりこの並び順は、深度テストが効いているかどうかを一目で確認するための仕掛けです。
+///
+/// **ワインディング順（頂点を並べる向き）**
+///
 /// DirectX の既定では「時計回り (Clockwise) に見える面が表」です。
-/// 上 → 右下 → 左下 の順は画面上で時計回りになるため、表向きとなり描画されます。
-/// 順序を逆にすると裏面になり、背面カリング（<c>D3D12_CULL_MODE_BACK</c>）によって
+/// 各三角形は 上 → 右下 → 左下 の順で、画面上で時計回りになるため表向きになります。
+/// 逆順にすると裏面と判定され、背面カリング（`D3D12_CULL_MODE_BACK`）によって
 /// 何も表示されなくなります。「三角形が出ない」ときの定番の原因です。
-/// </para>
-/// </remarks>
 constexpr Vertex kTriangleVertices[] = {
-    // 位置 { x, y, z }          色 { r, g, b, a }
-    { {  0.0f,  0.5f, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } }, // 上　: 赤
-    { {  0.5f, -0.5f, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } }, // 右下: 緑
-    { { -0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }, // 左下: 青
+    // --- 1 枚目 : 手前 (z = 0.25) 青系。右上寄りに配置 -------------------------
+    // 位置 { x, y, z }              色 { r, g, b, a }
+    { {  0.25f,  0.45f, 0.25f }, { 0.35f, 0.65f, 1.00f, 1.0f } }, // 上
+    { {  0.60f, -0.18f, 0.25f }, { 0.10f, 0.25f, 0.90f, 1.0f } }, // 右下
+    { { -0.10f, -0.18f, 0.25f }, { 0.55f, 0.85f, 1.00f, 1.0f } }, // 左下
+
+    // --- 2 枚目 : 中間 (z = 0.50) 緑系。下寄りに配置 ---------------------------
+    { {  0.00f,  0.20f, 0.50f }, { 0.40f, 1.00f, 0.40f, 1.0f } }, // 上
+    { {  0.35f, -0.43f, 0.50f }, { 0.10f, 0.70f, 0.20f, 1.0f } }, // 右下
+    { { -0.35f, -0.43f, 0.50f }, { 0.70f, 1.00f, 0.30f, 1.0f } }, // 左下
+
+    // --- 3 枚目 : 奥 (z = 0.75) 赤系。左上寄りに配置 ---------------------------
+    { { -0.25f,  0.45f, 0.75f }, { 1.00f, 0.45f, 0.35f, 1.0f } }, // 上
+    { {  0.10f, -0.18f, 0.75f }, { 0.90f, 0.15f, 0.15f, 1.0f } }, // 右下
+    { { -0.60f, -0.18f, 0.75f }, { 1.00f, 0.70f, 0.30f, 1.0f } }, // 左下
 };
 
-/// <summary>シェーダーファイルの場所（プロジェクトルートからの相対パス）。</summary>
+/// @brief シェーダーファイルの場所（プロジェクトルートからの相対パス）。
 constexpr const wchar_t* kShaderRelativePath = L"shaders/Triangle.hlsl";
 
-/// <summary>三角形が 1 回転するのにかかる秒数。</summary>
+/// @brief 三角形が 1 回転するのにかかる秒数。
 constexpr float kSecondsPerRotation = 4.0f;
 
-/// <summary>定数バッファを結び付けるルートパラメータの番号。</summary>
-/// <remarks>
-/// ルートシグネチャに登録した順番（0 始まり）です。
-/// <c>SetGraphicsRootConstantBufferView</c> の第 1 引数に渡す値であり、
-/// HLSL の <c>register(b0)</c> の番号とは別物である点に注意してください。
-/// </remarks>
+/// @brief 定数バッファを結び付けるルートパラメータの番号。
+///
+/// ルートシグネチャに登録した順番（0 始まり）です。`SetGraphicsRootConstantBufferView` の第 1 引数
+/// に渡す値であり、HLSL の `register(b0)` の番号とは別物である点に注意してください。
 constexpr uint32_t kSceneConstantsRootParameterIndex = 0;
 } // namespace
 
 
-/// <summary>ルートシグネチャ・PSO・頂点バッファ・定数バッファを生成します。</summary>
+/// @brief ルートシグネチャ・PSO・頂点バッファ・定数バッファを生成します。
 void TrianglePipeline::Initialize(ID3D12Device* device,
                                   DXGI_FORMAT renderTargetFormat,
+                                  DXGI_FORMAT depthStencilFormat,
                                   uint32_t frameCount)
 {
     CreateRootSignature(device);
-    CreatePipelineState(device, renderTargetFormat);
+    CreatePipelineState(device, renderTargetFormat, depthStencilFormat);
     CreateVertexBuffer(device);
 
     // 変換行列を毎フレーム渡すための定数バッファ。
@@ -76,7 +98,7 @@ void TrianglePipeline::Initialize(ID3D12Device* device,
 }
 
 
-/// <summary>ルートシグネチャを生成します。</summary>
+/// @brief ルートシグネチャを生成します。
 void TrianglePipeline::CreateRootSignature(ID3D12Device* device)
 {
     //-------------------------------------------------------------------------
@@ -181,7 +203,7 @@ void TrianglePipeline::CreateRootSignature(ID3D12Device* device)
 }
 
 
-/// <summary>HLSL ファイルをコンパイルして、GPU 用のバイトコードを得ます。</summary>
+/// @brief HLSL ファイルをコンパイルして、GPU 用のバイトコードを得ます。
 ComPtr<ID3DBlob> TrianglePipeline::CompileShader(const std::wstring& filePath,
                                                  const char* entryPoint,
                                                  const char* target)
@@ -235,8 +257,10 @@ ComPtr<ID3DBlob> TrianglePipeline::CompileShader(const std::wstring& filePath,
 }
 
 
-/// <summary>HLSL をコンパイルし、パイプラインステートオブジェクトを生成します。</summary>
-void TrianglePipeline::CreatePipelineState(ID3D12Device* device, DXGI_FORMAT renderTargetFormat)
+/// @brief HLSL をコンパイルし、パイプラインステートオブジェクトを生成します。
+void TrianglePipeline::CreatePipelineState(ID3D12Device* device,
+                                           DXGI_FORMAT renderTargetFormat,
+                                           DXGI_FORMAT depthStencilFormat)
 {
     //-------------------------------------------------------------------------
     // (1) シェーダーのコンパイル
@@ -351,11 +375,38 @@ void TrianglePipeline::CreatePipelineState(ID3D12Device* device, DXGI_FORMAT ren
     //-------------------------------------------------------------------------
     // (5) 深度ステンシルステート
     //   奥行き判定（手前のものが奥のものを隠す処理）の設定。
-    //   三角形 1 枚だけなら不要なので無効化します。
-    //   → 深度バッファを作る必要も無くなり、初期化がその分シンプルになります。
     //-------------------------------------------------------------------------
     D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {};
-    depthStencilDesc.DepthEnable   = FALSE;
+
+    // DepthEnable : 深度テストを行うか。
+    //   FALSE にすると「あとから描いたものが必ず手前」になります。
+    //   ★ 学習のヒント: ここを一時的に FALSE にして実行すると、
+    //     奥の赤い三角形が手前の青を上書きして前後関係が壊れます。
+    //     深度テストが何をしているかを体感できるので一度試してみてください。
+    depthStencilDesc.DepthEnable = TRUE;
+
+    //-------------------------------------------------------------------------
+    // DepthWriteMask : 深度テストに合格したとき、深度バッファを更新するか。
+    //   ALL  … 更新する（通常の不透明物体）
+    //   ZERO … 更新しない。「奥行きは見るが記録しない」
+    //          半透明物体を描くときに使います。半透明は後ろが透けて見えるため、
+    //          深度を書き込むと後から描く物体が消えてしまうからです。
+    //-------------------------------------------------------------------------
+    depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+
+    //-------------------------------------------------------------------------
+    // DepthFunc : 「合格」の条件。新しい深度値 op 記録済みの深度値。
+    //   LESS          … 新しい方が小さい（＝手前）なら合格。最も一般的（本実装）
+    //   LESS_EQUAL    … 同じ深度も合格。同じ位置に重ね描きするときに使う
+    //   GREATER       … 逆順の深度（Reversed-Z）を使う高度な手法向け
+    //   ALWAYS        … 常に合格。実質的に深度テスト無効
+    //
+    //   深度は「手前が 0.0、奥が 1.0」なので、
+    //   「小さい方が手前」＝ LESS で手前が勝つ、という関係になります。
+    //-------------------------------------------------------------------------
+    depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+
+    // ステンシル（型抜きや輪郭描画に使う付加機能）は今回使いません。
     depthStencilDesc.StencilEnable = FALSE;
 
     //-------------------------------------------------------------------------
@@ -391,8 +442,8 @@ void TrianglePipeline::CreatePipelineState(ID3D12Device* device, DXGI_FORMAT ren
     psoDesc.NumRenderTargets = 1;
     psoDesc.RTVFormats[0]    = renderTargetFormat;
 
-    // 深度バッファを使わないので UNKNOWN
-    psoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+    // 深度バッファの形式。DepthBuffer::kFormat と一致していないとエラーになります。
+    psoDesc.DSVFormat = depthStencilFormat;
 
     // MSAA 無し
     psoDesc.SampleDesc.Count   = 1;
@@ -405,7 +456,7 @@ void TrianglePipeline::CreatePipelineState(ID3D12Device* device, DXGI_FORMAT ren
 }
 
 
-/// <summary>頂点バッファを作り、頂点データを書き込みます。</summary>
+/// @brief 頂点バッファを作り、頂点データを書き込みます。
 void TrianglePipeline::CreateVertexBuffer(ID3D12Device* device)
 {
     const UINT vertexBufferSize = sizeof(kTriangleVertices);
@@ -515,7 +566,7 @@ void TrianglePipeline::CreateVertexBuffer(ID3D12Device* device)
 }
 
 
-/// <summary>このフレームの変換行列を計算し、定数バッファへ書き込みます。</summary>
+/// @brief このフレームの変換行列を計算し、定数バッファへ書き込みます。
 void TrianglePipeline::Update(uint32_t frameIndex, float aspectRatio, float totalSeconds)
 {
     using namespace DirectX;
@@ -591,7 +642,7 @@ void TrianglePipeline::Update(uint32_t frameIndex, float aspectRatio, float tota
 }
 
 
-/// <summary>コマンドリストに「三角形を描く」命令を記録します。</summary>
+/// @brief コマンドリストに「三角形を描く」命令を記録します。
 void TrianglePipeline::RecordDrawCommands(ID3D12GraphicsCommandList* commandList,
                                           uint32_t frameIndex) const
 {
@@ -652,8 +703,10 @@ void TrianglePipeline::RecordDrawCommands(ID3D12GraphicsCommandList* commandList
     //   DirectX 12 には非インスタンス版の Draw が存在せず、
     //   常にこの形を使います（インスタンス描画が特別なものではなくなったため）。
     //-------------------------------------------------------------------------
+    //   頂点 9 個 = 三角形 3 枚ぶんを 1 回の呼び出しでまとめて描きます。
+    //   TRIANGLELIST なので、3 頂点ずつ独立した三角形として解釈されます。
     commandList->DrawInstanced(
-        _countof(kTriangleVertices), // 頂点数 = 3
+        _countof(kTriangleVertices), // 頂点数 = 9（三角形 3 枚）
         1,                           // インスタンス数 = 1
         0,                           // 何番目の頂点から描き始めるか
         0);                          // 何番目のインスタンスから描き始めるか

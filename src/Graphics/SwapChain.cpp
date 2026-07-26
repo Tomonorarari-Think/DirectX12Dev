@@ -8,7 +8,7 @@
 
 namespace dx12
 {
-/// <summary>スワップチェーンと RTV ディスクリプタヒープを生成します。</summary>
+/// @brief スワップチェーンと RTV ディスクリプタヒープを生成します。
 void SwapChain::Initialize(IDXGIFactory6* factory,
                            ID3D12Device* device,
                            ID3D12CommandQueue* commandQueue,
@@ -130,7 +130,7 @@ void SwapChain::Initialize(IDXGIFactory6* factory,
 }
 
 
-/// <summary>バックバッファを取得し、それぞれの RTV をヒープに書き込みます。</summary>
+/// @brief バックバッファを取得し、それぞれの RTV をヒープに書き込みます。
 void SwapChain::CreateRenderTargetViews(ID3D12Device* device)
 {
     //-------------------------------------------------------------------------
@@ -169,7 +169,7 @@ void SwapChain::CreateRenderTargetViews(ID3D12Device* device)
 }
 
 
-/// <summary>現在のバックバッファに対応する RTV ディスクリプタの位置を返します。</summary>
+/// @brief 現在のバックバッファに対応する RTV ディスクリプタの位置を返します。
 D3D12_CPU_DESCRIPTOR_HANDLE SwapChain::CurrentRenderTargetView() const
 {
     D3D12_CPU_DESCRIPTOR_HANDLE handle = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
@@ -181,7 +181,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE SwapChain::CurrentRenderTargetView() const
 }
 
 
-/// <summary>画面に表示し、バックバッファを入れ替えます。</summary>
+/// @brief 画面に表示し、バックバッファを入れ替えます。
 void SwapChain::Present(bool enableVSync)
 {
     //-------------------------------------------------------------------------
@@ -207,7 +207,7 @@ void SwapChain::Present(bool enableVSync)
 }
 
 
-/// <summary>ウィンドウサイズ変更に追従してバックバッファを作り直します。</summary>
+/// @brief ウィンドウサイズ変更に追従してバックバッファを作り直します。
 void SwapChain::Resize(ID3D12Device* device, uint32_t width, uint32_t height)
 {
     if (width == 0 || height == 0)
