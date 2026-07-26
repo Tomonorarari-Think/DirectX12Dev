@@ -44,6 +44,9 @@
     <ClCompile Include="src\Graphics\CommandQueue.cpp">
       <Filter>src\Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="src\Graphics\ConstantBuffer.cpp">
+      <Filter>src\Graphics</Filter>
+    </ClCompile>
     <ClCompile Include="src\Graphics\GraphicsDevice.cpp">
       <Filter>src\Graphics</Filter>
     </ClCompile>
@@ -69,6 +72,9 @@
       <Filter>src\Common</Filter>
     </ClInclude>
     <ClInclude Include="src\Graphics\CommandQueue.h">
+      <Filter>src\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Graphics\ConstantBuffer.h">
       <Filter>src\Graphics</Filter>
     </ClInclude>
     <ClInclude Include="src\Graphics\GraphicsDevice.h">
