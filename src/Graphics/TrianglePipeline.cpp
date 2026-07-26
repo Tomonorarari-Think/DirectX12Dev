@@ -12,12 +12,11 @@ namespace dx12
 {
 namespace
 {
-/// <summary>描画する三角形の頂点データ。</summary>
-/// <remarks>
-/// <para>
-/// NDC（正規化デバイス座標）で位置を指定します（x は左 -1.0〜右 +1.0、
-/// y は下 -1.0〜上 +1.0）。
-/// <code>
+/// @brief 描画する三角形の頂点データ。
+///
+/// NDC（正規化デバイス座標）で位置を指定します（x は左 -1.0〜右 +1.0、y は下 -1.0〜上 +1.0）。
+///
+/// ```
 ///        (0.0, 0.5) 赤
 ///              ▲
 ///             ╱ ╲
@@ -25,16 +24,12 @@ namespace
 ///           ╱     ╲
 ///   (-0.5,-0.5)  (0.5,-0.5)
 ///       青          緑
-/// </code>
-/// </para>
-/// <para>
-/// 頂点を並べる順番（ワインディング順）が重要です。
-/// DirectX の既定では「時計回り (Clockwise) に見える面が表」です。
-/// 上 → 右下 → 左下 の順は画面上で時計回りになるため、表向きとなり描画されます。
-/// 順序を逆にすると裏面になり、背面カリング（<c>D3D12_CULL_MODE_BACK</c>）によって
-/// 何も表示されなくなります。「三角形が出ない」ときの定番の原因です。
-/// </para>
-/// </remarks>
+/// ```
+///
+/// 頂点を並べる順番（ワインディング順）が重要です。DirectX の既定では「時計回り (Clockwise) に見え
+/// る面が表」です。上 → 右下 → 左下 の順は画面上で時計回りになるため、表向きとなり描画されます。順
+/// 序を逆にすると裏面になり、背面カリング（`D3D12_CULL_MODE_BACK`）によって何も表示されなくなります。
+/// 「三角形が出ない」ときの定番の原因です。
 constexpr Vertex kTriangleVertices[] = {
     // 位置 { x, y, z }          色 { r, g, b, a }
     { {  0.0f,  0.5f, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } }, // 上　: 赤
@@ -42,23 +37,21 @@ constexpr Vertex kTriangleVertices[] = {
     { { -0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }, // 左下: 青
 };
 
-/// <summary>シェーダーファイルの場所（プロジェクトルートからの相対パス）。</summary>
+/// @brief シェーダーファイルの場所（プロジェクトルートからの相対パス）。
 constexpr const wchar_t* kShaderRelativePath = L"shaders/Triangle.hlsl";
 
-/// <summary>三角形が 1 回転するのにかかる秒数。</summary>
+/// @brief 三角形が 1 回転するのにかかる秒数。
 constexpr float kSecondsPerRotation = 4.0f;
 
-/// <summary>定数バッファを結び付けるルートパラメータの番号。</summary>
-/// <remarks>
-/// ルートシグネチャに登録した順番（0 始まり）です。
-/// <c>SetGraphicsRootConstantBufferView</c> の第 1 引数に渡す値であり、
-/// HLSL の <c>register(b0)</c> の番号とは別物である点に注意してください。
-/// </remarks>
+/// @brief 定数バッファを結び付けるルートパラメータの番号。
+///
+/// ルートシグネチャに登録した順番（0 始まり）です。`SetGraphicsRootConstantBufferView` の第 1 引数
+/// に渡す値であり、HLSL の `register(b0)` の番号とは別物である点に注意してください。
 constexpr uint32_t kSceneConstantsRootParameterIndex = 0;
 } // namespace
 
 
-/// <summary>ルートシグネチャ・PSO・頂点バッファ・定数バッファを生成します。</summary>
+/// @brief ルートシグネチャ・PSO・頂点バッファ・定数バッファを生成します。
 void TrianglePipeline::Initialize(ID3D12Device* device,
                                   DXGI_FORMAT renderTargetFormat,
                                   uint32_t frameCount)
@@ -76,7 +69,7 @@ void TrianglePipeline::Initialize(ID3D12Device* device,
 }
 
 
-/// <summary>ルートシグネチャを生成します。</summary>
+/// @brief ルートシグネチャを生成します。
 void TrianglePipeline::CreateRootSignature(ID3D12Device* device)
 {
     //-------------------------------------------------------------------------
@@ -181,7 +174,7 @@ void TrianglePipeline::CreateRootSignature(ID3D12Device* device)
 }
 
 
-/// <summary>HLSL ファイルをコンパイルして、GPU 用のバイトコードを得ます。</summary>
+/// @brief HLSL ファイルをコンパイルして、GPU 用のバイトコードを得ます。
 ComPtr<ID3DBlob> TrianglePipeline::CompileShader(const std::wstring& filePath,
                                                  const char* entryPoint,
                                                  const char* target)
@@ -235,7 +228,7 @@ ComPtr<ID3DBlob> TrianglePipeline::CompileShader(const std::wstring& filePath,
 }
 
 
-/// <summary>HLSL をコンパイルし、パイプラインステートオブジェクトを生成します。</summary>
+/// @brief HLSL をコンパイルし、パイプラインステートオブジェクトを生成します。
 void TrianglePipeline::CreatePipelineState(ID3D12Device* device, DXGI_FORMAT renderTargetFormat)
 {
     //-------------------------------------------------------------------------
@@ -405,7 +398,7 @@ void TrianglePipeline::CreatePipelineState(ID3D12Device* device, DXGI_FORMAT ren
 }
 
 
-/// <summary>頂点バッファを作り、頂点データを書き込みます。</summary>
+/// @brief 頂点バッファを作り、頂点データを書き込みます。
 void TrianglePipeline::CreateVertexBuffer(ID3D12Device* device)
 {
     const UINT vertexBufferSize = sizeof(kTriangleVertices);
@@ -515,7 +508,7 @@ void TrianglePipeline::CreateVertexBuffer(ID3D12Device* device)
 }
 
 
-/// <summary>このフレームの変換行列を計算し、定数バッファへ書き込みます。</summary>
+/// @brief このフレームの変換行列を計算し、定数バッファへ書き込みます。
 void TrianglePipeline::Update(uint32_t frameIndex, float aspectRatio, float totalSeconds)
 {
     using namespace DirectX;
@@ -591,7 +584,7 @@ void TrianglePipeline::Update(uint32_t frameIndex, float aspectRatio, float tota
 }
 
 
-/// <summary>コマンドリストに「三角形を描く」命令を記録します。</summary>
+/// @brief コマンドリストに「三角形を描く」命令を記録します。
 void TrianglePipeline::RecordDrawCommands(ID3D12GraphicsCommandList* commandList,
                                           uint32_t frameIndex) const
 {

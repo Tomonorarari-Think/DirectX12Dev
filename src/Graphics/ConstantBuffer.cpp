@@ -11,7 +11,7 @@
 namespace dx12
 {
 
-/// <summary>デストラクタ。マップを解除します。</summary>
+/// @brief デストラクタ。マップを解除します。
 ConstantBuffer::~ConstantBuffer()
 {
     if (m_resource != nullptr && m_mappedData != nullptr)
@@ -23,7 +23,7 @@ ConstantBuffer::~ConstantBuffer()
 }
 
 
-/// <summary>フレーム数ぶんの領域を持つ定数バッファを生成します。</summary>
+/// @brief フレーム数ぶんの領域を持つ定数バッファを生成します。
 void ConstantBuffer::Initialize(ID3D12Device* device, uint32_t sizeInBytes, uint32_t frameCount)
 {
     assert(device != nullptr);
@@ -97,7 +97,7 @@ void ConstantBuffer::Initialize(ID3D12Device* device, uint32_t sizeInBytes, uint
 }
 
 
-/// <summary>指定フレームの領域へデータを書き込みます。</summary>
+/// @brief 指定フレームの領域へデータを書き込みます。
 void ConstantBuffer::Update(uint32_t frameIndex, const void* data, uint32_t sizeInBytes)
 {
     assert(m_mappedData != nullptr);
@@ -112,7 +112,7 @@ void ConstantBuffer::Update(uint32_t frameIndex, const void* data, uint32_t size
 }
 
 
-/// <summary>指定フレームの領域の GPU アドレスを取得します。</summary>
+/// @brief 指定フレームの領域の GPU アドレスを取得します。
 D3D12_GPU_VIRTUAL_ADDRESS ConstantBuffer::GpuAddress(uint32_t frameIndex) const
 {
     assert(m_resource != nullptr);

@@ -10,16 +10,15 @@ namespace dx12
 {
 namespace
 {
-/// <summary>ウィンドウクラス名。</summary>
-/// <remarks>
-/// OS 内部でウィンドウの「種類」を識別するための名前で、画面には表示されません。
-/// 他アプリと衝突しないよう固有の名前にします。
-/// </remarks>
+/// @brief ウィンドウクラス名。
+///
+/// OS 内部でウィンドウの「種類」を識別するための名前で、画面には表示されません。他アプリと衝突しな
+/// いよう固有の名前にします。
 constexpr const wchar_t* kWindowClassName = L"DirectX12DevWindowClass";
 } // namespace
 
 
-/// <summary>ウィンドウを破棄し、登録したウィンドウクラスを解除します。</summary>
+/// @brief ウィンドウを破棄し、登録したウィンドウクラスを解除します。
 Window::~Window()
 {
     if (m_hwnd != nullptr)
@@ -38,7 +37,7 @@ Window::~Window()
 }
 
 
-/// <summary>ウィンドウクラスを登録し、ウィンドウを生成して表示します。</summary>
+/// @brief ウィンドウクラスを登録し、ウィンドウを生成して表示します。
 void Window::Create(const std::wstring& title, uint32_t width, uint32_t height)
 {
     m_width  = width;
@@ -129,7 +128,7 @@ void Window::Create(const std::wstring& title, uint32_t width, uint32_t height)
 }
 
 
-/// <summary>メッセージキューを空になるまで処理します。</summary>
+/// @brief メッセージキューを空になるまで処理します。
 bool Window::ProcessMessages()
 {
     MSG message = {};
@@ -158,10 +157,9 @@ bool Window::ProcessMessages()
 }
 
 
-/// <summary>OS から呼ばれる静的コールバック。</summary>
-/// <remarks>
-/// 「this の取り戻し」だけを行い、実処理は <see cref="Window::HandleMessage"/> に委譲します。
-/// </remarks>
+/// @brief OS から呼ばれる静的コールバック。
+///
+/// 「this の取り戻し」だけを行い、実処理は `Window::HandleMessage` に委譲します。
 LRESULT CALLBACK Window::StaticWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     // WM_NCCREATE はウィンドウ生成時に最初に届くメッセージ群のひとつ。
@@ -192,7 +190,7 @@ LRESULT CALLBACK Window::StaticWindowProc(HWND hwnd, UINT message, WPARAM wParam
 }
 
 
-/// <summary>インスタンス単位の実際のメッセージ処理。</summary>
+/// @brief インスタンス単位の実際のメッセージ処理。
 LRESULT Window::HandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
