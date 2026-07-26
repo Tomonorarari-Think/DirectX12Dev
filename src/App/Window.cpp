@@ -10,15 +10,16 @@ namespace dx12
 {
 namespace
 {
-// ウィンドウクラス名。OS 内部でウィンドウの「種類」を識別するための名前で、
-// 画面には表示されません。他アプリと衝突しないよう固有の名前にします。
+/// <summary>ウィンドウクラス名。</summary>
+/// <remarks>
+/// OS 内部でウィンドウの「種類」を識別するための名前で、画面には表示されません。
+/// 他アプリと衝突しないよう固有の名前にします。
+/// </remarks>
 constexpr const wchar_t* kWindowClassName = L"DirectX12DevWindowClass";
 } // namespace
 
 
-//-----------------------------------------------------------------------------
-// デストラクタ
-//-----------------------------------------------------------------------------
+/// <summary>ウィンドウを破棄し、登録したウィンドウクラスを解除します。</summary>
 Window::~Window()
 {
     if (m_hwnd != nullptr)
@@ -37,9 +38,7 @@ Window::~Window()
 }
 
 
-//-----------------------------------------------------------------------------
-// Create : ウィンドウクラスを登録し、ウィンドウを生成して表示する
-//-----------------------------------------------------------------------------
+/// <summary>ウィンドウクラスを登録し、ウィンドウを生成して表示します。</summary>
 void Window::Create(const std::wstring& title, uint32_t width, uint32_t height)
 {
     m_width  = width;
@@ -130,9 +129,7 @@ void Window::Create(const std::wstring& title, uint32_t width, uint32_t height)
 }
 
 
-//-----------------------------------------------------------------------------
-// ProcessMessages : メッセージキューを空になるまで処理する
-//-----------------------------------------------------------------------------
+/// <summary>メッセージキューを空になるまで処理します。</summary>
 bool Window::ProcessMessages()
 {
     MSG message = {};
@@ -161,10 +158,10 @@ bool Window::ProcessMessages()
 }
 
 
-//-----------------------------------------------------------------------------
-// StaticWindowProc : OS から呼ばれる静的コールバック
-//   「this の取り戻し」だけを行い、実処理は HandleMessage に委譲する。
-//-----------------------------------------------------------------------------
+/// <summary>OS から呼ばれる静的コールバック。</summary>
+/// <remarks>
+/// 「this の取り戻し」だけを行い、実処理は <see cref="Window::HandleMessage"/> に委譲します。
+/// </remarks>
 LRESULT CALLBACK Window::StaticWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     // WM_NCCREATE はウィンドウ生成時に最初に届くメッセージ群のひとつ。
@@ -195,9 +192,7 @@ LRESULT CALLBACK Window::StaticWindowProc(HWND hwnd, UINT message, WPARAM wParam
 }
 
 
-//-----------------------------------------------------------------------------
-// HandleMessage : 実際のメッセージ処理
-//-----------------------------------------------------------------------------
+/// <summary>インスタンス単位の実際のメッセージ処理。</summary>
 LRESULT Window::HandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)

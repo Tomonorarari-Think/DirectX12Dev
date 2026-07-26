@@ -12,13 +12,15 @@ namespace dx12
 {
 namespace
 {
-//-----------------------------------------------------------------------------
-// HResultToMessage : HRESULT を人間が読める説明文に変換する（内部用）
-//
-//   FormatMessageW は Windows が持つ「エラーコード → 日本語（環境の言語）説明文」
-//   の変換 API です。DirectX 固有のコード（例: DXGI_ERROR_DEVICE_REMOVED）は
-//   変換できないことがあるため、その場合は 16 進数表記のみを返します。
-//-----------------------------------------------------------------------------
+
+/// <summary>HRESULT を人間が読める説明文に変換します。</summary>
+/// <param name="hr">変換する HRESULT。</param>
+/// <returns>説明文。取得できなかった場合は <c>"(説明文なし)"</c>。</returns>
+/// <remarks>
+/// <c>FormatMessageW</c> は Windows が持つ「エラーコード → 環境の言語の説明文」
+/// の変換 API です。DirectX 固有のコード（例: <c>DXGI_ERROR_DEVICE_REMOVED</c>）は
+/// 変換できないことがあるため、その場合は説明なしを返します。
+/// </remarks>
 std::wstring HResultToMessage(HRESULT hr)
 {
     LPWSTR buffer = nullptr;
@@ -55,9 +57,8 @@ std::wstring HResultToMessage(HRESULT hr)
     return message;
 }
 
-//-----------------------------------------------------------------------------
-// GetExecutableDirectory : 実行中の exe が置かれているフォルダを返す（内部用）
-//-----------------------------------------------------------------------------
+/// <summary>実行中の exe が置かれているフォルダを取得します。</summary>
+/// <returns>exe のあるディレクトリのパス。取得に失敗した場合はカレントディレクトリ。</returns>
 std::filesystem::path GetExecutableDirectory()
 {
     // MAX_PATH (260) を超える長いパスにも耐えられるよう、余裕を持ったバッファを使う
@@ -74,9 +75,8 @@ std::filesystem::path GetExecutableDirectory()
     return std::filesystem::path(buffer).parent_path();
 }
 
-//-----------------------------------------------------------------------------
-// WriteLine : コンソールとデバッガ出力の両方へ 1 行書き出す（内部用）
-//-----------------------------------------------------------------------------
+/// <summary>コンソールとデバッガ出力の両方へ 1 行書き出します。</summary>
+/// <param name="line">出力する行（改行は内部で付与します）。</param>
 void WriteLine(const std::wstring& line)
 {
     // (1) コンソールへ。std::wcout はワイド文字（UTF-16）用の出力ストリーム。
@@ -90,9 +90,7 @@ void WriteLine(const std::wstring& line)
 } // 無名 namespace（このファイルの外からは見えない ＝ 内部実装専用）
 
 
-//-----------------------------------------------------------------------------
-// ThrowIfFailed
-//-----------------------------------------------------------------------------
+/// <summary>HRESULT が失敗を示していれば HrException を送出します。</summary>
 void ThrowIfFailed(HRESULT hr, const char* expression, const char* file, int line)
 {
     // SUCCEEDED / FAILED は HRESULT の最上位ビットを見るマクロ。
@@ -122,22 +120,19 @@ void ThrowIfFailed(HRESULT hr, const char* expression, const char* file, int lin
     throw HrException(hr, message);
 }
 
-//-----------------------------------------------------------------------------
-// Log / LogError
-//-----------------------------------------------------------------------------
+/// <summary>情報ログを 1 行出力します。</summary>
 void Log(const std::wstring& message)
 {
     WriteLine(L"[INFO ] " + message);
 }
 
+/// <summary>エラーログを 1 行出力します。</summary>
 void LogError(const std::wstring& message)
 {
     WriteLine(L"[ERROR] " + message);
 }
 
-//-----------------------------------------------------------------------------
-// ResolveAssetPath
-//-----------------------------------------------------------------------------
+/// <summary>リソースファイルの実際の場所を探して絶対パスを返します。</summary>
 std::wstring ResolveAssetPath(const std::wstring& relativePath)
 {
     namespace fs = std::filesystem;
@@ -151,8 +146,8 @@ std::wstring ResolveAssetPath(const std::wstring& relativePath)
     for (const fs::path& root : searchRoots)
     {
         // 起点から親フォルダへ最大 5 階層さかのぼりながら探す。
-        //   例) exe が x64/Debug/ にあるとき、
-        //       x64/Debug/shaders → x64/shaders → <ルート>/shaders と探索が進む。
+        //   例) exe が build/x64/Debug/ にあるとき、
+        //       build/x64/Debug/shaders → build/x64/shaders → … と探索が進む。
         fs::path current = root;
         for (int depth = 0; depth < 5; ++depth)
         {

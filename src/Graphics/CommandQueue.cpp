@@ -8,12 +8,7 @@
 
 namespace dx12
 {
-//-----------------------------------------------------------------------------
-// デストラクタ
-//   ComPtr のメンバは自動解放されますが、HANDLE は COM ではないので
-//   自分で CloseHandle する必要があります。
-//   「自動で片付くもの」と「手で片付けるもの」を意識するのが大切です。
-//-----------------------------------------------------------------------------
+/// <summary>デストラクタ。待機用イベントハンドルを閉じます。</summary>
 CommandQueue::~CommandQueue()
 {
     if (m_fenceEvent != nullptr)
@@ -24,9 +19,7 @@ CommandQueue::~CommandQueue()
 }
 
 
-//-----------------------------------------------------------------------------
-// Initialize
-//-----------------------------------------------------------------------------
+/// <summary>コマンドキュー、フェンス、待機用イベントを生成します。</summary>
 void CommandQueue::Initialize(ID3D12Device* device, D3D12_COMMAND_LIST_TYPE type)
 {
     //-------------------------------------------------------------------------
@@ -72,9 +65,7 @@ void CommandQueue::Initialize(ID3D12Device* device, D3D12_COMMAND_LIST_TYPE type
 }
 
 
-//-----------------------------------------------------------------------------
-// ExecuteCommandList : コマンドリストを GPU へ投入する
-//-----------------------------------------------------------------------------
+/// <summary>記録済みのコマンドリストを GPU の実行待ち行列へ投入します。</summary>
 void CommandQueue::ExecuteCommandList(ID3D12GraphicsCommandList* commandList)
 {
     // ExecuteCommandLists は「複数のコマンドリストをまとめて投入する」API。
@@ -88,9 +79,7 @@ void CommandQueue::ExecuteCommandList(ID3D12GraphicsCommandList* commandList)
 }
 
 
-//-----------------------------------------------------------------------------
-// Signal : 「ここまで終わったら番号を進めて」とキューに積む
-//-----------------------------------------------------------------------------
+/// <summary>「ここまで終わったら番号を進めて」という指示をキューに積みます。</summary>
 uint64_t CommandQueue::Signal()
 {
     // 次の番号を発行する（0 は初期値なので、最初の Signal は 1 になる）
@@ -106,9 +95,7 @@ uint64_t CommandQueue::Signal()
 }
 
 
-//-----------------------------------------------------------------------------
-// WaitForFenceValue : 指定番号まで GPU が進むのを待つ
-//-----------------------------------------------------------------------------
+/// <summary>指定した番号まで GPU が到達するのを CPU 側で待ちます。</summary>
 void CommandQueue::WaitForFenceValue(uint64_t fenceValue)
 {
     // GetCompletedValue() は GPU が現在到達している番号を返す。
@@ -128,9 +115,7 @@ void CommandQueue::WaitForFenceValue(uint64_t fenceValue)
 }
 
 
-//-----------------------------------------------------------------------------
-// Flush : GPU の全作業完了を待つ
-//-----------------------------------------------------------------------------
+/// <summary>GPU の作業が「全部」終わるまで待ちます。</summary>
 uint64_t CommandQueue::Flush()
 {
     const uint64_t fenceValue = Signal();

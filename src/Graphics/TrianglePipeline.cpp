@@ -12,27 +12,29 @@ namespace dx12
 {
 namespace
 {
-//-----------------------------------------------------------------------------
-// 描画する三角形の頂点データ
-//
-//   NDC（正規化デバイス座標）で位置を指定します。
-//     x : 左 -1.0 〜 右 +1.0
-//     y : 下 -1.0 〜 上 +1.0
-//
-//        (0.0, 0.5) 赤
-//              ▲
-//             ╱ ╲
-//            ╱   ╲
-//           ╱     ╲
-//   (-0.5,-0.5)  (0.5,-0.5)
-//       青          緑
-//
-//   ★ 頂点を並べる順番（ワインディング順）が重要です。
-//     DirectX の既定では「時計回り (Clockwise) に見える面が表」です。
-//     上 → 右下 → 左下 の順は画面上で時計回りになるため、表向きとなり描画されます。
-//     順序を逆にすると裏面になり、背面カリング（D3D12_CULL_MODE_BACK）によって
-//     何も表示されなくなります。「三角形が出ない」ときの定番の原因です。
-//-----------------------------------------------------------------------------
+/// <summary>描画する三角形の頂点データ。</summary>
+/// <remarks>
+/// <para>
+/// NDC（正規化デバイス座標）で位置を指定します（x は左 -1.0〜右 +1.0、
+/// y は下 -1.0〜上 +1.0）。
+/// <code>
+///        (0.0, 0.5) 赤
+///              ▲
+///             ╱ ╲
+///            ╱   ╲
+///           ╱     ╲
+///   (-0.5,-0.5)  (0.5,-0.5)
+///       青          緑
+/// </code>
+/// </para>
+/// <para>
+/// 頂点を並べる順番（ワインディング順）が重要です。
+/// DirectX の既定では「時計回り (Clockwise) に見える面が表」です。
+/// 上 → 右下 → 左下 の順は画面上で時計回りになるため、表向きとなり描画されます。
+/// 順序を逆にすると裏面になり、背面カリング（<c>D3D12_CULL_MODE_BACK</c>）によって
+/// 何も表示されなくなります。「三角形が出ない」ときの定番の原因です。
+/// </para>
+/// </remarks>
 constexpr Vertex kTriangleVertices[] = {
     // 位置 { x, y, z }          色 { r, g, b, a }
     { {  0.0f,  0.5f, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } }, // 上　: 赤
@@ -40,36 +42,90 @@ constexpr Vertex kTriangleVertices[] = {
     { { -0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }, // 左下: 青
 };
 
-// シェーダーファイルの場所（プロジェクトルートからの相対パス）
+/// <summary>シェーダーファイルの場所（プロジェクトルートからの相対パス）。</summary>
 constexpr const wchar_t* kShaderRelativePath = L"shaders/Triangle.hlsl";
+
+/// <summary>三角形が 1 回転するのにかかる秒数。</summary>
+constexpr float kSecondsPerRotation = 4.0f;
+
+/// <summary>定数バッファを結び付けるルートパラメータの番号。</summary>
+/// <remarks>
+/// ルートシグネチャに登録した順番（0 始まり）です。
+/// <c>SetGraphicsRootConstantBufferView</c> の第 1 引数に渡す値であり、
+/// HLSL の <c>register(b0)</c> の番号とは別物である点に注意してください。
+/// </remarks>
+constexpr uint32_t kSceneConstantsRootParameterIndex = 0;
 } // namespace
 
 
-//-----------------------------------------------------------------------------
-// Initialize
-//-----------------------------------------------------------------------------
-void TrianglePipeline::Initialize(ID3D12Device* device, DXGI_FORMAT renderTargetFormat)
+/// <summary>ルートシグネチャ・PSO・頂点バッファ・定数バッファを生成します。</summary>
+void TrianglePipeline::Initialize(ID3D12Device* device,
+                                  DXGI_FORMAT renderTargetFormat,
+                                  uint32_t frameCount)
 {
     CreateRootSignature(device);
     CreatePipelineState(device, renderTargetFormat);
     CreateVertexBuffer(device);
 
+    // 変換行列を毎フレーム渡すための定数バッファ。
+    // フレーム数ぶん確保することで、GPU が読んでいる領域を CPU が
+    // 書き換えてしまう事故を防ぐ（詳細は ConstantBuffer のコメント参照）。
+    m_constantBuffer.Initialize(device, sizeof(SceneConstants), frameCount);
+
     Log(L"三角形描画パイプラインを構築しました。");
 }
 
 
-//-----------------------------------------------------------------------------
-// CreateRootSignature : ルートシグネチャを作る
-//-----------------------------------------------------------------------------
+/// <summary>ルートシグネチャを生成します。</summary>
 void TrianglePipeline::CreateRootSignature(ID3D12Device* device)
 {
     //-------------------------------------------------------------------------
-    // 今回のシェーダーは定数バッファもテクスチャも使いません。
-    // したがってパラメータ 0 個の「空のルートシグネチャ」になります。
+    // ルートパラメータ : シェーダーへ何を渡すかの定義。関数の引数リストに相当する。
+    //
+    //   ■ 渡し方は 3 種類あり、用途で使い分けます
+    //
+    //     (a) ルート定数 (ROOT_32BIT_CONSTANTS)
+    //           数値を数個だけルートシグネチャに直接埋め込む。最速だが容量が極小。
+    //           行列 1 個（16 個の float）でも枠を大きく消費するため、多用は不可。
+    //
+    //     (b) ルートディスクリプタ (CBV / SRV / UAV)  ← 今回採用
+    //           GPU アドレスを直接渡す。ディスクリプタヒープが不要で手軽。
+    //           バッファ 1 本を丸ごと渡す用途に向く。
+    //
+    //     (c) ディスクリプタテーブル
+    //           ディスクリプタヒープ上の範囲を渡す。テクスチャを何十枚も
+    //           まとめて渡すときに必須。最も柔軟だがヒープ管理が要る。
+    //
+    //   ■ なぜ今回は (b) なのか
+    //     渡すのは行列 1 個だけで、ディスクリプタヒープを導入すると
+    //     学ぶことが一気に増えるためです。テクスチャを扱う段階になったら
+    //     (c) を追加します。
+    //
+    //   ■ ルートシグネチャは小さいほど速い
+    //     ルートシグネチャの中身は GPU の高速な専用領域に置かれます。
+    //     大きくすると溢れてメモリ経由になり遅くなるため、
+    //     「本当に必要なものだけ」を並べるのが原則です。
     //-------------------------------------------------------------------------
+    D3D12_ROOT_PARAMETER rootParameters[1] = {};
+
+    // 0 番 : シーン共通の定数バッファ（変換行列）
+    rootParameters[kSceneConstantsRootParameterIndex].ParameterType =
+        D3D12_ROOT_PARAMETER_TYPE_CBV;
+
+    // ShaderRegister = 0 は HLSL 側の register(b0) に対応する。
+    // ここがずれるとシェーダーに値が届かない（エラーにはならず絵が壊れる）。
+    rootParameters[kSceneConstantsRootParameterIndex].Descriptor.ShaderRegister = 0;
+    rootParameters[kSceneConstantsRootParameterIndex].Descriptor.RegisterSpace  = 0;
+
+    // ShaderVisibility : どのシェーダー段から見えるようにするか。
+    //   今回、行列を使うのは頂点シェーダーだけなので VERTEX に限定する。
+    //   ALL より狭くするほど GPU が最適化しやすくなる。
+    rootParameters[kSceneConstantsRootParameterIndex].ShaderVisibility =
+        D3D12_SHADER_VISIBILITY_VERTEX;
+
     D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
-    rootSignatureDesc.NumParameters     = 0;
-    rootSignatureDesc.pParameters       = nullptr;
+    rootSignatureDesc.NumParameters     = _countof(rootParameters);
+    rootSignatureDesc.pParameters       = rootParameters;
     rootSignatureDesc.NumStaticSamplers = 0;
     rootSignatureDesc.pStaticSamplers   = nullptr;
 
@@ -125,22 +181,7 @@ void TrianglePipeline::CreateRootSignature(ID3D12Device* device)
 }
 
 
-//-----------------------------------------------------------------------------
-// CompileShader : HLSL を実行時にコンパイルする
-//
-//   ■ シェーダーのコンパイル方式は 2 通り
-//     (a) 事前コンパイル（ビルド時に .cso ファイルを生成して読み込む）
-//           起動が速く、製品版ではこちらが基本。
-//     (b) 実行時コンパイル（本実装）
-//           .hlsl を書き換えて再実行するだけで結果を確認できるため、
-//           学習中はこちらが圧倒的に扱いやすい。
-//
-//   ■ D3DCompile と DXC の違い
-//     ここで使う D3DCompileFromFile は「FXC」と呼ばれる旧コンパイラで、
-//     シェーダーモデル 5.1 までの対応です。三角形を描くには十分ですが、
-//     最新機能（シェーダーモデル 6.x、レイトレーシング等）を使う場合は
-//     DXC (DirectX Shader Compiler / dxcompiler.dll) が必要になります。
-//-----------------------------------------------------------------------------
+/// <summary>HLSL ファイルをコンパイルして、GPU 用のバイトコードを得ます。</summary>
 ComPtr<ID3DBlob> TrianglePipeline::CompileShader(const std::wstring& filePath,
                                                  const char* entryPoint,
                                                  const char* target)
@@ -194,9 +235,7 @@ ComPtr<ID3DBlob> TrianglePipeline::CompileShader(const std::wstring& filePath,
 }
 
 
-//-----------------------------------------------------------------------------
-// CreatePipelineState : PSO を作る
-//-----------------------------------------------------------------------------
+/// <summary>HLSL をコンパイルし、パイプラインステートオブジェクトを生成します。</summary>
 void TrianglePipeline::CreatePipelineState(ID3D12Device* device, DXGI_FORMAT renderTargetFormat)
 {
     //-------------------------------------------------------------------------
@@ -366,9 +405,7 @@ void TrianglePipeline::CreatePipelineState(ID3D12Device* device, DXGI_FORMAT ren
 }
 
 
-//-----------------------------------------------------------------------------
-// CreateVertexBuffer : 頂点データを GPU メモリに置く
-//-----------------------------------------------------------------------------
+/// <summary>頂点バッファを作り、頂点データを書き込みます。</summary>
 void TrianglePipeline::CreateVertexBuffer(ID3D12Device* device)
 {
     const UINT vertexBufferSize = sizeof(kTriangleVertices);
@@ -478,10 +515,85 @@ void TrianglePipeline::CreateVertexBuffer(ID3D12Device* device)
 }
 
 
-//-----------------------------------------------------------------------------
-// RecordDrawCommands : 描画命令をコマンドリストに記録する
-//-----------------------------------------------------------------------------
-void TrianglePipeline::RecordDrawCommands(ID3D12GraphicsCommandList* commandList) const
+/// <summary>このフレームの変換行列を計算し、定数バッファへ書き込みます。</summary>
+void TrianglePipeline::Update(uint32_t frameIndex, float aspectRatio, float totalSeconds)
+{
+    using namespace DirectX;
+
+    //-------------------------------------------------------------------------
+    // (1) ワールド行列 : 物体そのものを動かす変換
+    //
+    //   ここでは Z 軸まわりの回転だけを行います。
+    //   Z 軸は「画面の奥から手前へ向かう軸」なので、
+    //   Z 軸まわりの回転 ＝ 画面内でくるくる回る動きになります。
+    //
+    //   角度はラジアン（1 周 = 2π）で指定します。度ではありません。
+    //   経過時間に比例させることで、フレームレートに依存しない
+    //   一定速度の回転になります（fps が変わっても見た目の速さは同じ）。
+    //-------------------------------------------------------------------------
+    const float rotationAngle = totalSeconds * (XM_2PI / kSecondsPerRotation);
+
+    const XMMATRIX world = XMMatrixRotationZ(rotationAngle);
+
+    //-------------------------------------------------------------------------
+    // (2) アスペクト比の補正
+    //
+    //   NDC（正規化デバイス座標）は、縦横どちらも -1〜+1 の「正方形」です。
+    //   しかし実際のウィンドウは 1280x720 のような横長です。
+    //   この正方形が横長に引き伸ばされて表示されるため、
+    //   何も補正しないと回転中の三角形が歪んで見えます。
+    //
+    //   そこで X 方向を 1/アスペクト比 だけ縮めておき、
+    //   引き伸ばされた結果が正しい形になるようにします。
+    //
+    //     ウィンドウ 1280x720 → aspectRatio = 1.777...
+    //     → X を 0.5625 倍しておく → 表示時に 1.777 倍されて元通り
+    //
+    //   本来ここには「ビュー行列（カメラの位置と向き）」と
+    //   「プロジェクション行列（透視投影）」が入ります。
+    //   3D を扱う段階になったら、この行を差し替えることになります。
+    //-------------------------------------------------------------------------
+    const XMMATRIX aspectCorrection = XMMatrixScaling(1.0f / aspectRatio, 1.0f, 1.0f);
+
+    //-------------------------------------------------------------------------
+    // (3) 行列を 1 個にまとめる
+    //
+    //   行列の掛け算は順序が意味を持ちます（交換法則が成り立たない）。
+    //   DirectXMath は「行ベクトル規約」なので、
+    //   頂点は v × world × aspectCorrection の順に変換されます。
+    //   つまり「先に適用したい変換を左に書く」ことになります。
+    //
+    //   まとめておけば、シェーダー側は行列 1 個を掛けるだけで済みます。
+    //   頂点が何万個あっても掛け算は 1 回で済むため、これが定石です。
+    //-------------------------------------------------------------------------
+    const XMMATRIX worldViewProjection = world * aspectCorrection;
+
+    //-------------------------------------------------------------------------
+    // (4) 転置してから定数バッファへ書き込む
+    //
+    //   ★ 初学者が必ず一度は嵌まる箇所です。
+    //
+    //   DirectXMath は行列を「行優先 (row-major)」でメモリに並べます。
+    //   一方 HLSL は、定数バッファ内の行列を既定で「列優先 (column-major)」
+    //   として読み取ります。そのまま渡すと転置された行列と解釈され、
+    //   三角形が意図しない方向に飛んだり潰れたりします。
+    //
+    //   あらかじめ CPU 側で転置しておけば、
+    //   「行優先で並べた M の転置」＝「列優先で並べた M」となり辻褄が合います。
+    //
+    //   （別解として HLSL 側に row_major と書く方法もありますが、
+    //     CPU で 1 回転置する方が GPU の負担が軽く、一般的です）
+    //-------------------------------------------------------------------------
+    SceneConstants constants = {};
+    XMStoreFloat4x4(&constants.worldViewProjection, XMMatrixTranspose(worldViewProjection));
+
+    m_constantBuffer.Update(frameIndex, &constants, sizeof(constants));
+}
+
+
+/// <summary>コマンドリストに「三角形を描く」命令を記録します。</summary>
+void TrianglePipeline::RecordDrawCommands(ID3D12GraphicsCommandList* commandList,
+                                          uint32_t frameIndex) const
 {
     //-------------------------------------------------------------------------
     // (0) 使用するパイプラインステート（PSO）を設定する
@@ -497,6 +609,23 @@ void TrianglePipeline::RecordDrawCommands(ID3D12GraphicsCommandList* commandList
     //     PSO にも設定済みだが、コマンドリスト側にも明示的に設定する必要がある
     //     （PSO とルートシグネチャは別々に管理されているため。省略するとエラー）
     commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+
+    //-------------------------------------------------------------------------
+    // (1-b) 定数バッファをルートパラメータ 0 番に結び付ける
+    //
+    //   ルートディスクリプタなので、ディスクリプタヒープを経由せず
+    //   GPU アドレスを直接渡せます。
+    //
+    //   ★ frameIndex ぶんずらしたアドレスを渡すのが重要です。
+    //     GPU がまだ前のフレームの領域を読んでいる可能性があるため、
+    //     フレームごとに別の領域を指す必要があります。
+    //
+    //   なお、この設定もコマンドリストを Reset するたびに消えるため、
+    //   毎フレーム呼び直す必要があります。
+    //-------------------------------------------------------------------------
+    commandList->SetGraphicsRootConstantBufferView(
+        kSceneConstantsRootParameterIndex,
+        m_constantBuffer.GpuAddress(frameIndex));
 
     //-------------------------------------------------------------------------
     // (2) プリミティブトポロジ（頂点の結び方）を設定する
