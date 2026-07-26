@@ -219,6 +219,7 @@
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\App\Window.cpp" />
+    <ClCompile Include="src\Common\FrameTimer.cpp" />
     <ClCompile Include="src\Common\GraphicsCommon.cpp" />
     <ClCompile Include="src\Graphics\CommandQueue.cpp" />
     <ClCompile Include="src\Graphics\GraphicsDevice.cpp" />
@@ -237,6 +238,7 @@
   -->
   <ItemGroup>
     <ClInclude Include="src\App\Window.h" />
+    <ClInclude Include="src\Common\FrameTimer.h" />
     <ClInclude Include="src\Common\GraphicsCommon.h" />
     <ClInclude Include="src\Graphics\CommandQueue.h" />
     <ClInclude Include="src\Graphics\GraphicsDevice.h" />

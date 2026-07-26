@@ -131,9 +131,14 @@ void CommandQueue::WaitForFenceValue(uint64_t fenceValue)
 //-----------------------------------------------------------------------------
 // Flush : GPU の全作業完了を待つ
 //-----------------------------------------------------------------------------
-void CommandQueue::Flush()
+uint64_t CommandQueue::Flush()
 {
-    WaitForFenceValue(Signal());
+    const uint64_t fenceValue = Signal();
+    WaitForFenceValue(fenceValue);
+
+    // 呼び出し側が「この値まで全て完了済み」と記録できるよう返す。
+    // Renderer はこれをフレームごとのフェンス値配列に一括で書き込みます。
+    return fenceValue;
 }
 
 } // namespace dx12
