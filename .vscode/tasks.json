@@ -1,0 +1,100 @@
+// ============================================================================
+//  tasks.json
+//    VSCode の「タスク」定義ファイル。
+//    Ctrl+Shift+B （既定のビルドタスク実行）や、
+//    Ctrl+Shift+P → "Tasks: Run Task" から実行できます。
+//
+//    ※ このファイルは JSONC 形式（コメント付き JSON）です。
+//      通常の JSON と違い // でコメントを書けます。
+// ============================================================================
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      // ------------------------------------------------------------------
+      // Debug ビルド（既定のビルドタスク）
+      //   Ctrl+Shift+B で実行されます。
+      //   デバッグレイヤーが有効になるのはこちらの構成です。
+      // ------------------------------------------------------------------
+      "label": "build (Debug x64)",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",              // 起動を速くするためユーザープロファイルを読まない
+        "-ExecutionPolicy", "Bypass", // スクリプト実行ポリシーの制限を回避
+        "-File", "${workspaceFolder}/tools/build.ps1",
+        "-Configuration", "Debug",
+        "-Platform", "x64"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true          // Ctrl+Shift+B で選ばれるタスク
+      },
+      // problemMatcher : ビルド出力からエラー行を解析し、
+      //                  「問題」パネルに一覧表示してクリックで飛べるようにする。
+      //                  $msCompile は MSVC の出力形式に対応した組み込み定義。
+      "problemMatcher": "$msCompile",
+      "presentation": {
+        "reveal": "always",        // 実行時に必ずターミナルを表示する
+        "panel": "shared",         // 毎回同じターミナルを使い回す
+        "clear": true              // 実行前に前回の出力を消す
+      }
+    },
+    {
+      // ------------------------------------------------------------------
+      // Release ビルド
+      //   最適化が有効。デバッグレイヤーは無効になります。
+      //   「デバッグレイヤーを切ると速くなる」ことの確認に使えます。
+      // ------------------------------------------------------------------
+      "label": "build (Release x64)",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", "${workspaceFolder}/tools/build.ps1",
+        "-Configuration", "Release",
+        "-Platform", "x64"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+    {
+      // ------------------------------------------------------------------
+      // クリーン
+      //   中間ファイル・実行ファイルを削除します。
+      //   「前回のビルド結果が残っていておかしい」ときに使います。
+      // ------------------------------------------------------------------
+      "label": "clean",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", "${workspaceFolder}/tools/build.ps1",
+        "-Target", "Clean",
+        "-Configuration", "Debug",
+        "-Platform", "x64"
+      ],
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+    {
+      // ------------------------------------------------------------------
+      // ビルドせずに実行するだけのタスク
+      //   デバッガを使わず、素早く動作だけ見たいときに便利です。
+      // ------------------------------------------------------------------
+      "label": "run (no debug)",
+      "type": "shell",
+      "command": "${workspaceFolder}/build/x64/Debug/DirectX12Dev.exe",
+      "options": {
+        // シェーダーを読み込めるよう、作業ディレクトリをプロジェクトルートにする
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": ["build (Debug x64)"], // 実行前に必ずビルドする
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared" }
+    }
+  ]
+}

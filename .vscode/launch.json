@@ -1,0 +1,65 @@
+// ============================================================================
+//  launch.json
+//    VSCode のデバッグ実行 (F5) の設定。
+//
+//    ■ 必要な拡張機能
+//      「C/C++」(ms-vscode.cpptools) が必須です。
+//      未インストールだと type: "cppvsdbg" が認識されません。
+//
+//    ■ cppvsdbg と cppdbg の違い
+//      cppvsdbg … Visual Studio のデバッガ (MSVC/PDB 用)。本プロジェクトはこちら。
+//      cppdbg   … GDB / LLDB 用。MinGW や Linux 向け。
+//      MSVC でビルドしたものを cppdbg で開こうとしても動きません。
+// ============================================================================
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // ------------------------------------------------------------------
+      // Debug ビルドをデバッグ実行する
+      // ------------------------------------------------------------------
+      "name": "Debug (x64)",
+      "type": "cppvsdbg",
+      "request": "launch",
+
+      // 実行するファイル。vcxproj の OutDir 設定と一致させています。
+      "program": "${workspaceFolder}/build/x64/Debug/DirectX12Dev.exe",
+
+      "args": [],
+      "stopAtEntry": false,
+
+      // ★ 作業ディレクトリ
+      //   shaders/Triangle.hlsl を実行時に読み込むため、
+      //   プロジェクトルートを指定します。
+      "cwd": "${workspaceFolder}",
+
+      "environment": [],
+
+      // console : コンソール出力の表示先。
+      //   本プロジェクトはコンソールサブシステムでビルドしており、
+      //   初期化ログが標準出力に流れます。
+      //   integratedTerminal にすると VSCode 内のターミナルに表示されます。
+      "console": "integratedTerminal",
+
+      // デバッグ開始前に自動でビルドする（tasks.json の label と一致させる）
+      "preLaunchTask": "build (Debug x64)"
+    },
+    {
+      // ------------------------------------------------------------------
+      // Release ビルドをデバッグ実行する
+      //   最適化により変数が見えないことがあります。
+      //   性能を測りたいときに使ってください。
+      // ------------------------------------------------------------------
+      "name": "Release (x64)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/x64/Release/DirectX12Dev.exe",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "console": "integratedTerminal",
+      "preLaunchTask": "build (Release x64)"
+    }
+  ]
+}
