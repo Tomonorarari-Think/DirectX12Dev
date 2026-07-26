@@ -36,9 +36,20 @@ Direct3D 11 でも 12 でも同じ DXGI を使います。
 
 役割分担のイメージ:
 
-```
-DXGI    … 「どの GPU を使うか」「どうやって画面に出すか」   ← 周辺
-Direct3D… 「どう描くか」                                  ← 本体
+```mermaid
+flowchart LR
+    subgraph DXGI["DXGI（周辺）"]
+        A1["どの GPU を使うか<br/>アダプタの列挙・選択"]
+        A2["どうやって画面に出すか<br/>スワップチェーン"]
+    end
+    subgraph D3D["Direct3D 12（本体）"]
+        B1["どう描くか<br/>デバイス・コマンド・リソース"]
+    end
+    A1 --> B1
+    B1 --> A2
+
+    style DXGI fill:#fff8c5,stroke:#d4a72c
+    style D3D fill:#ddf4ff,stroke:#0969da
 ```
 
 ### アダプタ (IDXGIAdapter)
@@ -50,7 +61,7 @@ GPU 1 台を表すオブジェクト。
 本プロジェクトでは `EnumAdapterByGpuPreference` に
 `DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE` を渡し、高性能な GPU から順に試しています。
 
-> 該当コード: [`GraphicsDevice::SelectAdapter`](../src/Graphics/GraphicsDevice.cpp)
+> 該当コード: [`GraphicsDevice::SelectAdapter`](../../src/Graphics/GraphicsDevice.cpp)
 
 ### デバイス (ID3D12Device)
 
@@ -85,7 +96,7 @@ C++ を書くようなものです。** 必ず有効にしてください。
 有効化は **デバイスを作る前** でなければ効きません。
 デバイスの生成時に「検証機能つきの実装」に差し替える仕組みだからです。
 
-> 該当コード: [`GraphicsDevice::EnableDebugLayer`](../src/Graphics/GraphicsDevice.cpp)
+> 該当コード: [`GraphicsDevice::EnableDebugLayer`](../../src/Graphics/GraphicsDevice.cpp)
 
 ---
 
@@ -146,13 +157,24 @@ commandQueue->ExecuteCommandLists(1, lists);  // ← ここで GPU が動き始�
 
 CPU と GPU が共有する **64bit のカウンタ**。実体はそれだけです。
 
-```
-CPU: queue->Signal(fence, 5)    「ここまで終わったらカウンタを 5 にして」と予約
-                                 ※ この行の実行時点ではまだ 5 になっていない
+```mermaid
+sequenceDiagram
+    participant CPU
+    participant Queue as コマンドキュー
+    participant GPU
+    participant Fence as フェンス（カウンタ）
 
-GPU: （それ以前の命令を全部実行）→ カウンタを 5 にする
+    CPU->>Queue: ExecuteCommandLists()（描画命令）
+    CPU->>Queue: Signal(fence, 5)
+    Note over CPU,Queue: 「ここまで終わったらカウンタを 5 にして」と予約するだけ。<br/>この時点ではまだ 5 になっていない
+    CPU-->>CPU: 待たずに次フレームの記録へ進む
 
-CPU: fence->GetCompletedValue() >= 5  → 「5 までの仕事は完了済み」と判断できる
+    Queue->>GPU: 順番に実行
+    GPU->>Fence: それ以前の命令を全部実行し終えた → カウンタを 5 にする
+
+    CPU->>Fence: GetCompletedValue()
+    Fence-->>CPU: 5
+    Note over CPU: 5 以上なら「5 までの仕事は完了済み」と判断できる
 ```
 
 **番号札**と考えると分かりやすいです。
@@ -171,7 +193,7 @@ fence->SetEventOnCompletion(value, hEvent);
 WaitForSingleObject(hEvent, INFINITE);
 ```
 
-> 該当コード: [`CommandQueue::WaitForFenceValue`](../src/Graphics/CommandQueue.cpp)
+> 該当コード: [`CommandQueue::WaitForFenceValue`](../../src/Graphics/CommandQueue.cpp)
 
 ---
 
@@ -197,7 +219,7 @@ GPU が扱うデータの入れ物。頂点バッファもテクスチャもレ�
 本プロジェクトの頂点バッファは、学習の初回として手順を減らすため
 `UPLOAD` に直接置いています（本来は `DEFAULT` が正しい選択です）。
 
-> 該当コード: [`TrianglePipeline::CreateVertexBuffer`](../src/Graphics/TrianglePipeline.cpp)
+> 該当コード: [`TrianglePipeline::CreateVertexBuffer`](../../src/Graphics/TrianglePipeline.cpp)
 
 ### リソースバリア (Resource Barrier)
 
@@ -223,7 +245,7 @@ PRESENT       → RENDER_TARGET   // 描き始める前
 RENDER_TARGET → PRESENT         // 描き終わって表示する前
 ```
 
-> 該当コード: [`Renderer::RecordResourceBarrier`](../src/Graphics/Renderer.cpp)
+> 該当コード: [`Renderer::RecordResourceBarrier`](../../src/Graphics/Renderer.cpp)
 
 ---
 
@@ -245,13 +267,7 @@ DirectX 12 では、まずヒープ（配列）を確保し、
 「何番目にどのディスクリプタを書くか」を自分で管理します。
 DirectX 11 が裏でやっていた仕事が明示的になったものです。
 
-```
-ディスクリプタヒープ (RTV 用, 要素数 2)
-┌──────────────┬──────────────┐
-│  [0] RTV      │  [1] RTV      │
-│  → バッファ0  │  → バッファ1  │
-└──────────────┴──────────────┘
-```
+![ディスクリプタヒープとバックバッファの対応](../assets/descriptor-heap.svg)
 
 **N 番目の位置の求め方:**
 
@@ -346,7 +362,9 @@ GPU はデータの受け渡しを高速に解決できます。
    読んでいる可能性があります。1 個を使い回すと描画途中で値が変わり、絵が壊れます。
    コマンドアロケータと同じく、バックバッファの枚数ぶん用意します。
 
-> 該当コード: [`ConstantBuffer`](../src/Graphics/ConstantBuffer.h)
+![定数バッファのフレーム別レイアウト](../assets/constant-buffer-layout.svg)
+
+> 該当コード: [`ConstantBuffer`](../../src/Graphics/ConstantBuffer.h)
 
 ### パイプラインステートオブジェクト (PSO)
 
@@ -404,12 +422,7 @@ C++ 側の入力レイアウトと HLSL 側の変数を結び付ける「接着�
 
 表示用の画像を複数枚持ち、入れ替えながら表示する仕組み。
 
-```
-フロントバッファ … 今まさに画面に映っている絵
-バックバッファ   … 次に見せるため裏で描いている絵
-
-Present() を呼ぶと役割が入れ替わる
-```
+![スワップチェーンによるバッファ入れ替え](../assets/swapchain.svg)
 
 1 枚しかないと「表示中の絵に上書きしながら描く」ことになり、
 描きかけがそのまま見えます（チラつき・裂け目）。
@@ -439,6 +452,23 @@ Present() を呼ぶと役割が入れ替わる
 
 という判定（**深度テスト**）を自動で行い、
 **描く順番に関係なく前後関係が正しくなります**。
+
+![深度テストの有無による見え方の違い](../assets/depth-test.svg)
+
+判定の流れを図にすると次のようになります。
+
+```mermaid
+flowchart TD
+    A["ラスタライズされたピクセル"] --> B["このピクセルの深度 z を計算"]
+    B --> C{"z &lt; 深度バッファの記録値<br/>（DepthFunc = LESS）"}
+    C -- "合格（手前）" --> D["ピクセルシェーダーを実行して色を書く"]
+    D --> E["深度バッファも z で更新<br/>（DepthWriteMask = ALL）"]
+    C -- "不合格（奥）" --> F["ピクセルを捨てる<br/>シェーダーすら実行しない（Early-Z）"]
+
+    style D fill:#dafbe1,stroke:#1a7f37
+    style E fill:#dafbe1,stroke:#1a7f37
+    style F fill:#ffebe9,stroke:#cf222e
+```
 
 ### 深度テストの設定（PSO の DepthStencilState）
 
@@ -496,13 +526,7 @@ RTV 用ヒープに混ぜて置くことはできません。専用のヒープ�
 
 シェーダーが出力する座標系。
 
-```
-        y = +1.0
-           ↑
-x = -1.0 ←─┼─→ x = +1.0     ※ 中央が (0, 0)
-           ↓                 ※ y は上が正（DirectX の慣習）
-        y = -1.0
-```
+![NDC 正規化デバイス座標](../assets/ndc-coordinates.svg)
 
 **注意: NDC は正方形ですが、ウィンドウは正方形とは限りません。**
 1280x720 のウィンドウでは、この正方形が横に 1.78 倍引き伸ばされて表示されます。
