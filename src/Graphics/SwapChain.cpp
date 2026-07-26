@@ -8,9 +8,7 @@
 
 namespace dx12
 {
-//-----------------------------------------------------------------------------
-// Initialize
-//-----------------------------------------------------------------------------
+/// <summary>スワップチェーンと RTV ディスクリプタヒープを生成します。</summary>
 void SwapChain::Initialize(IDXGIFactory6* factory,
                            ID3D12Device* device,
                            ID3D12CommandQueue* commandQueue,
@@ -132,10 +130,7 @@ void SwapChain::Initialize(IDXGIFactory6* factory,
 }
 
 
-//-----------------------------------------------------------------------------
-// CreateRenderTargetViews
-//   バックバッファのリソースを取得し、それぞれの RTV をヒープに書き込む。
-//-----------------------------------------------------------------------------
+/// <summary>バックバッファを取得し、それぞれの RTV をヒープに書き込みます。</summary>
 void SwapChain::CreateRenderTargetViews(ID3D12Device* device)
 {
     //-------------------------------------------------------------------------
@@ -174,9 +169,7 @@ void SwapChain::CreateRenderTargetViews(ID3D12Device* device)
 }
 
 
-//-----------------------------------------------------------------------------
-// CurrentRenderTargetView
-//-----------------------------------------------------------------------------
+/// <summary>現在のバックバッファに対応する RTV ディスクリプタの位置を返します。</summary>
 D3D12_CPU_DESCRIPTOR_HANDLE SwapChain::CurrentRenderTargetView() const
 {
     D3D12_CPU_DESCRIPTOR_HANDLE handle = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
@@ -188,9 +181,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE SwapChain::CurrentRenderTargetView() const
 }
 
 
-//-----------------------------------------------------------------------------
-// Present : 画面に表示する
-//-----------------------------------------------------------------------------
+/// <summary>画面に表示し、バックバッファを入れ替えます。</summary>
 void SwapChain::Present(bool enableVSync)
 {
     //-------------------------------------------------------------------------
@@ -216,9 +207,7 @@ void SwapChain::Present(bool enableVSync)
 }
 
 
-//-----------------------------------------------------------------------------
-// Resize : ウィンドウサイズ変更に追従する
-//-----------------------------------------------------------------------------
+/// <summary>ウィンドウサイズ変更に追従してバックバッファを作り直します。</summary>
 void SwapChain::Resize(ID3D12Device* device, uint32_t width, uint32_t height)
 {
     if (width == 0 || height == 0)
