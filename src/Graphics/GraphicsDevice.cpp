@@ -14,34 +14,29 @@ namespace dx12
 {
 namespace
 {
-/// <summary>デバイス生成時に要求する最低限の機能レベル。</summary>
-/// <remarks>
-/// <para>
-/// <b>機能レベルとは</b><br/>
-/// GPU が「どの世代の機能まで対応しているか」を段階で表したもの。
-/// <c>D3D_FEATURE_LEVEL_11_0</c> は DirectX 11 世代（2009 年頃）の機能に相当します。
-/// </para>
-/// <para>
-/// <b>D3D12 なのに 11_0 でよいのか？</b><br/>
-/// はい。「DirectX 12 API」と「GPU の機能レベル」は別物です。
-/// DirectX 12 は API の設計（CPU と GPU の仕事の分け方）が新しいのであって、
-/// 必ずしも最新機能を要求しません。11_0 にしておけば対応 GPU の幅が広がり、
-/// 三角形を描くには十分です。
-/// </para>
-/// </remarks>
+/// @brief デバイス生成時に要求する最低限の機能レベル。
+///
+/// **機能レベルとは**
+///
+/// GPU が「どの世代の機能まで対応しているか」を段階で表したもの。`D3D_FEATURE_LEVEL_11_0` は
+/// DirectX 11 世代（2009 年頃）の機能に相当します。
+///
+/// **D3D12 なのに 11_0 でよいのか？**
+///
+/// はい。「DirectX 12 API」と「GPU の機能レベル」は別物です。DirectX 12 は API の設計（CPU と GPU
+/// の仕事の分け方）が新しいのであって、必ずしも最新機能を要求しません。11_0 にしておけば対応 GPU の
+/// 幅が広がり、三角形を描くには十分です。
 constexpr D3D_FEATURE_LEVEL kMinimumFeatureLevel = D3D_FEATURE_LEVEL_11_0;
 } // namespace
 
 
-/// <summary>デストラクタ。ComPtr により全ての COM オブジェクトが自動解放されます。</summary>
-/// <remarks>
-/// メンバは宣言と逆順に破棄されるため、device → adapter → factory の順に
-/// 参照が外れていきます。
-/// </remarks>
+/// @brief デストラクタ。ComPtr により全ての COM オブジェクトが自動解放されます。
+///
+/// メンバは宣言と逆順に破棄されるため、device → adapter → factory の順に参照が外れていきます。
 GraphicsDevice::~GraphicsDevice() = default;
 
 
-/// <summary>DirectX 12 の土台を初期化します。</summary>
+/// @brief DirectX 12 の土台を初期化します。
 void GraphicsDevice::Initialize()
 {
     EnableDebugLayer();   // ← 必ずデバイス生成より前に呼ぶこと
@@ -54,12 +49,11 @@ void GraphicsDevice::Initialize()
 }
 
 
-/// <summary>デバッグレイヤーを有効化します（Debug ビルドのみ）。</summary>
-/// <remarks>
-/// 有効化に失敗するのは、Windows の「オプション機能」に <i>Graphics Tools</i> が
-/// 入っていない場合です（設定 &gt; システム &gt; オプション機能 &gt; 機能を追加）。
-/// その場合でもアプリは動作するため、例外を投げず警告ログに留めます。
-/// </remarks>
+/// @brief デバッグレイヤーを有効化します（Debug ビルドのみ）。
+///
+/// 有効化に失敗するのは、Windows の「オプション機能」に *Graphics Tools* が入っていない場合です（設
+/// 定 > システム > オプション機能 > 機能を追加）。その場合でもアプリは動作するため、例外を投げず警
+/// 告ログに留めます。
 void GraphicsDevice::EnableDebugLayer()
 {
 #if defined(_DEBUG)
@@ -86,7 +80,7 @@ void GraphicsDevice::EnableDebugLayer()
 }
 
 
-/// <summary>DXGI ファクトリを生成します。</summary>
+/// @brief DXGI ファクトリを生成します。
 void GraphicsDevice::CreateFactory()
 {
     UINT factoryFlags = 0;
@@ -112,13 +106,11 @@ void GraphicsDevice::CreateFactory()
 }
 
 
-/// <summary>描画に使う GPU（アダプタ）を選択します。</summary>
-/// <remarks>
-/// ノート PC などでは「CPU 内蔵 GPU（省電力・低性能）」と
-/// 「専用 GPU（高性能）」が両方存在します。何も考えずに 0 番を選ぶと
-/// 内蔵 GPU が当たってしまうことがあるため、
-/// <c>EnumAdapterByGpuPreference</c> で「高性能優先」の順に並べて列挙します。
-/// </remarks>
+/// @brief 描画に使う GPU（アダプタ）を選択します。
+///
+/// ノート PC などでは「CPU 内蔵 GPU（省電力・低性能）」と「専用 GPU（高性能）」が両方存在します。何
+/// も考えずに 0 番を選ぶと内蔵 GPU が当たってしまうことがあるため、`EnumAdapterByGpuPreference` で
+/// 「高性能優先」の順に並べて列挙します。
 void GraphicsDevice::SelectAdapter()
 {
     for (UINT index = 0;; ++index)
@@ -179,7 +171,7 @@ void GraphicsDevice::SelectAdapter()
 }
 
 
-/// <summary>選択したアダプタから D3D12 デバイスを生成します。</summary>
+/// @brief 選択したアダプタから D3D12 デバイスを生成します。
 void GraphicsDevice::CreateDevice()
 {
     DX_CHECK(::D3D12CreateDevice(
@@ -191,20 +183,14 @@ void GraphicsDevice::CreateDevice()
 }
 
 
-/// <summary>デバッグメッセージの扱いを設定します（Debug ビルドのみ）。</summary>
-/// <remarks>
-/// <para>
-/// <c>ID3D12InfoQueue</c> は、デバッグレイヤーが検出した問題を溜めておくキューです。
-/// <c>SetBreakOnSeverity</c> を設定しておくと、深刻度の高いメッセージが出た瞬間に
-/// デバッガのブレークポイントが発動します。
-/// </para>
-/// <para>
-/// これが極めて重要な理由: 設定しないと、エラーは出力ウィンドウに流れるだけで
-/// 実行は続行されます。その結果「原因の場所」ではなく「はるか後の別の場所」で
-/// クラッシュし、原因究明が非常に困難になります。
+/// @brief デバッグメッセージの扱いを設定します（Debug ビルドのみ）。
+///
+/// `ID3D12InfoQueue` は、デバッグレイヤーが検出した問題を溜めておくキューです。`SetBreakOnSeverity`
+/// を設定しておくと、深刻度の高いメッセージが出た瞬間にデバッガのブレークポイントが発動します。
+///
+/// これが極めて重要な理由: 設定しないと、エラーは出力ウィンドウに流れるだけで実行は続行されます。そ
+/// の結果「原因の場所」ではなく「はるか後の別の場所」でクラッシュし、原因究明が非常に困難になります。
 /// ブレークさせれば、問題を起こした API 呼び出しでその場で止まります。
-/// </para>
-/// </remarks>
 void GraphicsDevice::ConfigureInfoQueue()
 {
 #if defined(_DEBUG)

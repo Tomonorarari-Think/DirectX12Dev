@@ -45,97 +45,77 @@
 namespace dx12
 {
 
-/// <summary>
-/// COM オブジェクト用のスマートポインタ（<c>Microsoft::WRL::ComPtr</c> の短縮別名）。
-/// </summary>
-/// <typeparam name="T">
-/// 管理する COM インターフェース（<c>ID3D12Device</c>、<c>IDXGIFactory6</c> など）。
-/// </typeparam>
-/// <remarks>
-/// <para>
-/// <b>COM の参照カウントとは</b><br/>
-/// DirectX のオブジェクトは <c>new</c> / <c>delete</c> では作りません。
-/// 生成関数が内部でオブジェクトを作り、「参照カウント = 1」の状態で返します。
-/// 使い終わったら <c>Release()</c> を呼んでカウントを 1 減らし、
-/// 0 になった時点でオブジェクトが破棄されます。
-/// </para>
-/// <para>
-/// <b>ComPtr がやってくれること</b>
-/// <list type="bullet">
-///   <item>デストラクタで自動的に <c>Release()</c> を呼ぶ（解放忘れゼロ）</item>
-///   <item>コピーすると自動的に <c>AddRef()</c>（カウント +1）</item>
-///   <item><c>&amp;ptr</c> で「受け取り用の空ポインタ」を渡せる</item>
-/// </list>
-/// </para>
-/// <para>
-/// <b>使い方の注意</b>
-/// <list type="table">
-///   <item><term>ptr.Get()</term><description>生ポインタを取り出す（所有権は移動しない）</description></item>
-///   <item><term>ptr.GetAddressOf()</term><description>ポインタのアドレスを得る（生成関数への出力用）</description></item>
-///   <item><term>&amp;ptr</term><description>ReleaseAndGetAddressOf() と同じ。中身を解放してから渡す</description></item>
-///   <item><term>ptr.As(&amp;other)</term><description>別のインターフェースに問い合わせる（QueryInterface）</description></item>
-/// </list>
-/// </para>
-/// </remarks>
+/// @brief COM オブジェクト用のスマートポインタ（`Microsoft::WRL::ComPtr` の短縮別名）。
+/// @tparam T 管理する COM インターフェース（`ID3D12Device`、`IDXGIFactory6` など）。
+///
+/// **COM の参照カウントとは**
+///
+/// DirectX のオブジェクトは `new` / `delete` では作りません。生成関数が内部でオブジェクトを作り、
+/// 「参照カウント = 1」の状態で返します。使い終わったら `Release()` を呼んでカウントを 1 減らし、0
+/// になった時点でオブジェクトが破棄されます。
+///
+/// **ComPtr がやってくれること**
+///
+/// - デストラクタで自動的に `Release()` を呼ぶ（解放忘れゼロ）
+/// - コピーすると自動的に `AddRef()`（カウント +1）
+/// - `&ptr` で「受け取り用の空ポインタ」を渡せる
+///
+/// **使い方の注意**
+///
+/// - **ptr.Get()** : 生ポインタを取り出す（所有権は移動しない）
+/// - **ptr.GetAddressOf()** : ポインタのアドレスを得る（生成関数への出力用）
+/// - **&ptr** : ReleaseAndGetAddressOf() と同じ。中身を解放してから渡す
+/// - **ptr.As(&other)** : 別のインターフェースに問い合わせる（QueryInterface）
 template <typename T>
 using ComPtr = Microsoft::WRL::ComPtr<T>;
 
 
-/// <summary>
-/// DirectX API が返した <c>HRESULT</c> の失敗を表す例外クラス。
-/// </summary>
-/// <remarks>
-/// <para>
-/// <b>HRESULT とは</b><br/>
-/// Windows API / DirectX API がほぼ全ての関数で返す 32bit の戻り値です。
-/// 最上位ビットが 0 なら成功、1 なら失敗を表します。
-/// 判定には必ず <c>SUCCEEDED(hr)</c> / <c>FAILED(hr)</c> マクロを使います。
-/// （<c>hr == S_OK</c> での比較は NG。成功値は <c>S_OK</c> 以外にも存在するためです）
-/// </para>
-/// <para>
-/// <b>なぜ例外にするのか</b><br/>
-/// DirectX の初期化は「30 回連続で HRESULT を返す関数を呼ぶ」ような処理です。
-/// 毎回 <c>if (FAILED(hr)) return false;</c> と書くと本質的なコードが埋もれます。
-/// 例外にすれば「失敗したら初期化処理全体を中断して main まで飛ぶ」を
-/// 自動化でき、コードが読みやすくなります。
-/// </para>
-/// </remarks>
-/// <seealso cref="ThrowIfFailed"/>
+/// @brief DirectX API が返した `HRESULT` の失敗を表す例外クラス。
+///
+/// **HRESULT とは**
+///
+/// Windows API / DirectX API がほぼ全ての関数で返す 32bit の戻り値です。最上位ビットが 0
+/// なら成功、1 なら失敗を表します。判定には必ず `SUCCEEDED(hr)` / `FAILED(hr)`
+/// マクロを使います。（`hr == S_OK` での比較は NG。成功値は `S_OK` 以外にも存在するためです）
+///
+/// **なぜ例外にするのか**
+///
+/// DirectX の初期化は「30 回連続で HRESULT を返す関数を呼ぶ」ような処理です。毎回 `if (FAILED(hr))
+/// return false;` と書くと本質的なコードが埋もれます。例外にすれば「失敗したら初期化処理全体を中断
+/// して main まで飛ぶ」を自動化でき、コードが読みやすくなります。
+///
+/// @see ThrowIfFailed
 class HrException : public std::runtime_error
 {
 public:
-    /// <summary>失敗した HRESULT と説明文から例外を構築します。</summary>
-    /// <param name="hr">失敗した HRESULT 値。</param>
-    /// <param name="message">人が読めるエラー説明（式・ファイル・行番号を含む）。</param>
+    /// @brief 失敗した HRESULT と説明文から例外を構築します。
+    /// @param hr 失敗した HRESULT 値。
+    /// @param message 人が読めるエラー説明（式・ファイル・行番号を含む）。
     HrException(HRESULT hr, std::string message)
         : std::runtime_error(std::move(message))
         , m_hr(hr)
     {
     }
 
-    /// <summary>失敗した HRESULT の値を取得します。</summary>
-    /// <returns>元の HRESULT 値。</returns>
+    /// @brief 失敗した HRESULT の値を取得します。
+    /// @returns 元の HRESULT 値。
     HRESULT ErrorCode() const noexcept { return m_hr; }
 
 private:
-    /// <summary>失敗した HRESULT 値。</summary>
+    /// @brief 失敗した HRESULT 値。
     HRESULT m_hr;
 };
 
 
-/// <summary>
-/// <c>HRESULT</c> が失敗を示していれば <see cref="HrException"/> を送出します。
-/// </summary>
-/// <param name="hr">検査する HRESULT。</param>
-/// <param name="expression">呼び出した式の文字列（<c>DX_CHECK</c> が自動で渡します）。</param>
-/// <param name="file">呼び出し元のファイル名（<c>__FILE__</c>）。</param>
-/// <param name="line">呼び出し元の行番号（<c>__LINE__</c>）。</param>
-/// <exception cref="HrException"><paramref name="hr"/> が失敗を示す場合。</exception>
-/// <remarks>
-/// この関数を直接呼ばず、必ず <c>DX_CHECK</c> マクロ経由で使ってください。
-/// マクロを挟むことで「失敗した式そのもの」「ファイル名」「行番号」を
-/// 自動的にエラーメッセージへ埋め込めます。
-/// </remarks>
+/// @brief `HRESULT` が失敗を示していれば `HrException` を送出します。
+/// @param hr 検査する HRESULT。
+/// @param expression 呼び出した式の文字列（`DX_CHECK` が自動で渡します）。
+/// @param file 呼び出し元のファイル名（`__FILE__`）。
+/// @param line 呼び出し元の行番号（`__LINE__`）。
+/// @exception HrException `hr` が失敗を示す場合。
+///
+/// この関数を直接呼ばず、必ず `DX_CHECK` マクロ経由で使ってください。マクロを挟むことで「失敗した式
+/// そのもの」「ファイル名」「行番号」を自動的にエラーメッセージへ埋め込めます。
 void ThrowIfFailed(HRESULT hr, const char* expression, const char* file, int line);
 
 
@@ -155,44 +135,36 @@ void ThrowIfFailed(HRESULT hr, const char* expression, const char* file, int lin
 #define DX_CHECK(expr) ::dx12::ThrowIfFailed((expr), #expr, __FILE__, __LINE__)
 
 
-/// <summary>情報ログを 1 行出力します。</summary>
-/// <param name="message">出力する文字列（改行は不要）。</param>
-/// <remarks>
-/// 出力先はコンソールと、デバッガの出力ウィンドウの両方です。
-/// 本プロジェクトはコンソールアプリ（サブシステム = Console）として
-/// ビルドしているため、ウィンドウとは別にコンソールが開きます。
-/// 初期化の進行状況がそこに流れるので、学習中の挙動確認に便利です。
-/// </remarks>
+/// @brief 情報ログを 1 行出力します。
+/// @param message 出力する文字列（改行は不要）。
+///
+/// 出力先はコンソールと、デバッガの出力ウィンドウの両方です。本プロジェクトはコンソールアプリ（サブ
+/// システム = Console）としてビルドしているため、ウィンドウとは別にコンソールが開きます。初期化の進
+/// 行状況がそこに流れるので、学習中の挙動確認に便利です。
 void Log(const std::wstring& message);
 
-/// <summary>エラーログを 1 行出力します。</summary>
-/// <param name="message">出力する文字列（改行は不要）。</param>
-/// <remarks>情報ログと見分けが付くよう <c>[ERROR]</c> が先頭に付きます。</remarks>
+/// @brief エラーログを 1 行出力します。
+/// @param message 出力する文字列（改行は不要）。
+///
+/// 情報ログと見分けが付くよう `[ERROR]` が先頭に付きます。
 void LogError(const std::wstring& message);
 
 
-/// <summary>
-/// シェーダー等のリソースファイルの実際の場所を探して絶対パスを返します。
-/// </summary>
-/// <param name="relativePath">
-/// プロジェクトルートからの相対パス（例: <c>L"shaders/Triangle.hlsl"</c>）。
-/// </param>
-/// <returns>見つかったファイルの絶対パス。</returns>
-/// <exception cref="std::runtime_error">どの探索場所にも見つからなかった場合。</exception>
-/// <remarks>
-/// <para>
-/// <b>なぜ必要か</b><br/>
+/// @brief シェーダー等のリソースファイルの実際の場所を探して絶対パスを返します。
+/// @param relativePath プロジェクトルートからの相対パス（例: `L"shaders/Triangle.hlsl"`）。
+/// @returns 見つかったファイルの絶対パス。
+/// @exception std::runtime_error どの探索場所にも見つからなかった場合。
+///
+/// **なぜ必要か**
+///
 /// 「カレントディレクトリ」は実行方法によって変わります。
-/// <list type="bullet">
-///   <item>Visual Studio から F5 … プロジェクトフォルダ</item>
-///   <item>VSCode から F5 … launch.json の cwd 設定次第</item>
-///   <item>エクスプローラから直接起動 … exe のあるフォルダ</item>
-/// </list>
-/// どこから起動してもシェーダーを見つけられるよう、
-/// 「カレントディレクトリ」と「exe のあるフォルダ」の両方を、
-/// 親方向にさかのぼりながら探索します。
-/// </para>
-/// </remarks>
+///
+/// - Visual Studio から F5 … プロジェクトフォルダ
+/// - VSCode から F5 … launch.json の cwd 設定次第
+/// - エクスプローラから直接起動 … exe のあるフォルダ
+///
+/// どこから起動してもシェーダーを見つけられるよう、「カレントディレクトリ」と「exe のあるフォルダ」
+/// の両方を、親方向にさかのぼりながら探索します。
 std::wstring ResolveAssetPath(const std::wstring& relativePath);
 
 } // namespace dx12

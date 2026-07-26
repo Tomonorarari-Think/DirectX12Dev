@@ -23,21 +23,19 @@
 
 namespace
 {
-/// <summary>ウィンドウの初期幅（ピクセル）。</summary>
+/// @brief ウィンドウの初期幅（ピクセル）。
 constexpr uint32_t kInitialWidth = 1280;
 
-/// <summary>ウィンドウの初期高さ（ピクセル）。</summary>
+/// @brief ウィンドウの初期高さ（ピクセル）。
 constexpr uint32_t kInitialHeight = 720;
 
-/// <summary>タイトルバーに表示する文字列。</summary>
+/// @brief タイトルバーに表示する文字列。
 constexpr const wchar_t* kWindowTitle = L"DirectX 12 Dev - Hello Triangle";
 
-/// <summary>コンソールで日本語（UTF-16 のワイド文字）を正しく表示できるようにします。</summary>
-/// <remarks>
-/// <c>std::wcout</c> はそのままでは日本語が化けることがあります。
-/// 標準出力を UTF-8 テキストモードに切り替えることで、
-/// ワイド文字が正しくコンソールへ渡るようになります。
-/// </remarks>
+/// @brief コンソールで日本語（UTF-16 のワイド文字）を正しく表示できるようにします。
+///
+/// `std::wcout` はそのままでは日本語が化けることがあります。標準出力を UTF-8 テキストモードに切り替
+/// えることで、ワイド文字が正しくコンソールへ渡るようになります。
 void SetupConsole()
 {
     // _O_U8TEXT : ワイド文字を UTF-8 に変換して出力するモード
@@ -47,12 +45,11 @@ void SetupConsole()
 } // namespace
 
 
-/// <summary>アプリケーションのエントリポイント。</summary>
-/// <returns>正常終了なら 0、エラーが発生した場合は 1。</returns>
-/// <remarks>
-/// ウィンドウを作り、レンダラを初期化し、閉じられるまでメインループを回します。
-/// 例外はすべてここで捕まえ、ログとメッセージボックスの両方で通知します。
-/// </remarks>
+/// @brief アプリケーションのエントリポイント。
+/// @returns 正常終了なら 0、エラーが発生した場合は 1。
+///
+/// ウィンドウを作り、レンダラを初期化し、閉じられるまでメインループを回します。例外はすべてここで捕
+/// まえ、ログとメッセージボックスの両方で通知します。
 int main()
 {
     SetupConsole();
