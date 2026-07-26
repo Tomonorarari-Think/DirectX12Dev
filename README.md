@@ -73,6 +73,7 @@ DirectX12Dev/
 ├── src/
 │   ├── main.cpp                      エントリポイント・メインループ
 │   ├── App/Window.*                  Win32 ウィンドウ（DirectX を知らない）
+│   ├── Common/FrameTimer.*           フレーム時間の計測・FPS 表示
 │   ├── Common/GraphicsCommon.*       ComPtr / DX_CHECK / ログ / パス解決
 │   └── Graphics/
 │       ├── GraphicsDevice.*          デバイス・GPU 選択・デバッグレイヤー
@@ -94,7 +95,7 @@ DirectX12Dev/
 - [x] **Step 2**: DirectX 12 初期化（デバイス・キュー・スワップチェーン）
 - [x] **Step 3**: 画面クリア
 - [x] **Step 4**: 三角形の描画（頂点バッファ・PSO・シェーダー）
-- [ ] Step 5: フレームバッファリングによる CPU/GPU 並列化
+- [x] **Step 5**: フレームバッファリングによる CPU/GPU 並列化 ＋ FPS 計測
 - [ ] Step 6: 定数バッファと座標変換（回転する三角形）
 - [ ] Step 7: 深度バッファ
 - [ ] Step 8: テクスチャマッピング
