@@ -6,6 +6,7 @@
 
 #include "../Common/GraphicsCommon.h"
 #include "ConstantBuffer.h"
+#include "Texture2D.h"
 
 // DirectXMath : Windows SDK に同梱される数学ライブラリ。
 //   ベクトル・行列演算を SIMD 命令（SSE / AVX）で高速に行える。
@@ -14,6 +15,8 @@
 
 namespace dx12
 {
+class CommandQueue;
+class DescriptorHeap;
 
 /// @brief シェーダーへ毎フレーム渡す定数の内容。
 ///
@@ -52,6 +55,12 @@ struct Vertex
 
     /// @brief 頂点の色 (r, g, b, a)。各成分は 0.0〜1.0。
     float color[4];
+
+    /// @brief テクスチャ座標 (u, v)。左上が (0,0)、右下が (1,1)。
+    ///
+    /// @note V は下向きが正です（画面の Y が上向きなのと逆）。
+    /// 取り違えるとテクスチャが上下逆さまに貼られます。
+    float uv[2];
 };
 
 
@@ -103,12 +112,16 @@ public:
     ///     式と食い違うと PSO の生成が失敗します。
     /// @param depthStencilFormat 深度バッファの形式。`DepthBuffer::kFormat` と一致させること。
     /// @param frameCount 定数バッファに用意するフレーム数（通常はバックバッファの枚数）。
+    /// @param commandQueue テクスチャ転送に使うキュー。転送の完了まで待機します。
+    /// @param descriptorHeap テクスチャの SRV を登録するシェーダー可視ヒープ。
     /// @exception HrException いずれかの生成に失敗した場合。
     /// @exception std::runtime_error シェーダーファイルが見つからない場合。
     void Initialize(ID3D12Device* device,
                     DXGI_FORMAT renderTargetFormat,
                     DXGI_FORMAT depthStencilFormat,
-                    uint32_t frameCount);
+                    uint32_t frameCount,
+                    CommandQueue& commandQueue,
+                    DescriptorHeap& descriptorHeap);
 
     /// @brief このフレームの変換行列を計算し、定数バッファへ書き込みます。
     /// @param frameIndex 書き込み先のフレーム番号。
@@ -181,6 +194,9 @@ private:
 
     /// @brief 変換行列をシェーダーへ渡すための定数バッファ（フレーム数ぶん）。
     ConstantBuffer m_constantBuffer;
+
+    /// @brief 三角形に貼るテクスチャ（市松模様）。
+    Texture2D m_texture;
 
     /// @brief 頂点バッファの読み取り方を GPU に伝える構造体。
     ///
