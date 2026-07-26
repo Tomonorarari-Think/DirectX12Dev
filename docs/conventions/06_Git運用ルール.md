@@ -16,14 +16,33 @@
 | `release/*` | リリース準備 | ○ |
 | `hotfix/*` | `main` の緊急修正 | ○ |
 
+```mermaid
+gitGraph
+    commit id: "初期構成"
+    branch develop
+    checkout develop
+    commit id: "develop 開始"
+    branch feature/xxx
+    checkout feature/xxx
+    commit id: "実装"
+    commit id: "資料も更新"
+    checkout develop
+    merge feature/xxx tag: "--no-ff"
+    branch release/0.4.0
+    checkout release/0.4.0
+    commit id: "バージョン更新など"
+    checkout main
+    merge release/0.4.0 tag: "v0.4.0"
+    checkout develop
+    merge release/0.4.0
 ```
-main     ●──────────────────────●─────────
-          ╲                    ╱
-develop    ●────●────────●────●───────────
-                 ╲      ╱
-feature/xxx       ●──●─╯
-                （作業後、マージしてブランチ削除）
-```
+
+> `feature/xxx` と `release/0.4.0` は、マージが済んだら**必ず削除**します。
+> 残しておくと履歴が読めなくなるためです。
+>
+> なお `release/*` は本来「バージョン番号の更新や最終調整のコミットを載せる場」です。
+> 本プロジェクトではまだ載せるものが無いため、実際はコミットを作らずに
+> `main` へマージしています。
 
 ---
 
@@ -70,11 +89,25 @@ Fast-Forward マージだと「どこからどこまでが 1 つの機能だっ�
 履歴から消えてしまいます。`--no-ff` はマージコミットを必ず作るため、
 機能の単位が履歴に残ります。
 
+**`--no-ff` あり**（マージコミットが残り、機能の範囲が分かる）
+
+```mermaid
+gitGraph
+    commit id: "A"
+    branch feature/xxx
+    commit id: "B"
+    commit id: "C"
+    checkout main
+    merge feature/xxx id: "Merge feature/xxx"
 ```
---no-ff あり              --no-ff なし（Fast-Forward）
-develop ●───────●         develop ●──●──●──●
-         ╲     ╱                  （feature の区切りが消える）
-feature   ●──●╯
+
+**`--no-ff` なし**（Fast-Forward。どこからどこまでが 1 機能か消える）
+
+```mermaid
+gitGraph
+    commit id: "A"
+    commit id: "B"
+    commit id: "C"
 ```
 
 ---

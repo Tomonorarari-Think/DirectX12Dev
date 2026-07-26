@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 400" width="760" height="400" role="img" aria-label="深度テストの有無による見え方の違い">
+  <style>
+    .bg   { fill: #f6f8fa; }
+    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #24292f; }
+    .ttl  { font-size: 16px; font-weight: 600; }
+    .sec  { font-size: 14px; font-weight: 600; }
+    .sub  { font-size: 12px; fill: #57606a; }
+    .scr  { fill: #1b2a4a; stroke: #57606a; stroke-width: 1.5; }
+    .ok   { fill: #1a7f37; font-size: 13px; font-weight: 600; }
+    .ng   { fill: #cf222e; font-size: 13px; font-weight: 600; }
+    .tri  { stroke: #1b2a4a; stroke-width: 1; }
+  </style>
+
+  <rect class="bg" width="760" height="400" rx="8"/>
+  <text class="txt ttl" x="20" y="30">深度テスト — 描いた順番と、見えるべき前後関係</text>
+  <text class="txt sub" x="20" y="52">頂点配列はわざと「手前 → 奥」の順。つまり GPU は奥の赤を最後に描く。</text>
+
+  <!-- 描画順の帯 -->
+  <rect x="20" y="66" width="720" height="30" rx="4" fill="#eaeef2" stroke="#8c959f" stroke-width="1.2"/>
+  <text class="txt sub" x="34" y="86">描画順：</text>
+  <rect x="96"  y="72" width="168" height="18" rx="3" fill="#4a7fe0"/>
+  <rect x="274" y="72" width="146" height="18" rx="3" fill="#3fae4a"/>
+  <rect x="430" y="72" width="160" height="18" rx="3" fill="#d94b3a"/>
+  <text class="txt sub" text-anchor="middle" x="180" y="86" fill="#ffffff">① 青  z=0.25（手前）</text>
+  <text class="txt sub" text-anchor="middle" x="347" y="86" fill="#ffffff">② 緑  z=0.50</text>
+  <text class="txt sub" text-anchor="middle" x="510" y="86" fill="#ffffff">③ 赤  z=0.75（奥）</text>
+
+  <!-- ===== 左：深度テストあり ===== -->
+  <text class="txt sec" x="60" y="130">深度テスト あり（DepthEnable = TRUE）</text>
+  <rect class="scr" x="60" y="144" width="300" height="180" rx="4"/>
+  <!-- 見えるべき順に重ねる：奥の赤 → 緑 → 手前の青 -->
+  <polygon class="tri" points="240,169 290,259 190,259" fill="#d94b3a"/>
+  <polygon class="tri" points="210,199 260,289 160,289" fill="#3fae4a"/>
+  <polygon class="tri" points="180,169 230,259 130,259" fill="#4a7fe0"/>
+  <text class="txt ok" x="60" y="346">✓ 最後に描いた赤が、先に描いた青・緑に隠れる</text>
+  <text class="txt sub" x="60" y="366">奥のピクセルは「すでに手前がある」と判定されて捨てられる</text>
+
+  <!-- ===== 右：深度テストなし ===== -->
+  <text class="txt sec" x="420" y="130">深度テスト なし（DepthEnable = FALSE）</text>
+  <rect class="scr" x="420" y="144" width="300" height="180" rx="4"/>
+  <!-- 配置は左と同一。描いた順（青 → 緑 → 赤）にそのまま上書きされる -->
+  <polygon class="tri" points="540,169 590,259 490,259" fill="#4a7fe0"/>
+  <polygon class="tri" points="570,199 620,289 520,289" fill="#3fae4a"/>
+  <polygon class="tri" points="600,169 650,259 550,259" fill="#d94b3a"/>
+  <text class="txt ng" x="420" y="346">✗ 最後に描いた赤が、手前にあるはずの青・緑を上書き</text>
+  <text class="txt sub" x="420" y="366">「あとから描いたものが必ず手前」になり、前後関係が破綻する</text>
+</svg>

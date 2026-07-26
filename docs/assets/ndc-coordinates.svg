@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 390" width="620" height="390" role="img" aria-label="NDC 正規化デバイス座標の図">
+  <style>
+    .bg   { fill: #f6f8fa; }
+    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #24292f; }
+    .lbl  { font-size: 15px; }
+    .sub  { font-size: 13px; fill: #57606a; }
+    .ttl  { font-size: 16px; font-weight: 600; }
+    .axis { stroke: #24292f; stroke-width: 2; }
+    .grid { stroke: #d0d7de; stroke-width: 1; stroke-dasharray: 4 3; }
+    .area { fill: #0969da; fill-opacity: 0.08; stroke: #0969da; stroke-width: 2; }
+  </style>
+
+  <rect class="bg" width="620" height="390" rx="8"/>
+  <text class="txt ttl" x="20" y="30">NDC（正規化デバイス座標）— 画面は必ずこの正方形に対応する</text>
+
+  <!-- 描画範囲 -->
+  <rect class="area" x="130" y="70" width="240" height="240"/>
+
+  <!-- 補助グリッド -->
+  <line class="grid" x1="130" y1="190" x2="370" y2="190"/>
+  <line class="grid" x1="250" y1="70"  x2="250" y2="310"/>
+
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#24292f"/>
+    </marker>
+  </defs>
+
+  <!-- 軸 -->
+  <line class="axis" x1="100" y1="190" x2="398" y2="190" marker-end="url(#ah)"/>
+  <line class="axis" x1="250" y1="338" x2="250" y2="52"  marker-end="url(#ah)"/>
+  <text class="txt lbl" x="404" y="195">x</text>
+  <text class="txt lbl" x="242" y="46">y</text>
+
+  <!-- 目盛り -->
+  <text class="txt lbl" text-anchor="middle" x="130" y="332">-1.0</text>
+  <text class="txt lbl" text-anchor="middle" x="370" y="332">+1.0</text>
+  <text class="txt lbl" text-anchor="end"    x="120" y="76">+1.0</text>
+  <text class="txt lbl" text-anchor="end"    x="120" y="315">-1.0</text>
+  <circle cx="250" cy="190" r="4" fill="#24292f"/>
+  <text class="txt sub" x="258" y="208">(0, 0)</text>
+
+  <!-- 注記 -->
+  <text class="txt sub" x="440" y="96">・中央が原点 (0, 0)</text>
+  <text class="txt sub" x="440" y="122">・y は上が正</text>
+  <text class="txt sub" x="452" y="144">（DirectX の慣習）</text>
+
+  <text class="txt sub" x="440" y="248">・z は奥行き</text>
+  <text class="txt sub" x="452" y="270">手前 = 0.0</text>
+  <text class="txt sub" x="452" y="292">奥　 = 1.0</text>
+
+  <text class="txt sub" x="20" y="370">この正方形がウィンドウ全体へ引き伸ばされるため、横長のウィンドウではアスペクト比の補正が必要になる。</text>
+</svg>
