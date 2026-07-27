@@ -32,6 +32,12 @@
     <ClCompile Include="src\main.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="src\App\Input.cpp">
+      <Filter>src\App</Filter>
+    </ClCompile>
+    <ClCompile Include="src\App\CameraController.cpp">
+      <Filter>src\App</Filter>
+    </ClCompile>
     <ClCompile Include="src\App\Camera.cpp">
       <Filter>src\App</Filter>
     </ClCompile>
@@ -86,6 +92,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ClInclude Include="src\App\Input.h">
+      <Filter>src\App</Filter>
+    </ClInclude>
+    <ClInclude Include="src\App\CameraController.h">
+      <Filter>src\App</Filter>
+    </ClInclude>
     <ClInclude Include="src\App\Camera.h">
       <Filter>src\App</Filter>
     </ClInclude>
