@@ -43,7 +43,7 @@ enum ObjectIndex : uint32_t
 /// <summary>
 /// 読み込むモデル（プロジェクトルートからの相対パス）。
 /// </summary>
-constexpr const wchar_t* kModelRelativePath = L"assets/models/torus.obj";
+constexpr const wchar_t* kModelRelativePath = L"assets/models/scene.glb";
 
 /// <summary>
 /// 読み込んだモデルを収める大きさ（一番長い辺の長さ）。

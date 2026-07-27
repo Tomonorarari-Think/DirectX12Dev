@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 500" width="760" height="500" role="img" aria-label="glTF の構造。シーンからノード、メッシュ、プリミティブ、アクセサ、バッファビュー、バッファへと辿る参照の連鎖を示す図">
+  <style>
+    .bg   { fill: #f6f8fa; }
+    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #1f2328; }
+    .mono { font-family: Consolas, "Courier New", monospace; }
+    .ttl  { font-size: 16px; font-weight: 600; }
+    .cap  { font-size: 13px; font-weight: 600; }
+    .sub  { font-size: 12px; fill: #3d444d; }
+    .node { fill: #ddf4ff; stroke: #0a4f9e; stroke-width: 1.6; }
+    .data { fill: #dafbe1; stroke: #0d4f21; stroke-width: 1.6; }
+    .raw  { fill: #eaeef2; stroke: #6e7781; stroke-width: 1.6; }
+    .ar   { stroke: #3d444d; stroke-width: 1.6; fill: none; }
+  </style>
+
+  <rect class="bg" width="760" height="500" rx="8"/>
+  <text class="txt ttl" x="20" y="30">glTF の構造 — 番号でたどる参照の連鎖</text>
+  <text class="txt sub" x="20" y="52">JSON にあるのは「何番を見ろ」という指示だけ。実データは末端のバッファに入っている。</text>
+
+  <defs>
+    <marker id="ga" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3d444d"/>
+    </marker>
+  </defs>
+
+  <!-- 上段 : シーングラフ -->
+  <rect class="node" x="20" y="80" width="150" height="52" rx="4"/>
+  <text class="txt cap mono" text-anchor="middle" x="95" y="102">scenes</text>
+  <text class="txt sub" text-anchor="middle" x="95" y="122">どのノードから始めるか</text>
+
+  <rect class="node" x="210" y="80" width="150" height="52" rx="4"/>
+  <text class="txt cap mono" text-anchor="middle" x="285" y="102">nodes</text>
+  <text class="txt sub" text-anchor="middle" x="285" y="122">位置・回転・拡大縮小</text>
+
+  <rect class="node" x="400" y="80" width="150" height="52" rx="4"/>
+  <text class="txt cap mono" text-anchor="middle" x="475" y="102">meshes</text>
+  <text class="txt sub" text-anchor="middle" x="475" y="122">形の入れ物</text>
+
+  <rect class="node" x="590" y="80" width="150" height="52" rx="4"/>
+  <text class="txt cap mono" text-anchor="middle" x="665" y="102">primitives</text>
+  <text class="txt sub" text-anchor="middle" x="665" y="122">三角形のひとかたまり</text>
+
+  <line class="ar" x1="172" y1="106" x2="206" y2="106" marker-end="url(#ga)"/>
+  <line class="ar" x1="362" y1="106" x2="396" y2="106" marker-end="url(#ga)"/>
+  <line class="ar" x1="552" y1="106" x2="586" y2="106" marker-end="url(#ga)"/>
+
+  <!-- ノードは入れ子にできる -->
+  <path class="ar" d="M 250 134 L 250 156 L 320 156 L 320 134" marker-end="url(#ga)"/>
+  <text class="txt sub" text-anchor="middle" x="285" y="174">子ノードを持てる（変換は親から積み重なる）</text>
+
+  <!-- 下段 : データの辿り方 -->
+  <rect class="data" x="590" y="206" width="150" height="52" rx="4"/>
+  <text class="txt cap mono" text-anchor="middle" x="665" y="228">accessors</text>
+  <text class="txt sub" text-anchor="middle" x="665" y="248">型・個数・読み始め</text>
+
+  <rect class="data" x="590" y="286" width="150" height="52" rx="4"/>
+  <text class="txt cap mono" text-anchor="middle" x="665" y="308">bufferViews</text>
+  <text class="txt sub" text-anchor="middle" x="665" y="328">どの範囲か・間隔</text>
+
+  <rect class="raw" x="590" y="366" width="150" height="52" rx="4"/>
+  <text class="txt cap mono" text-anchor="middle" x="665" y="388">buffers</text>
+  <text class="txt sub" text-anchor="middle" x="665" y="408">実データのバイト列</text>
+
+  <line class="ar" x1="665" y1="134" x2="665" y2="202" marker-end="url(#ga)"/>
+  <line class="ar" x1="665" y1="260" x2="665" y2="282" marker-end="url(#ga)"/>
+  <line class="ar" x1="665" y1="340" x2="665" y2="362" marker-end="url(#ga)"/>
+
+  <text class="txt sub" x="388" y="216">POSITION / NORMAL /</text>
+  <text class="txt sub" x="388" y="234">TEXCOORD_0 / indices</text>
+  <text class="txt sub" x="388" y="252">がそれぞれ 1 つの</text>
+  <text class="txt sub" x="388" y="270">アクセサを指す</text>
+
+  <!-- buffers の 3 通り -->
+  <rect x="20" y="206" width="330" height="212" rx="6" fill="#fff8c5" stroke="#8a6d00" stroke-width="1.5"/>
+  <text class="txt cap" x="36" y="230">buffers の中身は 3 通りある</text>
+
+  <text class="txt sub" x="36" y="256">1. GLB のバイナリチャンク</text>
+  <text class="txt sub" x="52" y="274">`.glb` は JSON と実データを 1 ファイルに詰めた形式</text>
+
+  <text class="txt sub" x="36" y="302">2. 外部ファイル</text>
+  <text class="txt sub" x="52" y="320">`uri` に `.bin` の相対パスが書かれている</text>
+
+  <text class="txt sub" x="36" y="348">3. 埋め込み (data URI)</text>
+  <text class="txt sub" x="52" y="366">`uri` が `data:...;base64,` で始まり、中身が直接入っている</text>
+
+  <text class="txt sub" x="36" y="398">どれでも読めるようにしておかないと、</text>
+  <text class="txt sub" x="36" y="416">「あるファイルだけ開けない」ことになる。</text>
+
+  <rect x="20" y="432" width="720" height="52" rx="6" fill="#ddf4ff" stroke="#0a4f9e" stroke-width="1.5"/>
+  <text class="txt sub" x="36" y="454">アクセサは「どのバッファのどこから、どんな型で、いくつ読むか」の指示書。</text>
+  <text class="txt sub" x="36" y="472">bufferView に byteStride があれば、複数の属性が交互に並んでいる（インターリーブ）。</text>
+</svg>

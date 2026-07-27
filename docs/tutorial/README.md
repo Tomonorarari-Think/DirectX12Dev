@@ -35,6 +35,7 @@ Unity で `GameObject` にマテリアルを付ければ絵が出ますが、
 | 13 | [影を落とす：シャドウマップ](13_影を落とす_シャドウマップ.md) | 2 パス描画、TYPELESS、比較サンプラー、深度バイアス |
 | 14 | [操作する：入力とカメラ](14_操作する_入力とカメラ.md) | Win32 の入力、状態とイベント、軌道カメラ |
 | 15 | [モデルを読み込む：OBJ](15_モデルを読み込む_OBJ.md) | テキスト形式の解析、索引の組、右手系変換 |
+| 16 | [モデルを読み込む：glTF](16_モデルを読み込む_glTF.md) | JSON ＋ バイナリ、アクセサ、ノードの変換 |
 
 ```mermaid
 flowchart LR
@@ -52,10 +53,11 @@ flowchart LR
     L --> M["13 影"]
     M --> N["14 入力とカメラ"]
     N --> O["15 OBJ 読み込み"]
+    O --> P["16 glTF 読み込み"]
 
     style A fill:#dafbe1,stroke:#0d4f21
     style F fill:#ddf4ff,stroke:#0a4f9e
-    style O fill:#ddf4ff,stroke:#0a4f9e
+    style P fill:#ddf4ff,stroke:#0a4f9e
 ```
 
 ## 関連する資料
