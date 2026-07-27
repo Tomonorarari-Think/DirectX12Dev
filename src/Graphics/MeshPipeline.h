@@ -32,6 +32,13 @@ struct FrameConstants
     /// <summary>ビュー行列 × 射影行列。カメラが決まれば全オブジェクトで共通。</summary>
     DirectX::XMFLOAT4X4 viewProjection;
 
+    /// <summary>光源から見たビュー行列 × 射影行列。影の判定に使います。</summary>
+    /// <remarks>
+    /// シャドウマップを描くときは変換行列として、画面を描くときは
+    /// 「この点が影の中かどうか」を調べる座標変換として、同じ行列を 2 度使います。
+    /// </remarks>
+    DirectX::XMFLOAT4X4 lightViewProjection;
+
     /// <summary>平行光源の進む向き (xyz)。正規化済み。w は未使用。</summary>
     /// <remarks>
     /// 「光が飛んでいく向き」であり「光源の方向」ではありません。符号を取り違えると
@@ -92,6 +99,7 @@ public:
     /// 定数バッファに用意するフレーム数（通常はバックバッファの枚数）。
     /// </param>
     /// <param name="maxObjectCount">1 フレームで描くオブジェクトの上限。</param>
+    /// <param name="shadowMapFormat">シャドウマップの深度形式。</param>
     /// <param name="commandQueue">
     /// テクスチャ転送に使うキュー。転送の完了まで待機します。
     /// </param>
@@ -103,8 +111,19 @@ public:
                     DXGI_FORMAT depthStencilFormat,
                     uint32_t frameCount,
                     uint32_t maxObjectCount,
+                    DXGI_FORMAT shadowMapFormat,
                     CommandQueue& commandQueue,
                     DescriptorHeap& descriptorHeap);
+
+    /// <summary>
+    /// 平行光源が進む向きを返します。
+    /// </summary>
+    /// <returns>正規化していない向きベクトル。</returns>
+    /// <remarks>
+    /// シャドウマップの視点を決めるのに `Renderer` が必要とするため公開しています。
+    /// ライトの設定をここ 1 か所に保つのが目的です。
+    /// </remarks>
+    static DirectX::XMFLOAT3 LightDirection();
 
     /// <summary>
     /// このフレームの共通定数（カメラとライト）を書き込みます。
@@ -112,9 +131,11 @@ public:
     /// <param name="frameIndex">書き込み先のフレーム番号。</param>
     /// <param name="viewProjection">カメラのビュー行列 × 射影行列。</param>
     /// <param name="cameraPosition">視点のワールド座標。</param>
+    /// <param name="lightViewProjection">光源から見たビュー行列 × 射影行列。</param>
     void UpdateFrameConstants(uint32_t frameIndex,
                               const DirectX::XMMATRIX& viewProjection,
-                              const DirectX::XMFLOAT3& cameraPosition);
+                              const DirectX::XMFLOAT3& cameraPosition,
+                              const DirectX::XMMATRIX& lightViewProjection);
 
     /// <summary>
     /// オブジェクト 1 個ぶんの定数（変換行列）を書き込みます。
@@ -134,11 +155,25 @@ public:
     /// </summary>
     /// <param name="commandList">記録先の（Reset 済みで開いている）コマンドリスト。</param>
     /// <param name="frameIndex">使用するフレーム番号。</param>
+    /// <param name="shadowMapView">シャドウマップの SRV。</param>
     /// <remarks>
     /// テクスチャを結び付けるため、呼び出し側が先に `SetDescriptorHeaps` で
     /// シェーダー可視ヒープを設定しておく必要があります。
     /// </remarks>
-    void Bind(ID3D12GraphicsCommandList* commandList, uint32_t frameIndex) const;
+    void Bind(ID3D12GraphicsCommandList* commandList,
+              uint32_t frameIndex,
+              D3D12_GPU_DESCRIPTOR_HANDLE shadowMapView) const;
+
+    /// <summary>
+    /// シャドウマップを描くための共通設定を記録します。
+    /// </summary>
+    /// <param name="commandList">記録先のコマンドリスト。</param>
+    /// <param name="frameIndex">使用するフレーム番号。</param>
+    /// <remarks>
+    /// 影の形しか要らないので、ピクセルシェーダーもテクスチャも使いません。
+    /// この後は `Bind` のときと同じく `BindObject` を挟んでメッシュを描きます。
+    /// </remarks>
+    void BindShadowPass(ID3D12GraphicsCommandList* commandList, uint32_t frameIndex) const;
 
     /// <summary>
     /// これから描くオブジェクトの定数を結び付けます。
@@ -160,15 +195,40 @@ private:
     void CreateRootSignature(ID3D12Device* device);
 
     /// <summary>
+    /// シャドウマップ描画用の、より狭いルートシグネチャを生成します。
+    /// </summary>
+    /// <param name="device">生成に使う D3D12 デバイス。</param>
+    /// <exception cref="HrException">シリアライズまたは生成に失敗した場合。</exception>
+    void CreateShadowRootSignature(ID3D12Device* device);
+
+    /// <summary>
+    /// シャドウマップ描画用の PSO（深度だけを書く設定）を生成します。
+    /// </summary>
+    /// <param name="device">生成に使う D3D12 デバイス。</param>
+    /// <param name="shadowMapFormat">シャドウマップの深度形式。</param>
+    /// <param name="inputElements">入力レイアウト。画面描画と共通のものを使います。</param>
+    /// <param name="inputElementCount">入力レイアウトの要素数。</param>
+    /// <exception cref="HrException">コンパイルまたは PSO 生成に失敗した場合。</exception>
+    void CreateShadowPipelineState(ID3D12Device* device,
+                                   DXGI_FORMAT shadowMapFormat,
+                                   const D3D12_INPUT_ELEMENT_DESC* inputElements,
+                                   uint32_t inputElementCount);
+
+    /// <summary>
     /// HLSL をコンパイルし、パイプラインステートオブジェクトを生成します。
     /// </summary>
     /// <param name="device">生成に使う D3D12 デバイス。</param>
     /// <param name="renderTargetFormat">描画先の形式。</param>
     /// <param name="depthStencilFormat">深度バッファの形式。</param>
+    /// <param name="shadowMapFormat">
+    /// シャドウマップの深度形式。入力レイアウトを共有するため、
+    /// 影用の PSO もこの中で作ります。
+    /// </param>
     /// <exception cref="HrException">コンパイルまたは PSO 生成に失敗した場合。</exception>
     void CreatePipelineState(ID3D12Device* device,
                              DXGI_FORMAT renderTargetFormat,
-                             DXGI_FORMAT depthStencilFormat);
+                             DXGI_FORMAT depthStencilFormat,
+                             DXGI_FORMAT shadowMapFormat);
 
     /// <summary>
     /// フレーム番号とオブジェクト番号から、定数バッファのスロット番号を求めます。
@@ -203,6 +263,16 @@ private:
     /// 描画設定を 1 つに固めたパイプラインステートオブジェクト。
     /// </summary>
     ComPtr<ID3D12PipelineState> m_pipelineState;
+
+    /// <summary>
+    /// シャドウマップ描画用のルートシグネチャ（ピクセルシェーダーを拒否する設定）。
+    /// </summary>
+    ComPtr<ID3D12RootSignature> m_shadowRootSignature;
+
+    /// <summary>
+    /// シャドウマップ描画用の PSO（深度だけを書く）。
+    /// </summary>
+    ComPtr<ID3D12PipelineState> m_shadowPipelineState;
 
     /// <summary>
     /// カメラとライトを渡す定数バッファ（フレーム数ぶんのスロット）。

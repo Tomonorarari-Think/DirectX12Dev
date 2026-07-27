@@ -68,6 +68,20 @@ constexpr float kFloorHeight = 0.0f;
 /// 床でテクスチャを繰り返す回数。サンプラーが WRAP なので模様が並びます。
 /// </summary>
 constexpr float kFloorUvTiling = 1.0f;
+
+/// <summary>
+/// シャドウマップの一辺のピクセル数。
+/// </summary>
+/// <remarks>
+/// 大きいほど影の輪郭が細かくなりますが、メモリと描画時間が増えます。
+/// この値を変えたら `shaders/Mesh.hlsl` の `kShadowMapSize` も合わせてください。
+/// </remarks>
+constexpr uint32_t kShadowMapSize = 2048;
+
+/// <summary>
+/// 影を落とす範囲の半径。この球に収まる範囲だけがシャドウマップに入ります。
+/// </summary>
+constexpr float kSceneRadius = 3.6f;
 } // namespace
 
 
@@ -114,9 +128,13 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
     CreateCommandObjects();
 
     // (6) シェーダー可視ディスクリプタヒープ
-    //     テクスチャの SRV を置く場所。今はテクスチャ 1 枚だけだが、
-    //     増えても 1 本のヒープを共有するため、少し余裕を持たせておく。
+    //     テクスチャとシャドウマップの SRV を置く場所。
+    //     数が増えても 1 本のヒープを共有するため、少し余裕を持たせておく。
     m_descriptorHeap.Initialize(device, kDescriptorHeapCapacity);
+
+    // (6-b) シャドウマップ
+    //     パイプラインが影用 PSO を作るのに深度形式を要るので、先に作る。
+    m_shadowMap.Initialize(device, m_descriptorHeap, kShadowMapSize);
 
     // (7) メッシュ描画用のパイプライン
     //     PSO は描画先の形式（RTV / DSV）を知っている必要があるため両方渡す。
@@ -125,13 +143,20 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
                               DepthBuffer::kFormat,
                               SwapChain::kBackBufferCount,
                               kObjectCount,
+                              ShadowMap::kDepthStencilViewFormat,
                               m_commandQueue,
                               m_descriptorHeap);
 
     // (8) 描くもの（形状データ）
     CreateSceneMeshes();
 
-    // (9) ビューポート／シザー矩形
+    // (9) 光源から見た深度を書き込む先と、その視点
+    //     ライトの設定は MeshPipeline が持っているので、そこから受け取る。
+    m_shadowMap.SetLight(MeshPipeline::LightDirection(),
+                         DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f),
+                         kSceneRadius);
+
+    // (10) ビューポート／シザー矩形
     UpdateViewportAndScissor(width, height);
 
     m_initialized = true;
@@ -202,7 +227,9 @@ void Renderer::UpdateConstants(uint32_t frameIndex)
     const XMMATRIX viewProjection = m_camera.ViewProjectionMatrix();
 
     // カメラとライトは全オブジェクト共通なので 1 回だけ書く。
-    m_meshPipeline.UpdateFrameConstants(frameIndex, viewProjection, m_camera.Position());
+    // 光源から見た行列も渡す。影を描くときと、影の中かを調べるときの両方で使う。
+    m_meshPipeline.UpdateFrameConstants(
+        frameIndex, viewProjection, m_camera.Position(), m_shadowMap.LightViewProjection());
 
     // 立方体 : 2 軸で回しながら、床から浮かせた位置に置く。
     const float angle =
@@ -224,12 +251,9 @@ void Renderer::UpdateConstants(uint32_t frameIndex)
 /// <summary>
 /// シーンの全メッシュを描く命令をコマンドリストに記録します。
 /// </summary>
-void Renderer::RecordSceneDrawCommands(uint32_t frameIndex)
+void Renderer::RecordMeshDrawCommands(uint32_t frameIndex)
 {
     ID3D12GraphicsCommandList* commandList = m_commandList.Get();
-
-    // 全オブジェクトで共通の設定は 1 回だけ。
-    m_meshPipeline.Bind(commandList, frameIndex);
 
     // オブジェクトごとに変えるのは定数バッファと頂点バッファだけ。
     m_meshPipeline.BindObject(commandList, frameIndex, kFloorObjectIndex);
@@ -237,6 +261,28 @@ void Renderer::RecordSceneDrawCommands(uint32_t frameIndex)
 
     m_meshPipeline.BindObject(commandList, frameIndex, kCubeObjectIndex);
     m_cube.RecordDrawCommands(commandList);
+}
+
+
+/// <summary>
+/// 光源から見た深度をシャドウマップへ描きます。
+/// </summary>
+void Renderer::RecordShadowPass(uint32_t frameIndex)
+{
+    ID3D12GraphicsCommandList* commandList = m_commandList.Get();
+
+    // バリア・ビューポート・描画先の設定・クリアまでを ShadowMap が行う。
+    m_shadowMap.BeginRender(commandList);
+
+    // 影の形しか要らないので、専用の（ピクセルシェーダーの無い）設定を使う。
+    m_meshPipeline.BindShadowPass(commandList, frameIndex);
+
+    // ★ 画面を描くときと同じメッシュを、同じワールド行列で描く。
+    //   ここがずれると、物体と影の位置が合わなくなる。
+    RecordMeshDrawCommands(frameIndex);
+
+    // テクスチャとして読める状態に戻す。
+    m_shadowMap.EndRender(commandList);
 }
 
 
@@ -316,8 +362,20 @@ void Renderer::Render()
     //   (0) でこのフレームのフェンスを待っているため、GPU はもうこの領域を読んでいない。
     UpdateConstants(frameIndex);
 
+    // (2-c) ディスクリプタヒープの設定
+    //   ★ SetGraphicsRootDescriptorTable より前に呼ぶ必要があります。
+    //     ルートシグネチャを切り替えても、この設定は残ります。
+    ID3D12DescriptorHeap* const descriptorHeaps[] = { m_descriptorHeap.Get() };
+    m_commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+    // (2-d) 第 1 パス : 光源から見た深度をシャドウマップへ描く
+    //   ★ 画面を描く前に済ませておく必要があります。
+    //     第 2 パスは、この結果をテクスチャとして読むためです。
+    RecordShadowPass(frameIndex);
+
     ID3D12Resource* backBuffer = m_swapChain.CurrentBackBuffer();
 
+    // ここから第 2 パス : いつも通り画面へ描く
     // (3) バリア : PRESENT → RENDER_TARGET
     //   スワップチェーンから取得したバックバッファは、
     //   Present 直後は「表示用 (PRESENT)」の状態になっています。
@@ -328,14 +386,9 @@ void Renderer::Render()
         D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     // (4) ビューポートとシザー矩形の設定
-    //   コマンドリストは Reset するたびに設定が全て初期状態に戻ります。
+    //   ★ 影のパスでシャドウマップの大きさに変えてあるので、必ず戻します。
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
-
-    // (4-b) シェーダー可視ディスクリプタヒープを設定する
-    //   ★ SetGraphicsRootDescriptorTable より前に呼ぶ必要があります。
-    ID3D12DescriptorHeap* const descriptorHeaps[] = { m_descriptorHeap.Get() };
-    m_commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
     // (5) レンダーターゲット（描画先）の設定
     const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_swapChain.CurrentRenderTargetView();
@@ -362,7 +415,10 @@ void Renderer::Render()
         0, nullptr);                // 部分クリアの矩形（0 / nullptr で全体）
 
     // (7) シーン（床と立方体）の描画命令を記録
-    RecordSceneDrawCommands(frameIndex);
+    //   影のパスでルートシグネチャを切り替えたので、ここで改めて設定し直す。
+    m_meshPipeline.Bind(m_commandList.Get(), frameIndex, m_shadowMap.ShaderResourceView());
+
+    RecordMeshDrawCommands(frameIndex);
 
     // (8) バリア : RENDER_TARGET → PRESENT
     //   描き終わったので、表示できる状態へ戻します。

@@ -59,6 +59,29 @@ constexpr uint32_t kObjectConstantsRootParameterIndex = 1;
 constexpr uint32_t kTextureRootParameterIndex = 2;
 
 /// <summary>
+/// シャドウマップ（SRV）を結び付けるルートパラメータの番号。
+/// </summary>
+constexpr uint32_t kShadowMapRootParameterIndex = 3;
+
+/// <summary>
+/// シャドウマップを描くときに深度へ加える下駄（整数バイアス）。
+/// </summary>
+/// <remarks>
+/// 影を落とす面が自分自身を影と判定してしまう「シャドウアクネ」を防ぎます。
+/// ラスタライザが深度を書く時点で加算されるので、シェーダー側で足すより正確です。
+/// </remarks>
+constexpr INT kShadowDepthBias = 3000;
+
+/// <summary>
+/// 面の傾きに比例して深度へ加える下駄。
+/// </summary>
+/// <remarks>
+/// 光に対して斜めな面ほど、1 テクセルの中での深度差が大きくなります。
+/// 傾きに応じて増える下駄を足すことで、面の角度によらず影が安定します。
+/// </remarks>
+constexpr float kShadowSlopeScaledDepthBias = 2.5f;
+
+/// <summary>
 /// 生成するテクスチャの一辺のピクセル数。
 /// </summary>
 constexpr uint32_t kTextureSize = 256;
@@ -78,13 +101,18 @@ void MeshPipeline::Initialize(ID3D12Device* device,
                               DXGI_FORMAT depthStencilFormat,
                               uint32_t frameCount,
                               uint32_t maxObjectCount,
+                              DXGI_FORMAT shadowMapFormat,
                               CommandQueue& commandQueue,
                               DescriptorHeap& descriptorHeap)
 {
     m_maxObjectCount = maxObjectCount;
 
     CreateRootSignature(device);
-    CreatePipelineState(device, renderTargetFormat, depthStencilFormat);
+    CreateShadowRootSignature(device);
+
+    // 影を描く PSO も、画面を描く PSO と同じ入力レイアウトを使う。
+    // そのため入力レイアウトの定義は CreatePipelineState 側から渡してもらう。
+    CreatePipelineState(device, renderTargetFormat, depthStencilFormat, shadowMapFormat);
 
     // カメラとライトはフレームごとに 1 組あればよい。
     m_frameConstantBuffer.Initialize(device, sizeof(FrameConstants), frameCount);
@@ -113,7 +141,7 @@ void MeshPipeline::Initialize(ID3D12Device* device,
 void MeshPipeline::CreateRootSignature(ID3D12Device* device)
 {
     // ルートパラメータ : シェーダーへ何を渡すかの定義。関数の引数リストに相当する。
-    D3D12_ROOT_PARAMETER rootParameters[3] = {};
+    D3D12_ROOT_PARAMETER rootParameters[4] = {};
 
     // 0 番 : フレーム共通の定数バッファ（カメラとライト）
     rootParameters[kFrameConstantsRootParameterIndex].ParameterType =
@@ -158,33 +186,74 @@ void MeshPipeline::CreateRootSignature(ID3D12Device* device)
     rootParameters[kTextureRootParameterIndex].ShaderVisibility =
         D3D12_SHADER_VISIBILITY_PIXEL;
 
-    // 静的サンプラー (Static Sampler)
-    D3D12_STATIC_SAMPLER_DESC staticSampler = {};
+    // 3 番 : シャドウマップ（ディスクリプタテーブル）
+    //   基本色テクスチャと 1 つのテーブルにまとめることもできるが、
+    //   その場合はヒープ上で連続していなければならない。別々にしておくと
+    //   確保した順序に依存しない。
+    D3D12_DESCRIPTOR_RANGE shadowRange = {};
+    shadowRange.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    shadowRange.NumDescriptors     = 1;
+    shadowRange.BaseShaderRegister = 1;   // HLSL の register(t1) に対応
+    shadowRange.RegisterSpace      = 0;
+    shadowRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
+    rootParameters[kShadowMapRootParameterIndex].ParameterType =
+        D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParameters[kShadowMapRootParameterIndex].DescriptorTable.NumDescriptorRanges = 1;
+    rootParameters[kShadowMapRootParameterIndex].DescriptorTable.pDescriptorRanges =
+        &shadowRange;
+    rootParameters[kShadowMapRootParameterIndex].ShaderVisibility =
+        D3D12_SHADER_VISIBILITY_PIXEL;
+
+    // 静的サンプラー (Static Sampler)
+    D3D12_STATIC_SAMPLER_DESC staticSamplers[2] = {};
+
+    // s0 : 基本色テクスチャ用
     //   Filter : ピクセルとテクセルがぴったり一致しないときの読み方。
-    staticSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+    staticSamplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 
     //   AddressU/V/W : UV が 0〜1 の外に出たときの扱い。
     //   床は UV を 1 より大きくしているので、WRAP によって模様が繰り返される。
-    staticSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    staticSamplers[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    staticSamplers[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    staticSamplers[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 
-    staticSampler.MipLODBias       = 0.0f;
-    staticSampler.MaxAnisotropy    = 0;
-    staticSampler.ComparisonFunc   = D3D12_COMPARISON_FUNC_NEVER;
-    staticSampler.BorderColor      = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-    staticSampler.MinLOD           = 0.0f;
-    staticSampler.MaxLOD           = D3D12_FLOAT32_MAX;
-    staticSampler.ShaderRegister   = 0;   // HLSL の register(s0) に対応
-    staticSampler.RegisterSpace    = 0;
-    staticSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    staticSamplers[0].MipLODBias       = 0.0f;
+    staticSamplers[0].MaxAnisotropy    = 0;
+    staticSamplers[0].ComparisonFunc   = D3D12_COMPARISON_FUNC_NEVER;
+    staticSamplers[0].BorderColor      = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+    staticSamplers[0].MinLOD           = 0.0f;
+    staticSamplers[0].MaxLOD           = D3D12_FLOAT32_MAX;
+    staticSamplers[0].ShaderRegister   = 0;   // HLSL の register(s0) に対応
+    staticSamplers[0].RegisterSpace    = 0;
+    staticSamplers[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+    // s1 : シャドウマップ用の「比較サンプラー」
+    //   COMPARISON 系のフィルタは、読んだ値をそのまま返すのではなく
+    //   渡した値と比較し、「合格した割合」を返します。周囲 4 テクセルを
+    //   比較して補間するので、1 回の読み取りで影の境目がなめらかになります。
+    staticSamplers[1].Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+
+    //   シャドウマップの外側は「影ではない」ことにしたいので BORDER + 白。
+    staticSamplers[1].AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    staticSamplers[1].AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    staticSamplers[1].AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+
+    staticSamplers[1].MipLODBias       = 0.0f;
+    staticSamplers[1].MaxAnisotropy    = 0;
+    staticSamplers[1].ComparisonFunc   = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+    staticSamplers[1].BorderColor      = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+    staticSamplers[1].MinLOD           = 0.0f;
+    staticSamplers[1].MaxLOD           = D3D12_FLOAT32_MAX;
+    staticSamplers[1].ShaderRegister   = 1;   // HLSL の register(s1) に対応
+    staticSamplers[1].RegisterSpace    = 0;
+    staticSamplers[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
     D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
     rootSignatureDesc.NumParameters     = _countof(rootParameters);
     rootSignatureDesc.pParameters       = rootParameters;
-    rootSignatureDesc.NumStaticSamplers = 1;
-    rootSignatureDesc.pStaticSamplers   = &staticSampler;
+    rootSignatureDesc.NumStaticSamplers = _countof(staticSamplers);
+    rootSignatureDesc.pStaticSamplers   = staticSamplers;
 
     // ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT フラグ
     //   「頂点バッファから入力レイアウト経由で頂点を読み込む」ことを許可します。
@@ -218,6 +287,73 @@ void MeshPipeline::CreateRootSignature(ID3D12Device* device)
         serializedRootSignature->GetBufferPointer(),
         serializedRootSignature->GetBufferSize(),
         IID_PPV_ARGS(&m_rootSignature)));
+}
+
+
+/// <summary>
+/// シャドウマップ描画用の、より狭いルートシグネチャを生成します。
+/// </summary>
+void MeshPipeline::CreateShadowRootSignature(ID3D12Device* device)
+{
+    // 影の形を作るのに要るのは変換行列だけ。テクスチャもライトも読まない。
+    // ルートパラメータの番号は画面描画側と揃えてあるので、BindObject を共用できる。
+    D3D12_ROOT_PARAMETER rootParameters[2] = {};
+
+    rootParameters[kFrameConstantsRootParameterIndex].ParameterType =
+        D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameters[kFrameConstantsRootParameterIndex].Descriptor.ShaderRegister = 0;
+    rootParameters[kFrameConstantsRootParameterIndex].Descriptor.RegisterSpace  = 0;
+    rootParameters[kFrameConstantsRootParameterIndex].ShaderVisibility =
+        D3D12_SHADER_VISIBILITY_VERTEX;
+
+    rootParameters[kObjectConstantsRootParameterIndex].ParameterType =
+        D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameters[kObjectConstantsRootParameterIndex].Descriptor.ShaderRegister = 1;
+    rootParameters[kObjectConstantsRootParameterIndex].Descriptor.RegisterSpace  = 0;
+    rootParameters[kObjectConstantsRootParameterIndex].ShaderVisibility =
+        D3D12_SHADER_VISIBILITY_VERTEX;
+
+    D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
+    rootSignatureDesc.NumParameters     = _countof(rootParameters);
+    rootSignatureDesc.pParameters       = rootParameters;
+    rootSignatureDesc.NumStaticSamplers = 0;
+    rootSignatureDesc.pStaticSamplers   = nullptr;
+
+    // DENY_*_ROOT_ACCESS : その段からは一切見せない、という宣言。
+    //   使わない段を明示的に閉じると、GPU が扱うデータが減って軽くなる。
+    rootSignatureDesc.Flags =
+        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+
+    ComPtr<ID3DBlob> serializedRootSignature;
+    ComPtr<ID3DBlob> errorBlob;
+
+    const HRESULT hr = ::D3D12SerializeRootSignature(
+        &rootSignatureDesc,
+        D3D_ROOT_SIGNATURE_VERSION_1,
+        &serializedRootSignature,
+        &errorBlob);
+
+    if (FAILED(hr))
+    {
+        if (errorBlob != nullptr)
+        {
+            const char* message = static_cast<const char*>(errorBlob->GetBufferPointer());
+            LogError(L"影用ルートシグネチャのシリアライズに失敗しました:");
+            ::OutputDebugStringA(message);
+            ::OutputDebugStringA("\n");
+        }
+        DX_CHECK(hr);
+    }
+
+    DX_CHECK(device->CreateRootSignature(
+        0,
+        serializedRootSignature->GetBufferPointer(),
+        serializedRootSignature->GetBufferSize(),
+        IID_PPV_ARGS(&m_shadowRootSignature)));
 }
 
 
@@ -278,7 +414,8 @@ ComPtr<ID3DBlob> MeshPipeline::CompileShader(const std::wstring& filePath,
 /// </summary>
 void MeshPipeline::CreatePipelineState(ID3D12Device* device,
                                        DXGI_FORMAT renderTargetFormat,
-                                       DXGI_FORMAT depthStencilFormat)
+                                       DXGI_FORMAT depthStencilFormat,
+                                       DXGI_FORMAT shadowMapFormat)
 {
     // (1) シェーダーのコンパイル
     //   "vs_5_0" の意味 : vs = Vertex Shader、5_0 = シェーダーモデル 5.0
@@ -437,6 +574,75 @@ void MeshPipeline::CreatePipelineState(ID3D12Device* device,
     psoDesc.Flags    = D3D12_PIPELINE_STATE_FLAG_NONE;
 
     DX_CHECK(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
+
+    // (7) 影用の PSO も、同じ入力レイアウトで作る
+    CreateShadowPipelineState(device, shadowMapFormat, inputElements, _countof(inputElements));
+}
+
+
+/// <summary>
+/// シャドウマップ描画用の PSO（深度だけを書く設定）を生成します。
+/// </summary>
+void MeshPipeline::CreateShadowPipelineState(ID3D12Device* device,
+                                             DXGI_FORMAT shadowMapFormat,
+                                             const D3D12_INPUT_ELEMENT_DESC* inputElements,
+                                             uint32_t inputElementCount)
+{
+    const std::wstring shaderPath = ResolveAssetPath(kShaderRelativePath);
+
+    // ★ 頂点シェーダーだけをコンパイルする。ピクセルシェーダーは無し。
+    //   色は要らず、深度だけ書ければよいため。
+    ComPtr<ID3DBlob> vertexShader = CompileShader(shaderPath, "VSShadow", "vs_5_0");
+
+    D3D12_RASTERIZER_DESC rasterizerDesc = {};
+    rasterizerDesc.FillMode              = D3D12_FILL_MODE_SOLID;
+    rasterizerDesc.CullMode              = D3D12_CULL_MODE_BACK;
+    rasterizerDesc.FrontCounterClockwise = FALSE;
+
+    // ★ 深度に下駄を履かせる（シャドウアクネ対策）。
+    //   自分自身との比較で「わずかに奥」と判定されるのを防ぐ。
+    rasterizerDesc.DepthBias            = kShadowDepthBias;
+    rasterizerDesc.DepthBiasClamp       = 0.0f;
+    rasterizerDesc.SlopeScaledDepthBias = kShadowSlopeScaledDepthBias;
+
+    rasterizerDesc.DepthClipEnable       = TRUE;
+    rasterizerDesc.MultisampleEnable     = FALSE;
+    rasterizerDesc.AntialiasedLineEnable = FALSE;
+    rasterizerDesc.ForcedSampleCount     = 0;
+    rasterizerDesc.ConservativeRaster    = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+
+    D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {};
+    depthStencilDesc.DepthEnable    = TRUE;
+    depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+    depthStencilDesc.DepthFunc      = D3D12_COMPARISON_FUNC_LESS;
+    depthStencilDesc.StencilEnable  = FALSE;
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+
+    psoDesc.pRootSignature     = m_shadowRootSignature.Get();
+    psoDesc.VS.pShaderBytecode = vertexShader->GetBufferPointer();
+    psoDesc.VS.BytecodeLength  = vertexShader->GetBufferSize();
+
+    psoDesc.InputLayout.pInputElementDescs = inputElements;
+    psoDesc.InputLayout.NumElements        = inputElementCount;
+
+    psoDesc.RasterizerState   = rasterizerDesc;
+    psoDesc.DepthStencilState = depthStencilDesc;
+    psoDesc.SampleMask        = UINT_MAX;
+
+    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+
+    // ★ 色を出力しないので、レンダーターゲットは 0 枚。
+    psoDesc.NumRenderTargets = 0;
+    psoDesc.DSVFormat        = shadowMapFormat;
+
+    psoDesc.SampleDesc.Count   = 1;
+    psoDesc.SampleDesc.Quality = 0;
+    psoDesc.NodeMask           = 0;
+    psoDesc.Flags              = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+    DX_CHECK(device->CreateGraphicsPipelineState(
+        &psoDesc, IID_PPV_ARGS(&m_shadowPipelineState)));
 }
 
 
@@ -445,7 +651,8 @@ void MeshPipeline::CreatePipelineState(ID3D12Device* device,
 /// </summary>
 void MeshPipeline::UpdateFrameConstants(uint32_t frameIndex,
                                         const DirectX::XMMATRIX& viewProjection,
-                                        const DirectX::XMFLOAT3& cameraPosition)
+                                        const DirectX::XMFLOAT3& cameraPosition,
+                                        const DirectX::XMMATRIX& lightViewProjection)
 {
     using namespace DirectX;
 
@@ -453,6 +660,7 @@ void MeshPipeline::UpdateFrameConstants(uint32_t frameIndex,
 
     // HLSL は定数バッファの行列を列優先で読むため、転置してから書き込む。
     XMStoreFloat4x4(&constants.viewProjection, XMMatrixTranspose(viewProjection));
+    XMStoreFloat4x4(&constants.lightViewProjection, XMMatrixTranspose(lightViewProjection));
 
     // ライトの向きは長さ 1 でなければ内積が明るさにならない。
     const XMVECTOR lightDirection = XMVector3Normalize(
@@ -502,7 +710,9 @@ void MeshPipeline::UpdateObjectConstants(uint32_t frameIndex,
 /// <summary>
 /// 描画の共通設定（PSO・ルートシグネチャ・フレーム定数・テクスチャ）を記録します。
 /// </summary>
-void MeshPipeline::Bind(ID3D12GraphicsCommandList* commandList, uint32_t frameIndex) const
+void MeshPipeline::Bind(ID3D12GraphicsCommandList* commandList,
+                        uint32_t frameIndex,
+                        D3D12_GPU_DESCRIPTOR_HANDLE shadowMapView) const
 {
     // コマンドリストは Reset するたびに「PSO 未設定」の状態に戻ります。
     commandList->SetPipelineState(m_pipelineState.Get());
@@ -519,8 +729,41 @@ void MeshPipeline::Bind(ID3D12GraphicsCommandList* commandList, uint32_t frameIn
         kTextureRootParameterIndex,
         m_texture.ShaderResourceView());
 
+    // シャドウマップは、直前のパスで書き終えたものをそのまま読む。
+    commandList->SetGraphicsRootDescriptorTable(
+        kShadowMapRootParameterIndex, shadowMapView);
+
     // TRIANGLELIST : 3 頂点ごとに独立した三角形を作る。
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
+
+
+/// <summary>
+/// シャドウマップを描くための共通設定を記録します。
+/// </summary>
+void MeshPipeline::BindShadowPass(ID3D12GraphicsCommandList* commandList,
+                                  uint32_t frameIndex) const
+{
+    commandList->SetPipelineState(m_shadowPipelineState.Get());
+
+    // ★ ルートシグネチャを変えると、それまでに結び付けた値は全て無効になる。
+    //   そのため定数バッファはこの後で改めて設定する。
+    commandList->SetGraphicsRootSignature(m_shadowRootSignature.Get());
+
+    commandList->SetGraphicsRootConstantBufferView(
+        kFrameConstantsRootParameterIndex,
+        m_frameConstantBuffer.GpuAddress(frameIndex));
+
+    commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
+
+
+/// <summary>
+/// 平行光源が進む向きを返します。
+/// </summary>
+DirectX::XMFLOAT3 MeshPipeline::LightDirection()
+{
+    return { kLightDirection[0], kLightDirection[1], kLightDirection[2] };
 }
 
 

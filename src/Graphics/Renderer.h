@@ -12,6 +12,7 @@
 #include "DescriptorHeap.h"
 #include "GraphicsDevice.h"
 #include "Mesh.h"
+#include "ShadowMap.h"
 #include "SwapChain.h"
 #include "MeshPipeline.h"
 
@@ -104,7 +105,17 @@ private:
     /// シーンの全メッシュを描く命令をコマンドリストに記録します。
     /// </summary>
     /// <param name="frameIndex">使用するフレーム番号。</param>
-    void RecordSceneDrawCommands(uint32_t frameIndex);
+    /// <remarks>
+    /// 共通設定（PSO・ルートシグネチャ）は呼び出し側が先に済ませておくこと。
+    /// 影のパスと画面のパスで、まったく同じ順序のメッシュを描きます。
+    /// </remarks>
+    void RecordMeshDrawCommands(uint32_t frameIndex);
+
+    /// <summary>
+    /// 光源から見た深度をシャドウマップへ描きます。
+    /// </summary>
+    /// <param name="frameIndex">使用するフレーム番号。</param>
+    void RecordShadowPass(uint32_t frameIndex);
 
     /// <summary>
     /// リソースの状態遷移バリアをコマンドリストに記録します。
@@ -153,6 +164,11 @@ private:
     /// 立方体を置く床。
     /// </summary>
     Mesh m_floor;
+
+    /// <summary>
+    /// 光源から見た深度。影の判定に使う。
+    /// </summary>
+    ShadowMap m_shadowMap;
 
     /// <summary>
     /// 視点と透視投影の設定。
