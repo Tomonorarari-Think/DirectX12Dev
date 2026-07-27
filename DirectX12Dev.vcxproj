@@ -220,6 +220,8 @@
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\App\Input.cpp" />
     <ClCompile Include="src\App\CameraController.cpp" />
+    <ClCompile Include="src\Assets\ModelLoader.cpp" />
+    <ClCompile Include="src\Assets\ObjLoader.cpp" />
     <ClCompile Include="src\App\Camera.cpp" />
     <ClCompile Include="src\App\Window.cpp" />
     <ClCompile Include="src\Common\FrameTimer.cpp" />
@@ -250,6 +252,8 @@
   <ItemGroup>
     <ClInclude Include="src\App\Input.h" />
     <ClInclude Include="src\App\CameraController.h" />
+    <ClInclude Include="src\Assets\ModelLoader.h" />
+    <ClInclude Include="src\Assets\ObjLoader.h" />
     <ClInclude Include="src\App\Camera.h" />
     <ClInclude Include="src\App\Window.h" />
     <ClInclude Include="src\Common\FrameTimer.h" />
@@ -283,6 +287,8 @@
   -->
   <ItemGroup>
     <None Include="shaders\Mesh.hlsl" />
+    <None Include="assets\models\torus.obj" />
+    <None Include="assets\models\pyramid.obj" />
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

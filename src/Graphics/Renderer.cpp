@@ -5,6 +5,7 @@
 #include "Renderer.h"
 
 #include <format>
+#include <stdexcept>
 
 namespace dx12
 {
@@ -26,7 +27,7 @@ constexpr bool kEnableVSync = true;
 constexpr uint32_t kDescriptorHeapCapacity = 16;
 
 /// <summary>
-/// シーンに置くオブジェクトの数（立方体と床）。
+/// シーンに置くオブジェクトの数（モデルと床）。
 /// </summary>
 constexpr uint32_t kObjectCount = 2;
 
@@ -35,24 +36,42 @@ constexpr uint32_t kObjectCount = 2;
 /// </summary>
 enum ObjectIndex : uint32_t
 {
-    kCubeObjectIndex  = 0,
+    kModelObjectIndex = 0,
     kFloorObjectIndex = 1,
 };
 
 /// <summary>
-/// 立方体が 1 回転するのにかかる秒数。
+/// 読み込むモデル（プロジェクトルートからの相対パス）。
+/// </summary>
+constexpr const wchar_t* kModelRelativePath = L"assets/models/torus.obj";
+
+/// <summary>
+/// 読み込んだモデルを収める大きさ（一番長い辺の長さ）。
+/// </summary>
+/// <remarks>
+/// モデルの単位はファイルによって違うため、読み込み時に揃えます。
+/// </remarks>
+constexpr float kModelTargetSize = 1.7f;
+
+/// <summary>
+/// 読み込んだモデルの底面を置く高さ。
+/// </summary>
+constexpr float kModelGroundLevel = 0.0f;
+
+/// <summary>
+/// モデルが 1 回転するのにかかる秒数。
 /// </summary>
 constexpr float kSecondsPerRotation = 8.0f;
 
 /// <summary>
-/// 立方体の一辺の半分の長さ。
+/// モデルの読み込みに失敗したときに代わりに使う立方体の、一辺の半分の長さ。
 /// </summary>
-constexpr float kCubeHalfExtent = 0.5f;
+constexpr float kCubeHalfExtent = 0.6f;
 
 /// <summary>
-/// 立方体の中心を置く高さ。床から浮かせて影が見やすい位置にします。
+/// モデルの中心を置く高さ。床から浮かせて影が見やすい位置にします。
 /// </summary>
-constexpr float kCubeCenterHeight = 0.9f;
+constexpr float kModelCenterHeight = 0.75f;
 
 /// <summary>
 /// 床の中心から端までの距離。
@@ -202,9 +221,29 @@ void Renderer::CreateSceneMeshes()
 {
     ID3D12Device* device = m_graphicsDevice.Device();
 
-    // 形状データの生成は DirectX を使わない純粋な計算なので Geometry に分けてある。
-    m_cube.Initialize(device, m_commandQueue, CreateCube(kCubeHalfExtent), L"立方体");
+    // (1) 回転させる本体はファイルから読み込む。
+    //   読めなかった場合でも動かなくならないよう、コードで作る立方体へ切り替える。
+    MeshData modelData;
+    try
+    {
+        assets::ModelLoadOptions options;
+        options.targetSize  = kModelTargetSize;
+        options.groundLevel = kModelGroundLevel;
 
+        modelData = assets::LoadModel(ResolveAssetPath(kModelRelativePath), options);
+    }
+    catch (const std::exception& e)
+    {
+        LogError(L"モデルの読み込みに失敗したため、立方体で代用します。");
+        ::OutputDebugStringA(e.what());
+        ::OutputDebugStringA("\n");
+
+        modelData = CreateCube(kCubeHalfExtent);
+    }
+
+    m_model.Initialize(device, m_commandQueue, modelData, L"モデル");
+
+    // (2) 床は形が単純なのでコードで作る。
     m_floor.Initialize(
         device,
         m_commandQueue,
@@ -231,16 +270,16 @@ void Renderer::UpdateConstants(uint32_t frameIndex)
     m_meshPipeline.UpdateFrameConstants(
         frameIndex, viewProjection, m_camera.Position(), m_shadowMap.LightViewProjection());
 
-    // 立方体 : 2 軸で回しながら、床から浮かせた位置に置く。
+    // モデル : 2 軸で回しながら、床から浮かせた位置に置く。
     const float angle =
         static_cast<float>(m_frameTimer.TotalSeconds()) * (XM_2PI / kSecondsPerRotation);
 
-    const XMMATRIX cubeWorld = XMMatrixRotationY(angle)
-                             * XMMatrixRotationX(angle * 0.45f)
-                             * XMMatrixTranslation(0.0f, kCubeCenterHeight, 0.0f);
+    const XMMATRIX modelWorld = XMMatrixRotationY(angle)
+                              * XMMatrixRotationX(angle * 0.45f)
+                              * XMMatrixTranslation(0.0f, kModelCenterHeight, 0.0f);
 
     m_meshPipeline.UpdateObjectConstants(
-        frameIndex, kCubeObjectIndex, cubeWorld, viewProjection);
+        frameIndex, kModelObjectIndex, modelWorld, viewProjection);
 
     // 床 : 動かさないのでワールド行列は単位行列。
     m_meshPipeline.UpdateObjectConstants(
@@ -259,8 +298,8 @@ void Renderer::RecordMeshDrawCommands(uint32_t frameIndex)
     m_meshPipeline.BindObject(commandList, frameIndex, kFloorObjectIndex);
     m_floor.RecordDrawCommands(commandList);
 
-    m_meshPipeline.BindObject(commandList, frameIndex, kCubeObjectIndex);
-    m_cube.RecordDrawCommands(commandList);
+    m_meshPipeline.BindObject(commandList, frameIndex, kModelObjectIndex);
+    m_model.RecordDrawCommands(commandList);
 }
 
 
