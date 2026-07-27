@@ -83,6 +83,7 @@ DirectX12Dev/
 │       ├── DepthBuffer.*             深度バッファ・DSV
 │       ├── DescriptorHeap.*          シェーダー可視ディスクリプタヒープ
 │       ├── Texture2D.*               テクスチャ・GPU 転送・SRV
+│       ├── UploadHelper.*            DEFAULT ヒープへの転送（共通処理）
 │       ├── SwapChain.*               スワップチェーン・RTV
 │       ├── TrianglePipeline.*        ルートシグネチャ・PSO・頂点/定数バッファ
 │       └── Renderer.*                上記を束ねて 1 フレーム描く
@@ -104,7 +105,7 @@ DirectX12Dev/
 - [x] **Step 6**: 定数バッファと座標変換（回転する三角形）
 - [x] **Step 7**: 深度バッファ（奥行き判定）
 - [x] **Step 8**: テクスチャマッピング（ディスクリプタテーブル・ステージング転送）
-- [ ] Step 9: 頂点バッファを DEFAULT ヒープへ転送
+- [x] **Step 9**: 頂点バッファを DEFAULT ヒープへ転送（転送処理の共通化）
 - [ ] Step 10: 3D 化（ビュー行列・透視投影）
 
 各ステップで「なぜ現在の実装が単純化されているか」「どう改善するか」は
