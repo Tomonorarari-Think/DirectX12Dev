@@ -11,6 +11,7 @@
 #include "DepthBuffer.h"
 #include "DescriptorHeap.h"
 #include "GraphicsDevice.h"
+#include "Mesh.h"
 #include "SwapChain.h"
 #include "MeshPipeline.h"
 
@@ -88,6 +89,24 @@ private:
     void UpdateViewportAndScissor(uint32_t width, uint32_t height);
 
     /// <summary>
+    /// シーンに置くメッシュを生成します。
+    /// </summary>
+    /// <exception cref="HrException">リソースの生成または転送に失敗した場合。</exception>
+    void CreateSceneMeshes();
+
+    /// <summary>
+    /// このフレームぶんの定数バッファを更新します。
+    /// </summary>
+    /// <param name="frameIndex">書き込み先のフレーム番号。</param>
+    void UpdateConstants(uint32_t frameIndex);
+
+    /// <summary>
+    /// シーンの全メッシュを描く命令をコマンドリストに記録します。
+    /// </summary>
+    /// <param name="frameIndex">使用するフレーム番号。</param>
+    void RecordSceneDrawCommands(uint32_t frameIndex);
+
+    /// <summary>
     /// リソースの状態遷移バリアをコマンドリストに記録します。
     /// </summary>
     /// <param name="commandList">記録先のコマンドリスト。</param>
@@ -121,9 +140,19 @@ private:
     DepthBuffer m_depthBuffer;
 
     /// <summary>
-    /// 立方体描画用の PSO と頂点/インデックス/定数バッファ、テクスチャ。
+    /// メッシュの描き方（PSO・ルートシグネチャ・定数バッファ・テクスチャ）。
     /// </summary>
     MeshPipeline m_meshPipeline;
+
+    /// <summary>
+    /// 回転する立方体。
+    /// </summary>
+    Mesh m_cube;
+
+    /// <summary>
+    /// 立方体を置く床。
+    /// </summary>
+    Mesh m_floor;
 
     /// <summary>
     /// 視点と透視投影の設定。

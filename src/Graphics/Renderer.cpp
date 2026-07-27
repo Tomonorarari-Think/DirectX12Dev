@@ -24,6 +24,50 @@ constexpr bool kEnableVSync = true;
 /// シェーダー可視ディスクリプタヒープに確保する数。
 /// </summary>
 constexpr uint32_t kDescriptorHeapCapacity = 16;
+
+/// <summary>
+/// シーンに置くオブジェクトの数（立方体と床）。
+/// </summary>
+constexpr uint32_t kObjectCount = 2;
+
+/// <summary>
+/// 定数バッファ上でのオブジェクトの通し番号。
+/// </summary>
+enum ObjectIndex : uint32_t
+{
+    kCubeObjectIndex  = 0,
+    kFloorObjectIndex = 1,
+};
+
+/// <summary>
+/// 立方体が 1 回転するのにかかる秒数。
+/// </summary>
+constexpr float kSecondsPerRotation = 8.0f;
+
+/// <summary>
+/// 立方体の一辺の半分の長さ。
+/// </summary>
+constexpr float kCubeHalfExtent = 0.5f;
+
+/// <summary>
+/// 立方体の中心を置く高さ。床から浮かせて影が見やすい位置にします。
+/// </summary>
+constexpr float kCubeCenterHeight = 0.9f;
+
+/// <summary>
+/// 床の中心から端までの距離。
+/// </summary>
+constexpr float kFloorHalfExtent = 2.5f;
+
+/// <summary>
+/// 床を置く高さ。
+/// </summary>
+constexpr float kFloorHeight = 0.0f;
+
+/// <summary>
+/// 床でテクスチャを繰り返す回数。サンプラーが WRAP なので模様が並びます。
+/// </summary>
+constexpr float kFloorUvTiling = 1.0f;
 } // namespace
 
 
@@ -74,16 +118,20 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
     //     増えても 1 本のヒープを共有するため、少し余裕を持たせておく。
     m_descriptorHeap.Initialize(device, kDescriptorHeapCapacity);
 
-    // (7) 立方体描画用のパイプライン
+    // (7) メッシュ描画用のパイプライン
     //     PSO は描画先の形式（RTV / DSV）を知っている必要があるため両方渡す。
     m_meshPipeline.Initialize(device,
-                                  SwapChain::kBackBufferFormat,
-                                  DepthBuffer::kFormat,
-                                  SwapChain::kBackBufferCount,
-                                  m_commandQueue,
-                                  m_descriptorHeap);
+                              SwapChain::kBackBufferFormat,
+                              DepthBuffer::kFormat,
+                              SwapChain::kBackBufferCount,
+                              kObjectCount,
+                              m_commandQueue,
+                              m_descriptorHeap);
 
-    // (8) ビューポート／シザー矩形
+    // (8) 描くもの（形状データ）
+    CreateSceneMeshes();
+
+    // (9) ビューポート／シザー矩形
     UpdateViewportAndScissor(width, height);
 
     m_initialized = true;
@@ -119,6 +167,76 @@ void Renderer::CreateCommandObjects()
 
     Log(std::format(L"コマンドアロケータ {} 個とコマンドリストを生成しました。",
                     SwapChain::kBackBufferCount));
+}
+
+
+/// <summary>
+/// シーンに置くメッシュを生成します。
+/// </summary>
+void Renderer::CreateSceneMeshes()
+{
+    ID3D12Device* device = m_graphicsDevice.Device();
+
+    // 形状データの生成は DirectX を使わない純粋な計算なので Geometry に分けてある。
+    m_cube.Initialize(device, m_commandQueue, CreateCube(kCubeHalfExtent), L"立方体");
+
+    m_floor.Initialize(
+        device,
+        m_commandQueue,
+        CreatePlane(kFloorHalfExtent, kFloorHeight, kFloorUvTiling),
+        L"床");
+}
+
+
+/// <summary>
+/// このフレームぶんの定数バッファを更新します。
+/// </summary>
+void Renderer::UpdateConstants(uint32_t frameIndex)
+{
+    using namespace DirectX;
+
+    // 縦横比は毎フレーム渡す。ウィンドウをリサイズしても歪まないようにするため。
+    m_camera.SetAspectRatio(
+        static_cast<float>(m_swapChain.Width()) / static_cast<float>(m_swapChain.Height()));
+
+    const XMMATRIX viewProjection = m_camera.ViewProjectionMatrix();
+
+    // カメラとライトは全オブジェクト共通なので 1 回だけ書く。
+    m_meshPipeline.UpdateFrameConstants(frameIndex, viewProjection, m_camera.Position());
+
+    // 立方体 : 2 軸で回しながら、床から浮かせた位置に置く。
+    const float angle =
+        static_cast<float>(m_frameTimer.TotalSeconds()) * (XM_2PI / kSecondsPerRotation);
+
+    const XMMATRIX cubeWorld = XMMatrixRotationY(angle)
+                             * XMMatrixRotationX(angle * 0.45f)
+                             * XMMatrixTranslation(0.0f, kCubeCenterHeight, 0.0f);
+
+    m_meshPipeline.UpdateObjectConstants(
+        frameIndex, kCubeObjectIndex, cubeWorld, viewProjection);
+
+    // 床 : 動かさないのでワールド行列は単位行列。
+    m_meshPipeline.UpdateObjectConstants(
+        frameIndex, kFloorObjectIndex, XMMatrixIdentity(), viewProjection);
+}
+
+
+/// <summary>
+/// シーンの全メッシュを描く命令をコマンドリストに記録します。
+/// </summary>
+void Renderer::RecordSceneDrawCommands(uint32_t frameIndex)
+{
+    ID3D12GraphicsCommandList* commandList = m_commandList.Get();
+
+    // 全オブジェクトで共通の設定は 1 回だけ。
+    m_meshPipeline.Bind(commandList, frameIndex);
+
+    // オブジェクトごとに変えるのは定数バッファと頂点バッファだけ。
+    m_meshPipeline.BindObject(commandList, frameIndex, kFloorObjectIndex);
+    m_floor.RecordDrawCommands(commandList);
+
+    m_meshPipeline.BindObject(commandList, frameIndex, kCubeObjectIndex);
+    m_cube.RecordDrawCommands(commandList);
 }
 
 
@@ -194,16 +312,9 @@ void Renderer::Render()
     // (2) コマンドリストのリセット（記録の開始）
     DX_CHECK(m_commandList->Reset(m_commandAllocators[frameIndex].Get(), nullptr));
 
-    // (2-b) このフレームの定数（変換行列）を更新する
+    // (2-b) このフレームの定数（変換行列とライト）を更新する
     //   (0) でこのフレームのフェンスを待っているため、GPU はもうこの領域を読んでいない。
-    //   縦横比は毎フレーム渡す。ウィンドウをリサイズしても歪まないようにするため。
-    m_camera.SetAspectRatio(
-        static_cast<float>(m_swapChain.Width()) / static_cast<float>(m_swapChain.Height()));
-
-    m_meshPipeline.Update(frameIndex,
-                          m_camera.ViewProjectionMatrix(),
-                          m_camera.Position(),
-                          static_cast<float>(m_frameTimer.TotalSeconds()));
+    UpdateConstants(frameIndex);
 
     ID3D12Resource* backBuffer = m_swapChain.CurrentBackBuffer();
 
@@ -250,8 +361,8 @@ void Renderer::Render()
         0,                          // ステンシルのクリア値（未使用）
         0, nullptr);                // 部分クリアの矩形（0 / nullptr で全体）
 
-    // (7) 立方体の描画命令を記録
-    m_meshPipeline.RecordDrawCommands(m_commandList.Get(), frameIndex);
+    // (7) シーン（床と立方体）の描画命令を記録
+    RecordSceneDrawCommands(frameIndex);
 
     // (8) バリア : RENDER_TARGET → PRESENT
     //   描き終わったので、表示できる状態へ戻します。

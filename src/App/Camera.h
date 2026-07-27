@@ -64,11 +64,11 @@ public:
     DirectX::XMMATRIX ViewProjectionMatrix() const;
 
 private:
-    /// <summary>視点の位置。</summary>
-    DirectX::XMFLOAT3 m_position = { 0.0f, 1.2f, -3.2f };
+    /// <summary>視点の位置。床を見下ろす角度に置いています。</summary>
+    DirectX::XMFLOAT3 m_position = { 0.0f, 2.8f, -4.2f };
 
-    /// <summary>注視点。</summary>
-    DirectX::XMFLOAT3 m_target = { 0.0f, 0.0f, 0.0f };
+    /// <summary>注視点。立方体の中心あたり。</summary>
+    DirectX::XMFLOAT3 m_target = { 0.0f, 0.55f, 0.0f };
 
     /// <summary>上方向。カメラの傾きを決めます。</summary>
     DirectX::XMFLOAT3 m_up = { 0.0f, 1.0f, 0.0f };
