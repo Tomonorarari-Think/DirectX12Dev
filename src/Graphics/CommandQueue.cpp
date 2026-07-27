@@ -8,7 +8,9 @@
 
 namespace dx12
 {
-/// @brief デストラクタ。待機用イベントハンドルを閉じます。
+/// <summary>
+/// デストラクタ。待機用イベントハンドルを閉じます。
+/// </summary>
 CommandQueue::~CommandQueue()
 {
     if (m_fenceEvent != nullptr)
@@ -19,42 +21,33 @@ CommandQueue::~CommandQueue()
 }
 
 
-/// @brief コマンドキュー、フェンス、待機用イベントを生成します。
+/// <summary>
+/// コマンドキュー、フェンス、待機用イベントを生成します。
+/// </summary>
 void CommandQueue::Initialize(ID3D12Device* device, D3D12_COMMAND_LIST_TYPE type)
 {
-    //-------------------------------------------------------------------------
     // (1) コマンドキューの生成
-    //-------------------------------------------------------------------------
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Type = type;
 
     // Priority : キューの優先度。通常は NORMAL でよい。
-    //            HIGH は他アプリの描画より優先されるため、
-    //            VR など遅延が致命的な用途以外では使いません。
     queueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
 
     queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 
     // NodeMask : マルチ GPU 環境でどの GPU を使うかのビットマスク。
-    //            GPU が 1 台なら 0（= 既定の GPU）。
     queueDesc.NodeMask = 0;
 
     DX_CHECK(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
 
-    //-------------------------------------------------------------------------
     // (2) フェンスの生成
     //   初期値 0 から開始する。以後 Signal のたびに 1, 2, 3 … と増えていく。
-    //-------------------------------------------------------------------------
     DX_CHECK(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
     m_nextFenceValue = 0;
 
-    //-------------------------------------------------------------------------
     // (3) 待機用イベントの生成
     //   第 2 引数 FALSE : 自動リセットイベント
     //       → 待機が解除された瞬間に自動的に非シグナル状態へ戻る。
-    //         毎回手動で ResetEvent を呼ぶ必要がなくなる。
-    //   第 3 引数 FALSE : 初期状態は非シグナル（＝待たされる状態）
-    //-------------------------------------------------------------------------
     m_fenceEvent = ::CreateEventW(nullptr, FALSE, FALSE, nullptr);
     if (m_fenceEvent == nullptr)
     {
@@ -65,21 +58,21 @@ void CommandQueue::Initialize(ID3D12Device* device, D3D12_COMMAND_LIST_TYPE type
 }
 
 
-/// @brief 記録済みのコマンドリストを GPU の実行待ち行列へ投入します。
+/// <summary>
+/// 記録済みのコマンドリストを GPU の実行待ち行列へ投入します。
+/// </summary>
 void CommandQueue::ExecuteCommandList(ID3D12GraphicsCommandList* commandList)
 {
     // ExecuteCommandLists は「複数のコマンドリストをまとめて投入する」API。
-    // 引数が配列なのはそのため。今回は 1 本だけなので要素 1 の配列にする。
-    //
-    // ID3D12GraphicsCommandList は ID3D12CommandList を継承しているため、
-    // 基底型のポインタ配列として渡します。
     ID3D12CommandList* const commandLists[] = { commandList };
 
     m_commandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
 }
 
 
-/// @brief 「ここまで終わったら番号を進めて」という指示をキューに積みます。
+/// <summary>
+/// 「ここまで終わったら番号を進めて」という指示をキューに積みます。
+/// </summary>
 uint64_t CommandQueue::Signal()
 {
     // 次の番号を発行する（0 は初期値なので、最初の Signal は 1 になる）
@@ -87,19 +80,18 @@ uint64_t CommandQueue::Signal()
 
     // 重要: この Signal はコマンドキューの「末尾に積まれる」だけで、
     //       この行を実行した瞬間にカウンタが増えるわけではありません。
-    //       GPU がそれ以前に積まれた命令をすべて処理し終えた時点で、
-    //       初めてフェンスのカウンタが fenceValue になります。
     DX_CHECK(m_commandQueue->Signal(m_fence.Get(), fenceValue));
 
     return fenceValue;
 }
 
 
-/// @brief 指定した番号まで GPU が到達するのを CPU 側で待ちます。
+/// <summary>
+/// 指定した番号まで GPU が到達するのを CPU 側で待ちます。
+/// </summary>
 void CommandQueue::WaitForFenceValue(uint64_t fenceValue)
 {
     // GetCompletedValue() は GPU が現在到達している番号を返す。
-    // すでに追い越していれば待つ必要はない（この早期リターンが性能上とても重要）。
     if (m_fence->GetCompletedValue() >= fenceValue)
     {
         return;
@@ -109,20 +101,19 @@ void CommandQueue::WaitForFenceValue(uint64_t fenceValue)
     DX_CHECK(m_fence->SetEventOnCompletion(fenceValue, m_fenceEvent));
 
     // イベントがシグナルされるまでスレッドを眠らせる。
-    // INFINITE = タイムアウトなし。GPU ハングすると永久に戻らない点は注意
-    //（製品コードではタイムアウトを設けて復帰処理を書くこともあります）。
     ::WaitForSingleObject(m_fenceEvent, INFINITE);
 }
 
 
-/// @brief GPU の作業が「全部」終わるまで待ちます。
+/// <summary>
+/// GPU の作業が「全部」終わるまで待ちます。
+/// </summary>
 uint64_t CommandQueue::Flush()
 {
     const uint64_t fenceValue = Signal();
     WaitForFenceValue(fenceValue);
 
     // 呼び出し側が「この値まで全て完了済み」と記録できるよう返す。
-    // Renderer はこれをフレームごとのフェンス値配列に一括で書き込みます。
     return fenceValue;
 }
 
