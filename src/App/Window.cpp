@@ -177,6 +177,14 @@ LRESULT CALLBACK Window::StaticWindowProc(HWND hwnd, UINT message, WPARAM wParam
 /// </summary>
 LRESULT Window::HandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    // 入力メッセージを Input へ横流しする。
+    //   ★ ここでゲームの処理をしてはいけません。記録するだけです。
+    //     この関数は「1 フレームに何回呼ばれるか分からない」ためです。
+    if (m_onMessage)
+    {
+        m_onMessage(message, wParam, lParam);
+    }
+
     switch (message)
     {
     // WM_CLOSE : 「×」ボタンが押された、Alt+F4 が押された
@@ -231,6 +239,39 @@ LRESULT Window::HandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPa
         {
             ::DestroyWindow(hwnd);
         }
+        return 0;
+
+    // マウスボタンの押し下げ : マウスを捕捉する
+    //   捕捉すると、ウィンドウの外へドラッグしても WM_MOUSEMOVE が届き続ける。
+    //   これが無いと、勢いよくドラッグしたときに視点回転が途中で止まる。
+    case WM_LBUTTONDOWN:
+    case WM_RBUTTONDOWN:
+    case WM_MBUTTONDOWN:
+        if (m_pressedMouseButtons == 0)
+        {
+            ::SetCapture(hwnd);
+        }
+        ++m_pressedMouseButtons;
+        return 0;
+
+    // マウスボタンを離した : 全て離れたら捕捉を解除する
+    case WM_LBUTTONUP:
+    case WM_RBUTTONUP:
+    case WM_MBUTTONUP:
+        if (m_pressedMouseButtons > 0)
+        {
+            --m_pressedMouseButtons;
+        }
+        if (m_pressedMouseButtons == 0)
+        {
+            ::ReleaseCapture();
+        }
+        return 0;
+
+    // WM_CAPTURECHANGED : 捕捉が他へ移った（Alt+Tab など）
+    //   自分のカウントも合わせておかないと、以後の捕捉がずれる。
+    case WM_CAPTURECHANGED:
+        m_pressedMouseButtons = 0;
         return 0;
 
     // WM_PAINT : 再描画要求

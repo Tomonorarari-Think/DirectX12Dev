@@ -75,6 +75,26 @@ public:
     /// </summary>
     void WaitForGpu();
 
+    /// <summary>
+    /// シーンを見ているカメラを取得します。
+    /// </summary>
+    /// <returns>カメラへの参照。外から位置や注視点を変えられます。</returns>
+    /// <remarks>`CameraController` が操作するために公開しています。</remarks>
+    Camera& SceneCamera() noexcept { return m_camera; }
+
+    /// <summary>
+    /// 直前のフレームにかかった秒数を取得します。
+    /// </summary>
+    /// <returns>経過秒数。</returns>
+    /// <remarks>
+    /// 計測は `Render()` の先頭で行うため、返るのは 1 つ前のフレームの値です。
+    /// 操作量を時間に比例させる用途には、これで十分です。
+    /// </remarks>
+    float DeltaSeconds() const noexcept
+    {
+        return static_cast<float>(m_frameTimer.DeltaSeconds());
+    }
+
 private:
     /// <summary>
     /// コマンドアロケータ（バックバッファ枚数ぶん）とコマンドリストを生成します。

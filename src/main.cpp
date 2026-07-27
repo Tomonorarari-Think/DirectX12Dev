@@ -12,6 +12,8 @@
 //     製品として配布する際は、サブシステムを「Windows」に変更し、
 //     エントリポイントを wWinMain にします（コンソールが開かなくなります）。
 //=============================================================================
+#include "App/CameraController.h"
+#include "App/Input.h"
 #include "App/Window.h"
 #include "Common/GraphicsCommon.h"
 #include "Graphics/Renderer.h"
@@ -36,7 +38,7 @@ constexpr uint32_t kInitialHeight = 720;
 /// <summary>
 /// タイトルバーに表示する文字列。
 /// </summary>
-constexpr const wchar_t* kWindowTitle = L"DirectX 12 Dev - Cube and Floor";
+constexpr const wchar_t* kWindowTitle = L"DirectX 12 Dev - Interactive Camera";
 
 /// <summary>
 /// コンソールで日本語（UTF-16 のワイド文字）を正しく表示できるようにします。
@@ -46,6 +48,21 @@ void SetupConsole()
     // _O_U8TEXT : ワイド文字を UTF-8 に変換して出力するモード
     ::_setmode(::_fileno(stdout), _O_U8TEXT);
     ::_setmode(::_fileno(stderr), _O_U8TEXT);
+}
+
+
+/// <summary>
+/// 操作方法をコンソールへ表示します。
+/// </summary>
+void PrintControls()
+{
+    dx12::Log(L"操作方法");
+    dx12::Log(L"  左ドラッグ        視点を回す");
+    dx12::Log(L"  右／中ドラッグ    注視点ごと平行移動");
+    dx12::Log(L"  ホイール          寄る・引く");
+    dx12::Log(L"  W / S / A / D     視点を回す（キー操作）");
+    dx12::Log(L"  R                 初期位置へ戻す");
+    dx12::Log(L"  ESC               終了");
 }
 } // namespace
 
@@ -60,7 +77,7 @@ int main()
 
     try
     {
-        dx12::Log(L"===== DirectX 12 Dev : Cube and Floor =====");
+        dx12::Log(L"===== DirectX 12 Dev : Interactive Camera =====");
 
         // (1) ウィンドウの生成
         dx12::Window window;
@@ -77,16 +94,39 @@ int main()
             renderer.Resize(width, height);
         });
 
-        dx12::Log(L"メインループを開始します。ESC キーまたは × ボタンで終了します。");
+        // (4) 入力の受け取り口をウィンドウへ接続する
+        //   ウィンドウプロシージャの中では「記録するだけ」で、
+        //   実際の判断はメインループで行います。
+        dx12::Input input;
+        dx12::CameraController cameraController;
 
-        // (4) メインループ
+        window.SetMessageCallback([&input](UINT message, WPARAM wParam, LPARAM lParam) {
+            return input.ProcessMessage(message, wParam, lParam);
+        });
+
+        PrintControls();
+
+        // (5) メインループ
         //   ゲームやリアルタイム描画アプリの基本構造です。
-        while (window.ProcessMessages())
+        while (true)
         {
+            // ★ メッセージを処理する前に、1 フレームの区切りを付ける。
+            //   ここで前フレームの状態を保存し、移動量を 0 に戻します。
+            //   順序を逆にすると、このフレームで届いた入力を捨ててしまいます。
+            input.NewFrame();
+
+            if (!window.ProcessMessages())
+            {
+                break;
+            }
+
+            // 溜まった入力をもとにカメラを動かす。
+            cameraController.Update(input, renderer.SceneCamera(), renderer.DeltaSeconds());
+
             renderer.Render();
         }
 
-        // (5) 終了処理
+        // (6) 終了処理
         //   ★ GPU の作業完了を待ってからリソースを解放する。
         renderer.WaitForGpu();
 
