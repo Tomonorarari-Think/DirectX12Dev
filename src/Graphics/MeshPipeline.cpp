@@ -8,6 +8,7 @@
 #include "DescriptorHeap.h"
 #include "UploadHelper.h"
 
+#include <cstddef>  // offsetof
 #include <cstdio>   // printf（シェーダーのコンパイルエラーをコンソールに出す）
 #include <cstring>  // memcpy
 #include <format>
@@ -20,45 +21,70 @@ namespace
 /// 立方体の頂点データ（6 面 × 4 頂点 = 24 個）。
 /// </summary>
 /// <remarks>
-/// 面ごとに UV を 0〜1 で貼りたいので、頂点は面ごとに分けて持ちます。8 個では
+/// 面ごとに UV と法線を持たせたいので、頂点は面ごとに分けて持ちます。8 個では
 /// 足りません。各面は外から見て時計回りに並べており、逆にすると背面カリングで消えます。
+/// 面の色は一様です。濃淡はライティングが付けるため、頂点カラーで作る必要がありません。
 /// </remarks>
 constexpr Vertex kCubeVertices[] = {
     // 手前 (-Z) 青
-    { { -0.5f,  0.5f, -0.5f }, { 0.45f, 0.68f, 1.00f, 1.0f }, { 0.0f, 0.0f } },
-    { {  0.5f,  0.5f, -0.5f }, { 0.45f, 0.68f, 1.00f, 1.0f }, { 1.0f, 0.0f } },
-    { {  0.5f, -0.5f, -0.5f }, { 0.20f, 0.40f, 0.90f, 1.0f }, { 1.0f, 1.0f } },
-    { { -0.5f, -0.5f, -0.5f }, { 0.20f, 0.40f, 0.90f, 1.0f }, { 0.0f, 1.0f } },
+    { { -0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f },
+      { 0.35f, 0.55f, 0.95f, 1.0f }, { 0.0f, 0.0f } },
+    { {  0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f },
+      { 0.35f, 0.55f, 0.95f, 1.0f }, { 1.0f, 0.0f } },
+    { {  0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f },
+      { 0.35f, 0.55f, 0.95f, 1.0f }, { 1.0f, 1.0f } },
+    { { -0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f },
+      { 0.35f, 0.55f, 0.95f, 1.0f }, { 0.0f, 1.0f } },
 
     // 奥 (+Z) 緑
-    { {  0.5f,  0.5f,  0.5f }, { 0.55f, 1.00f, 0.55f, 1.0f }, { 0.0f, 0.0f } },
-    { { -0.5f,  0.5f,  0.5f }, { 0.55f, 1.00f, 0.55f, 1.0f }, { 1.0f, 0.0f } },
-    { { -0.5f, -0.5f,  0.5f }, { 0.20f, 0.70f, 0.30f, 1.0f }, { 1.0f, 1.0f } },
-    { {  0.5f, -0.5f,  0.5f }, { 0.20f, 0.70f, 0.30f, 1.0f }, { 0.0f, 1.0f } },
+    { {  0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f },
+      { 0.35f, 0.85f, 0.45f, 1.0f }, { 0.0f, 0.0f } },
+    { { -0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f },
+      { 0.35f, 0.85f, 0.45f, 1.0f }, { 1.0f, 0.0f } },
+    { { -0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f },
+      { 0.35f, 0.85f, 0.45f, 1.0f }, { 1.0f, 1.0f } },
+    { {  0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f },
+      { 0.35f, 0.85f, 0.45f, 1.0f }, { 0.0f, 1.0f } },
 
     // 左 (-X) 赤
-    { { -0.5f,  0.5f,  0.5f }, { 1.00f, 0.55f, 0.45f, 1.0f }, { 0.0f, 0.0f } },
-    { { -0.5f,  0.5f, -0.5f }, { 1.00f, 0.55f, 0.45f, 1.0f }, { 1.0f, 0.0f } },
-    { { -0.5f, -0.5f, -0.5f }, { 0.85f, 0.25f, 0.20f, 1.0f }, { 1.0f, 1.0f } },
-    { { -0.5f, -0.5f,  0.5f }, { 0.85f, 0.25f, 0.20f, 1.0f }, { 0.0f, 1.0f } },
+    { { -0.5f,  0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f },
+      { 0.90f, 0.40f, 0.35f, 1.0f }, { 0.0f, 0.0f } },
+    { { -0.5f,  0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f },
+      { 0.90f, 0.40f, 0.35f, 1.0f }, { 1.0f, 0.0f } },
+    { { -0.5f, -0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f },
+      { 0.90f, 0.40f, 0.35f, 1.0f }, { 1.0f, 1.0f } },
+    { { -0.5f, -0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f },
+      { 0.90f, 0.40f, 0.35f, 1.0f }, { 0.0f, 1.0f } },
 
     // 右 (+X) 黄
-    { {  0.5f,  0.5f, -0.5f }, { 1.00f, 0.88f, 0.45f, 1.0f }, { 0.0f, 0.0f } },
-    { {  0.5f,  0.5f,  0.5f }, { 1.00f, 0.88f, 0.45f, 1.0f }, { 1.0f, 0.0f } },
-    { {  0.5f, -0.5f,  0.5f }, { 0.90f, 0.65f, 0.15f, 1.0f }, { 1.0f, 1.0f } },
-    { {  0.5f, -0.5f, -0.5f }, { 0.90f, 0.65f, 0.15f, 1.0f }, { 0.0f, 1.0f } },
+    { {  0.5f,  0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f },
+      { 0.95f, 0.80f, 0.30f, 1.0f }, { 0.0f, 0.0f } },
+    { {  0.5f,  0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f },
+      { 0.95f, 0.80f, 0.30f, 1.0f }, { 1.0f, 0.0f } },
+    { {  0.5f, -0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f },
+      { 0.95f, 0.80f, 0.30f, 1.0f }, { 1.0f, 1.0f } },
+    { {  0.5f, -0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f },
+      { 0.95f, 0.80f, 0.30f, 1.0f }, { 0.0f, 1.0f } },
 
     // 上 (+Y) 水色
-    { { -0.5f,  0.5f,  0.5f }, { 0.60f, 0.95f, 1.00f, 1.0f }, { 0.0f, 0.0f } },
-    { {  0.5f,  0.5f,  0.5f }, { 0.60f, 0.95f, 1.00f, 1.0f }, { 1.0f, 0.0f } },
-    { {  0.5f,  0.5f, -0.5f }, { 0.30f, 0.80f, 0.95f, 1.0f }, { 1.0f, 1.0f } },
-    { { -0.5f,  0.5f, -0.5f }, { 0.30f, 0.80f, 0.95f, 1.0f }, { 0.0f, 1.0f } },
+    { { -0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f },
+      { 0.45f, 0.85f, 0.95f, 1.0f }, { 0.0f, 0.0f } },
+    { {  0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f },
+      { 0.45f, 0.85f, 0.95f, 1.0f }, { 1.0f, 0.0f } },
+    { {  0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f },
+      { 0.45f, 0.85f, 0.95f, 1.0f }, { 1.0f, 1.0f } },
+    { { -0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f },
+      { 0.45f, 0.85f, 0.95f, 1.0f }, { 0.0f, 1.0f } },
 
     // 下 (-Y) 紫
-    { { -0.5f, -0.5f, -0.5f }, { 0.80f, 0.60f, 1.00f, 1.0f }, { 0.0f, 0.0f } },
-    { {  0.5f, -0.5f, -0.5f }, { 0.80f, 0.60f, 1.00f, 1.0f }, { 1.0f, 0.0f } },
-    { {  0.5f, -0.5f,  0.5f }, { 0.55f, 0.35f, 0.85f, 1.0f }, { 1.0f, 1.0f } },
-    { { -0.5f, -0.5f,  0.5f }, { 0.55f, 0.35f, 0.85f, 1.0f }, { 0.0f, 1.0f } },
+    { { -0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f },
+      { 0.70f, 0.50f, 0.95f, 1.0f }, { 0.0f, 0.0f } },
+    { {  0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f },
+      { 0.70f, 0.50f, 0.95f, 1.0f }, { 1.0f, 0.0f } },
+    { {  0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f },
+      { 0.70f, 0.50f, 0.95f, 1.0f }, { 1.0f, 1.0f } },
+    { { -0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f },
+      { 0.70f, 0.50f, 0.95f, 1.0f }, { 0.0f, 1.0f } },
 };
 
 /// <summary>
@@ -86,6 +112,28 @@ constexpr const wchar_t* kShaderRelativePath = L"shaders/Mesh.hlsl";
 /// 立方体が 1 回転するのにかかる秒数。
 /// </summary>
 constexpr float kSecondsPerRotation = 8.0f;
+
+/// <summary>
+/// 平行光源が進む向き（ワールド空間）。左上手前から差し込む設定。
+/// </summary>
+/// <remarks>
+/// 「光源がある方向」ではなく「光が飛んでいく向き」です。正規化は Update で行います。
+/// 立方体が回っても光は動かないため、面の明るさが移り変わる様子が観察できます。
+/// </remarks>
+constexpr float kLightDirection[3] = { 0.55f, -0.75f, 0.35f };
+
+/// <summary>
+/// 光の色と強さ。1.0 を超えると白飛びします。
+/// </summary>
+constexpr float kLightColor[3] = { 1.0f, 0.96f, 0.88f };
+
+/// <summary>
+/// 環境光の強さ。光の当たらない面が真っ黒に潰れるのを防ぎます。
+/// </summary>
+/// <remarks>
+/// 本来は周囲からの反射の積み重ねですが、ここでは定数で近似しています。
+/// </remarks>
+constexpr float kAmbientIntensity = 0.25f;
 
 /// <summary>
 /// 定数バッファを結び付けるルートパラメータの番号。
@@ -146,7 +194,7 @@ void MeshPipeline::CreateRootSignature(ID3D12Device* device)
     // ルートパラメータ : シェーダーへ何を渡すかの定義。関数の引数リストに相当する。
     D3D12_ROOT_PARAMETER rootParameters[2] = {};
 
-    // 0 番 : シーン共通の定数バッファ（変換行列）
+    // 0 番 : シーン共通の定数バッファ（変換行列とライト情報）
     rootParameters[kSceneConstantsRootParameterIndex].ParameterType =
         D3D12_ROOT_PARAMETER_TYPE_CBV;
 
@@ -155,8 +203,10 @@ void MeshPipeline::CreateRootSignature(ID3D12Device* device)
     rootParameters[kSceneConstantsRootParameterIndex].Descriptor.RegisterSpace  = 0;
 
     // ShaderVisibility : どのシェーダー段から見えるようにするか。
+    //   変換行列は頂点シェーダー、ライト情報はピクセルシェーダーが読むため ALL にする。
+    //   VERTEX のままだとピクセルシェーダー側でコンパイルは通り、実行時に値が 0 になる。
     rootParameters[kSceneConstantsRootParameterIndex].ShaderVisibility =
-        D3D12_SHADER_VISIBILITY_VERTEX;
+        D3D12_SHADER_VISIBILITY_ALL;
 
     // 1 番 : テクスチャ（ディスクリプタテーブル）
     D3D12_DESCRIPTOR_RANGE srvRange = {};
@@ -320,11 +370,20 @@ void MeshPipeline::CreatePipelineState(ID3D12Device* device,
             0
         },
         {
+            "NORMAL",                                    // シェーダー側の : NORMAL に対応
+            0,
+            DXGI_FORMAT_R32G32B32_FLOAT,                 // float3
+            0,
+            12,                                          // position の 12 バイト後ろ
+            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+            0
+        },
+        {
             "COLOR",                                     // シェーダー側の : COLOR に対応
             0,
             DXGI_FORMAT_R32G32B32A32_FLOAT,              // float4
             0,
-            12,                                          // position の 12 バイト後ろ
+            24,                                          // position(12) + normal(12) の後ろ
             D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
             0
         },
@@ -333,11 +392,18 @@ void MeshPipeline::CreatePipelineState(ID3D12Device* device,
             0,
             DXGI_FORMAT_R32G32_FLOAT,                    // float2
             0,
-            28,                                          // position(12) + color(16) の後ろ
+            40,                                          // + color(16) の後ろ
             D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
             0
         },
     };
+
+    // オフセットは頂点構造体の並びと 1 バイトもずれてはいけない。
+    // 手で足した数値が Vertex と食い違っていないことを、ここで機械的に確かめる。
+    static_assert(sizeof(Vertex) == 48, "Vertex のサイズが入力レイアウトの前提と違います");
+    static_assert(offsetof(Vertex, normal) == 12, "NORMAL のオフセットが違います");
+    static_assert(offsetof(Vertex, color)  == 24, "COLOR のオフセットが違います");
+    static_assert(offsetof(Vertex, uv)     == 40, "TEXCOORD のオフセットが違います");
 
     // (3) ラスタライザステート
     //   頂点を「ピクセルの集合」に変換する段の設定。
@@ -476,10 +542,11 @@ void MeshPipeline::CreateGeometryBuffers(ID3D12Device* device, CommandQueue& com
 
 
 /// <summary>
-/// このフレームの変換行列を計算し、定数バッファへ書き込みます。
+/// このフレームの変換行列とライト情報を計算し、定数バッファへ書き込みます。
 /// </summary>
 void MeshPipeline::Update(uint32_t frameIndex,
                           const DirectX::XMMATRIX& viewProjection,
+                          const DirectX::XMFLOAT3& cameraPosition,
                           float totalSeconds)
 {
     using namespace DirectX;
@@ -497,12 +564,27 @@ void MeshPipeline::Update(uint32_t frameIndex,
     SceneConstants constants = {};
     XMStoreFloat4x4(&constants.worldViewProjection, XMMatrixTranspose(worldViewProjection));
 
+    // ワールド行列も単体で渡す。法線をワールド空間へ移すのに必要なため。
+    XMStoreFloat4x4(&constants.world, XMMatrixTranspose(world));
+
+    // ライトの向きは長さ 1 でなければ内積が明るさにならない。
+    const XMVECTOR lightDirection = XMVector3Normalize(
+        XMVectorSet(kLightDirection[0], kLightDirection[1], kLightDirection[2], 0.0f));
+
+    XMStoreFloat4(&constants.lightDirection, lightDirection);
+
+    // w には環境光の強さを同居させている（16 バイトの空きを無駄にしないため）。
+    constants.lightColor = { kLightColor[0], kLightColor[1], kLightColor[2],
+                             kAmbientIntensity };
+
+    constants.cameraPosition = { cameraPosition.x, cameraPosition.y, cameraPosition.z, 1.0f };
+
     m_constantBuffer.Update(frameIndex, &constants, sizeof(constants));
 }
 
 
 /// <summary>
-/// コマンドリストに「三角形を描く」命令を記録します。
+/// コマンドリストに「立方体を描く」命令を記録します。
 /// </summary>
 void MeshPipeline::RecordDrawCommands(ID3D12GraphicsCommandList* commandList,
                                           uint32_t frameIndex) const

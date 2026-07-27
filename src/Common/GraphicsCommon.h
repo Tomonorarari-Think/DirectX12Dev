@@ -108,7 +108,7 @@ void LogError(const std::wstring& message);
 /// シェーダー等のリソースファイルの実際の場所を探して絶対パスを返します。
 /// </summary>
 /// <param name="relativePath">
-/// プロジェクトルートからの相対パス（例: `L"shaders/Triangle.hlsl"`）。
+/// プロジェクトルートからの相対パス（例: `L"shaders/Mesh.hlsl"`）。
 /// </param>
 /// <returns>見つかったファイルの絶対パス。</returns>
 /// <exception cref="std::runtime_error">どの探索場所にも見つからなかった場合。</exception>

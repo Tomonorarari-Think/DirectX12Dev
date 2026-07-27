@@ -202,6 +202,7 @@ void Renderer::Render()
 
     m_meshPipeline.Update(frameIndex,
                           m_camera.ViewProjectionMatrix(),
+                          m_camera.Position(),
                           static_cast<float>(m_frameTimer.TotalSeconds()));
 
     ID3D12Resource* backBuffer = m_swapChain.CurrentBackBuffer();

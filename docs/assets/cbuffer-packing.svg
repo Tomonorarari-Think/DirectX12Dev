@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 430" width="760" height="430" role="img" aria-label="定数バッファのパッキング規則。float3 を 2 つ並べると HLSL が読む位置と C++ が書く位置が 4 バイトずれる様子">
+  <style>
+    .bg   { fill: #f6f8fa; }
+    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #1f2328; }
+    .ttl  { font-size: 16px; font-weight: 600; }
+    .cap  { font-size: 13px; font-weight: 600; }
+    .sub  { font-size: 12px; fill: #3d444d; }
+    .num  { font-size: 11px; fill: #3d444d; }
+    .ca   { fill: #ddf4ff; stroke: #0a4f9e; stroke-width: 1.6; }
+    .cb   { fill: #dafbe1; stroke: #0d4f21; stroke-width: 1.6; }
+    .pad  { fill: #eaeef2; stroke: #6e7781; stroke-width: 1.6; }
+    .bnd  { stroke: #9a1420; stroke-width: 2; stroke-dasharray: 5 4; }
+  </style>
+
+  <rect class="bg" width="760" height="430" rx="8"/>
+  <text class="txt ttl" x="20" y="30">定数バッファのパッキング — float3 を 2 つ並べるとずれる</text>
+  <text class="txt sub" x="20" y="52">HLSL の定数バッファは 16 バイト単位。1 つの値が 16 バイトの境界をまたぐことは許されない。</text>
+
+  <!-- バイト目盛り -->
+  <text class="num" text-anchor="middle" x="130" y="86">0</text>
+  <text class="num" text-anchor="middle" x="202" y="86">4</text>
+  <text class="num" text-anchor="middle" x="274" y="86">8</text>
+  <text class="num" text-anchor="middle" x="346" y="86">12</text>
+  <text class="num" text-anchor="middle" x="418" y="86">16</text>
+  <text class="num" text-anchor="middle" x="490" y="86">20</text>
+  <text class="num" text-anchor="middle" x="562" y="86">24</text>
+  <text class="num" text-anchor="middle" x="634" y="86">28</text>
+  <text class="num" text-anchor="middle" x="706" y="86">32</text>
+
+  <!-- ===== HLSL 側 ===== -->
+  <text class="txt cap" x="20" y="115">HLSL が</text>
+  <text class="txt cap" x="20" y="133">読む位置</text>
+
+  <rect class="ca"  x="130" y="98" width="72" height="42"/>
+  <rect class="ca"  x="202" y="98" width="72" height="42"/>
+  <rect class="ca"  x="274" y="98" width="72" height="42"/>
+  <rect class="pad" x="346" y="98" width="72" height="42"/>
+  <rect class="cb"  x="418" y="98" width="72" height="42"/>
+  <rect class="cb"  x="490" y="98" width="72" height="42"/>
+  <rect class="cb"  x="562" y="98" width="72" height="42"/>
+  <rect class="pad" x="634" y="98" width="72" height="42"/>
+
+  <text class="txt sub" text-anchor="middle" x="166" y="124">a.x</text>
+  <text class="txt sub" text-anchor="middle" x="238" y="124">a.y</text>
+  <text class="txt sub" text-anchor="middle" x="310" y="124">a.z</text>
+  <text class="txt sub" text-anchor="middle" x="382" y="124">空き</text>
+  <text class="txt sub" text-anchor="middle" x="454" y="124">b.x</text>
+  <text class="txt sub" text-anchor="middle" x="526" y="124">b.y</text>
+  <text class="txt sub" text-anchor="middle" x="598" y="124">b.z</text>
+  <text class="txt sub" text-anchor="middle" x="670" y="124">空き</text>
+
+  <!-- ===== C++ 側 ===== -->
+  <text class="txt cap" x="20" y="185">C++ が</text>
+  <text class="txt cap" x="20" y="203">書く位置</text>
+
+  <rect class="ca"  x="130" y="168" width="72" height="42"/>
+  <rect class="ca"  x="202" y="168" width="72" height="42"/>
+  <rect class="ca"  x="274" y="168" width="72" height="42"/>
+  <rect class="cb"  x="346" y="168" width="72" height="42"/>
+  <rect class="cb"  x="418" y="168" width="72" height="42"/>
+  <rect class="cb"  x="490" y="168" width="72" height="42"/>
+
+  <text class="txt sub" text-anchor="middle" x="166" y="194">a.x</text>
+  <text class="txt sub" text-anchor="middle" x="238" y="194">a.y</text>
+  <text class="txt sub" text-anchor="middle" x="310" y="194">a.z</text>
+  <text class="txt sub" text-anchor="middle" x="382" y="194">b.x</text>
+  <text class="txt sub" text-anchor="middle" x="454" y="194">b.y</text>
+  <text class="txt sub" text-anchor="middle" x="526" y="194">b.z</text>
+
+  <!-- 16 バイト境界 -->
+  <line class="bnd" x1="418" y1="92" x2="418" y2="216"/>
+  <text class="txt cap" x="424" y="238" fill="#9a1420">16 バイト境界</text>
+  <text class="txt sub" x="424" y="258">HLSL はここで区切る。C++ の構造体はここを気にせず詰める。</text>
+  <text class="txt sub" x="424" y="278">結果、b 以降が 4 バイトずれて全部おかしくなる。</text>
+
+  <text class="txt sub" x="20" y="238">対象のコード例</text>
+  <text class="txt sub" x="20" y="258">float3 a;</text>
+  <text class="txt sub" x="20" y="278">float3 b;</text>
+
+  <!-- 対策 -->
+  <rect x="20" y="300" width="720" height="52" rx="6" fill="#dafbe1" stroke="#0d4f21" stroke-width="1.5"/>
+  <text class="txt cap" x="36" y="322">本プロジェクトの対策 : 定数はすべて float4 / float4x4 に揃える</text>
+  <text class="txt sub" x="36" y="342">16 バイトの倍数しか使わなければ、境界をまたぐこと自体が起こらない。余った成分には別の値を入れる。</text>
+
+  <rect x="20" y="362" width="720" height="52" rx="6" fill="#fff8c5" stroke="#8a6d00" stroke-width="1.5"/>
+  <text class="txt cap" x="36" y="384">気付きにくい理由</text>
+  <text class="txt sub" x="36" y="404">ビルドは通り、実行時エラーも出ない。値が少しずつ違うだけなので「なんとなく変」としか分からない。</text>
+</svg>
