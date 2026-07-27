@@ -6,6 +6,7 @@
 
 #include "CommandQueue.h"
 #include "DescriptorHeap.h"
+#include "UploadHelper.h"
 
 #include <cassert>
 #include <cstring>
@@ -88,34 +89,8 @@ void Texture2D::Initialize(ID3D12Device* device,
 
     // (3) UPLOAD ヒープに中継バッファを作る
     //   ローカル変数にしているのは、転送が終われば不要になるためです。
-    D3D12_HEAP_PROPERTIES uploadHeap = {};
-    uploadHeap.Type                 = D3D12_HEAP_TYPE_UPLOAD;
-    uploadHeap.CPUPageProperty      = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    uploadHeap.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    uploadHeap.CreationNodeMask     = 1;
-    uploadHeap.VisibleNodeMask      = 1;
-
-    D3D12_RESOURCE_DESC uploadDesc = {};
-    uploadDesc.Dimension          = D3D12_RESOURCE_DIMENSION_BUFFER;
-    uploadDesc.Alignment          = 0;
-    uploadDesc.Width              = totalBytes;
-    uploadDesc.Height             = 1;
-    uploadDesc.DepthOrArraySize   = 1;
-    uploadDesc.MipLevels          = 1;
-    uploadDesc.Format             = DXGI_FORMAT_UNKNOWN;
-    uploadDesc.SampleDesc.Count   = 1;
-    uploadDesc.SampleDesc.Quality = 0;
-    uploadDesc.Layout             = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    uploadDesc.Flags              = D3D12_RESOURCE_FLAG_NONE;
-
-    ComPtr<ID3D12Resource> uploadBuffer;
-    DX_CHECK(device->CreateCommittedResource(
-        &uploadHeap,
-        D3D12_HEAP_FLAG_NONE,
-        &uploadDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(&uploadBuffer)));
+    // 中継バッファ。転送が終われば不要になるのでローカル変数にしている。
+    ComPtr<ID3D12Resource> uploadBuffer = upload::CreateUploadBuffer(device, totalBytes);
 
     // (4) CPU から中継バッファへ、1 行ずつコピーする
     //   ★ 画像全体を一度に memcpy できません。
@@ -139,48 +114,35 @@ void Texture2D::Initialize(ID3D12Device* device,
 
     // (5) 「中継バッファ → テクスチャ」のコピー命令を記録する
     //   コピーも GPU の仕事なので、コマンドリストに記録して実行させます。
-    ComPtr<ID3D12CommandAllocator>    allocator;
-    ComPtr<ID3D12GraphicsCommandList> commandList;
+    // コピーと状態遷移を記録して実行し、完了まで待つ。
+    //   待つ理由 : 待たずに関数を抜けると uploadBuffer が破棄され、
+    //   GPU がまだ読んでいる最中のメモリが消えてしまう。
+    upload::ExecuteImmediate(device, commandQueue, [&](ID3D12GraphicsCommandList* commandList) {
+        // コピー元 : バッファ上に「テクスチャの形」で置かれたデータ
+        D3D12_TEXTURE_COPY_LOCATION source = {};
+        source.pResource       = uploadBuffer.Get();
+        source.Type            = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+        source.PlacedFootprint = footprint;
 
-    DX_CHECK(device->CreateCommandAllocator(
-        D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&allocator)));
-    DX_CHECK(device->CreateCommandList(
-        0, D3D12_COMMAND_LIST_TYPE_DIRECT, allocator.Get(), nullptr, IID_PPV_ARGS(&commandList)));
-    // CreateCommandList 直後は「開いた」状態なので、そのまま記録を続けられる。
+        // コピー先 : テクスチャの何番目のミップか
+        D3D12_TEXTURE_COPY_LOCATION destination = {};
+        destination.pResource        = m_texture.Get();
+        destination.Type             = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        destination.SubresourceIndex = 0;
 
-    // コピー元と行き先の指定
-    //   同じ D3D12_TEXTURE_COPY_LOCATION 型ですが、Type によって中身が変わります。
-    D3D12_TEXTURE_COPY_LOCATION source_ = {};
-    source_.pResource       = uploadBuffer.Get();
-    source_.Type            = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-    source_.PlacedFootprint = footprint;
+        commandList->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
 
-    D3D12_TEXTURE_COPY_LOCATION destination = {};
-    destination.pResource        = m_texture.Get();
-    destination.Type             = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-    destination.SubresourceIndex = 0;
+        // 「コピーの宛先」から「ピクセルシェーダーが読むテクスチャ」へ用途を切り替える
+        D3D12_RESOURCE_BARRIER barrier = {};
+        barrier.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        barrier.Flags                  = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+        barrier.Transition.pResource   = m_texture.Get();
+        barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+        barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 
-    // 最後の 3 引数（コピー先の x, y, z）と nullptr（コピー範囲）で、
-    // 「テクスチャ全体を (0,0,0) へ丸ごとコピー」を指定している。
-    commandList->CopyTextureRegion(&destination, 0, 0, 0, &source_, nullptr);
-
-    // (6) バリア : COPY_DEST → PIXEL_SHADER_RESOURCE
-    //   「コピーの宛先」から「ピクセルシェーダーが読むテクスチャ」へ用途を切り替える。
-    D3D12_RESOURCE_BARRIER barrier = {};
-    barrier.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Flags                  = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    barrier.Transition.pResource   = m_texture.Get();
-    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-    barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-
-    commandList->ResourceBarrier(1, &barrier);
-
-    DX_CHECK(commandList->Close());
-
-    // (7) 転送を実行し、完了を待つ
-    commandQueue.ExecuteCommandList(commandList.Get());
-    commandQueue.Flush();
+        commandList->ResourceBarrier(1, &barrier);
+    });
 
     // (8) SRV（シェーダーリソースビュー）を作る
     //   「このテクスチャをシェーダーから読む」ための説明書です。
