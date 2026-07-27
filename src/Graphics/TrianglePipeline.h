@@ -141,11 +141,12 @@ private:
                              DXGI_FORMAT depthStencilFormat);
 
     /// <summary>
-    /// 頂点バッファを作り、頂点データを書き込みます。
+    /// 頂点バッファを DEFAULT ヒープに作り、頂点データを転送します。
     /// </summary>
     /// <param name="device">生成に使う D3D12 デバイス。</param>
-    /// <exception cref="HrException">リソースの生成またはマップに失敗した場合。</exception>
-    void CreateVertexBuffer(ID3D12Device* device);
+    /// <param name="commandQueue">転送コマンドを実行するキュー。完了まで待機します。</param>
+    /// <exception cref="HrException">リソースの生成または転送に失敗した場合。</exception>
+    void CreateVertexBuffer(ID3D12Device* device, CommandQueue& commandQueue);
 
     /// <summary>
     /// HLSL ファイルをコンパイルして、GPU 用のバイトコードを得ます。
@@ -171,7 +172,7 @@ private:
     ComPtr<ID3D12PipelineState> m_pipelineState;
 
     /// <summary>
-    /// 頂点データを置く GPU 上のメモリ領域。
+    /// 頂点データを置く GPU 上のメモリ領域（DEFAULT ヒープ）。
     /// </summary>
     ComPtr<ID3D12Resource> m_vertexBuffer;
 

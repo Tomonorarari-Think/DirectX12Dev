@@ -210,7 +210,7 @@ GPU が扱うデータの入れ物。頂点バッファもテクスチャもレ�
 
 | 種類 | CPU から書ける | GPU アクセス速度 | 用途 |
 |------|--------------|----------------|------|
-| `DEFAULT` | ✗ | 最速 | 変化しないデータ（モデル、テクスチャ） |
+| `DEFAULT` | ✗ | 最速 | 変化しないデータ（頂点バッファ、テクスチャ） |
 | `UPLOAD` | ○ | やや遅い | 毎フレーム更新するデータ（定数バッファ） |
 | `READBACK` | ○（読み） | — | GPU の結果を CPU に戻す |
 
@@ -501,7 +501,8 @@ flowchart TD
 待たずに中継バッファを破棄すると、GPU がまだ読んでいる最中のメモリが消えます。
 起動時の 1 回なら素直に待って構いません。
 
-> 該当コード: [`Texture2D::Initialize`](../../src/Graphics/Texture2D.cpp)
+> 該当コード: [`UploadHelper`](../../src/Graphics/UploadHelper.h) /
+> [`Texture2D::Initialize`](../../src/Graphics/Texture2D.cpp)
 
 ### サンプラー (SamplerState)
 

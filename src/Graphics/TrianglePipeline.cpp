@@ -6,6 +6,7 @@
 
 #include "CommandQueue.h"
 #include "DescriptorHeap.h"
+#include "UploadHelper.h"
 
 #include <cstdio>   // printf（シェーダーのコンパイルエラーをコンソールに出す）
 #include <cstring>  // memcpy
@@ -80,7 +81,7 @@ void TrianglePipeline::Initialize(ID3D12Device* device,
 {
     CreateRootSignature(device);
     CreatePipelineState(device, renderTargetFormat, depthStencilFormat);
-    CreateVertexBuffer(device);
+    CreateVertexBuffer(device, commandQueue);
 
     // 変換行列を毎フレーム渡すための定数バッファ。
     m_constantBuffer.Initialize(device, sizeof(SceneConstants), frameCount);
@@ -404,65 +405,25 @@ void TrianglePipeline::CreatePipelineState(ID3D12Device* device,
 /// <summary>
 /// 頂点バッファを作り、頂点データを書き込みます。
 /// </summary>
-void TrianglePipeline::CreateVertexBuffer(ID3D12Device* device)
+void TrianglePipeline::CreateVertexBuffer(ID3D12Device* device, CommandQueue& commandQueue)
 {
     const UINT vertexBufferSize = sizeof(kTriangleVertices);
 
-    // ヒープの種類 (D3D12_HEAP_TYPE) — DirectX 12 のメモリ管理の要
-    //   DEFAULT
-    //     GPU 専用の高速メモリ。GPU からの読み書きが最速。
-    D3D12_HEAP_PROPERTIES heapProperties = {};
-    heapProperties.Type                 = D3D12_HEAP_TYPE_UPLOAD;
-    heapProperties.CPUPageProperty      = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    heapProperties.CreationNodeMask     = 1;
-    heapProperties.VisibleNodeMask      = 1;
+    // 頂点データは一度書いたら変わらないので、GPU 専用の DEFAULT ヒープに置く。
+    // CPU から直接書けないため、UPLOAD ヒープを中継して GPU にコピーさせる。
+    m_vertexBuffer = upload::CreateBufferWithData(
+        device,
+        commandQueue,
+        kTriangleVertices,
+        vertexBufferSize,
+        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 
-    // リソースの形状の指定
-    //   テクスチャ（2D 画像）ではなく、ただのバイト列（バッファ）を作ります。
-    D3D12_RESOURCE_DESC resourceDesc = {};
-    resourceDesc.Dimension          = D3D12_RESOURCE_DIMENSION_BUFFER;
-    resourceDesc.Alignment          = 0;                // 0 = 既定のアライメントに任せる
-    resourceDesc.Width              = vertexBufferSize; // バッファでは Width がバイト数
-    resourceDesc.Height             = 1;
-    resourceDesc.DepthOrArraySize   = 1;
-    resourceDesc.MipLevels          = 1;
-    resourceDesc.Format             = DXGI_FORMAT_UNKNOWN;
-    resourceDesc.SampleDesc.Count   = 1;
-    resourceDesc.SampleDesc.Quality = 0;
-    resourceDesc.Layout             = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    resourceDesc.Flags              = D3D12_RESOURCE_FLAG_NONE;
-
-    // リソースの生成
-    //   CreateCommittedResource は「メモリの確保」と「リソースの作成」を
-    //   まとめて行う手軽な API です。
-    DX_CHECK(device->CreateCommittedResource(
-        &heapProperties,
-        D3D12_HEAP_FLAG_NONE,
-        &resourceDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,                               // クリア値（テクスチャ用。バッファでは不要）
-        IID_PPV_ARGS(&m_vertexBuffer)));
-
-    // CPU から書き込む（Map → memcpy → Unmap）
-    void* mappedData = nullptr;
-
-    // 第 2 引数の D3D12_RANGE は「CPU が読む範囲」の指定。
-    D3D12_RANGE readRange = { 0, 0 };
-
-    DX_CHECK(m_vertexBuffer->Map(0, &readRange, &mappedData));
-    std::memcpy(mappedData, kTriangleVertices, vertexBufferSize);
-
-    // 第 2 引数 nullptr は「書き込んだ範囲は全体」という意味
-    m_vertexBuffer->Unmap(0, nullptr);
-
-    // 頂点バッファビューの設定
-    //   GetGPUVirtualAddress() は「GPU から見たアドレス」を返します。
+    // 頂点バッファビュー : バッファのどこから何バイトを、1 頂点何バイトで読むか。
     m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
-    m_vertexBufferView.StrideInBytes  = sizeof(Vertex);   // 1 頂点あたりのバイト数
-    m_vertexBufferView.SizeInBytes    = vertexBufferSize; // バッファ全体のバイト数
+    m_vertexBufferView.StrideInBytes  = sizeof(Vertex);
+    m_vertexBufferView.SizeInBytes    = vertexBufferSize;
 
-    Log(std::format(L"頂点バッファを作成しました（{} 頂点 / {} バイト）",
+    Log(std::format(L"頂点バッファを作成しました（{} 頂点 / {} バイト, DEFAULT ヒープ）",
                     _countof(kTriangleVertices), vertexBufferSize));
 }
 

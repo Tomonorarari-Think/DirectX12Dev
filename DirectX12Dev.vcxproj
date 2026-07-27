@@ -226,6 +226,7 @@
     <ClCompile Include="src\Graphics\DepthBuffer.cpp" />
     <ClCompile Include="src\Graphics\DescriptorHeap.cpp" />
     <ClCompile Include="src\Graphics\Texture2D.cpp" />
+    <ClCompile Include="src\Graphics\UploadHelper.cpp" />
     <ClCompile Include="src\Graphics\GraphicsDevice.cpp" />
     <ClCompile Include="src\Graphics\Renderer.cpp" />
     <ClCompile Include="src\Graphics\SwapChain.cpp" />
@@ -249,6 +250,7 @@
     <ClInclude Include="src\Graphics\DepthBuffer.h" />
     <ClInclude Include="src\Graphics\DescriptorHeap.h" />
     <ClInclude Include="src\Graphics\Texture2D.h" />
+    <ClInclude Include="src\Graphics\UploadHelper.h" />
     <ClInclude Include="src\Graphics\GraphicsDevice.h" />
     <ClInclude Include="src\Graphics\Renderer.h" />
     <ClInclude Include="src\Graphics\SwapChain.h" />
