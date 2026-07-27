@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 500" width="760" height="500" role="img" aria-label="シャドウマップの 2 パス。第 1 パスで光源から見た深度を記録し、第 2 パスで各ピクセルを光源側の座標に変換して深度を比べる仕組みの図">
+  <style>
+    .bg   { fill: #f6f8fa; }
+    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #1f2328; }
+    .ttl  { font-size: 16px; font-weight: 600; }
+    .cap  { font-size: 13px; font-weight: 600; }
+    .sub  { font-size: 12px; fill: #3d444d; }
+    .obj  { fill: #eaeef2; stroke: #6e7781; stroke-width: 1.8; }
+    .ray  { stroke: #8a6d00; stroke-width: 2; fill: none; }
+    .blk  { stroke: #9a1420; stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
+    .grd  { stroke: #1f2328; stroke-width: 2.5; }
+  </style>
+
+  <rect class="bg" width="760" height="500" rx="8"/>
+  <text class="txt ttl" x="20" y="30">シャドウマップ — 光源から見えるかどうかで影を決める</text>
+  <text class="txt sub" x="20" y="52">同じ場面を 2 回描く。1 回目は光源から、2 回目はカメラから。</text>
+
+  <defs>
+    <marker id="sa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8a6d00"/>
+    </marker>
+    <marker id="sb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9a1420"/>
+    </marker>
+  </defs>
+
+  <!-- ===== 第 1 パス ===== -->
+  <rect x="20" y="70" width="350" height="235" rx="6" fill="#ddf4ff" stroke="#0a4f9e" stroke-width="1.5"/>
+  <text class="txt cap" x="36" y="94">第 1 パス : 光源から見た深度を記録する</text>
+
+  <circle cx="70" cy="120" r="9" fill="#8a6d00"/>
+  <text class="txt sub" x="86" y="118">光源</text>
+
+  <rect class="obj" x="196" y="150" width="60" height="42"/>
+  <text class="txt sub" text-anchor="middle" x="290" y="176">立方体</text>
+
+  <line class="grd" x1="55" y1="238" x2="355" y2="238"/>
+  <text class="txt sub" x="326" y="230">床</text>
+
+  <!-- 立方体で止まる光線 -->
+  <line class="ray" x1="82" y1="128" x2="200" y2="156" marker-end="url(#sa)"/>
+
+  <!-- 床まで届く光線 -->
+  <line class="ray" x1="80" y1="131" x2="112" y2="230" marker-end="url(#sa)"/>
+
+  <text class="txt sub" x="36" y="264">記録されるのは「一番手前の物までの距離」だけ。</text>
+  <text class="txt sub" x="36" y="286">色は要らないので、ピクセルシェーダーも使わない。</text>
+
+  <!-- ===== 第 2 パス ===== -->
+  <rect x="390" y="70" width="350" height="235" rx="6" fill="#dafbe1" stroke="#0d4f21" stroke-width="1.5"/>
+  <text class="txt cap" x="406" y="94">第 2 パス : ピクセルごとに距離を比べる</text>
+
+  <circle cx="440" cy="120" r="9" fill="#8a6d00"/>
+  <text class="txt sub" x="456" y="118">光源</text>
+
+  <rect class="obj" x="530" y="150" width="56" height="42"/>
+
+  <line class="grd" x1="425" y1="238" x2="725" y2="238"/>
+
+  <!-- 立方体が落とす影の帯 -->
+  <rect x="592" y="234" width="95" height="8" fill="#3d444d"/>
+
+  <!-- 遮られる点 -->
+  <line class="blk" x1="452" y1="130" x2="636" y2="232" marker-end="url(#sb)"/>
+  <circle cx="639" cy="234" r="5" fill="#9a1420"/>
+  <text class="txt sub" x="646" y="222" fill="#9a1420">影</text>
+
+  <!-- 遮られない点 -->
+  <line class="ray" x1="438" y1="131" x2="466" y2="230" marker-end="url(#sa)"/>
+  <circle cx="468" cy="234" r="5" fill="#0d4f21"/>
+  <text class="txt sub" x="406" y="222" fill="#0d4f21">日向</text>
+
+  <text class="txt sub" x="406" y="264">記録された距離より遠ければ、間に何かがある ＝ 影。</text>
+  <text class="txt sub" x="406" y="286">同じかそれより近ければ、光が届いている。</text>
+
+  <!-- 注意点 -->
+  <rect x="20" y="322" width="720" height="70" rx="6" fill="#fff8c5" stroke="#8a6d00" stroke-width="1.5"/>
+  <text class="txt cap" x="36" y="346">同じ 1 枚のリソースを、2 つの用途で使う</text>
+  <text class="txt sub" x="36" y="368">第 1 パスでは「深度バッファ」として書き、第 2 パスでは「テクスチャ」として読む。</text>
+  <text class="txt sub" x="36" y="386">用途が変わる境目には必ずリソースバリアが要る。忘れると読めない、または壊れる。</text>
+
+  <rect x="20" y="404" width="720" height="70" rx="6" fill="#ffebe9" stroke="#9a1420" stroke-width="1.5"/>
+  <text class="txt cap" x="36" y="428">シャドウアクネ</text>
+  <text class="txt sub" x="36" y="450">記録された深度は 1 テクセルぶんの代表値なので、自分自身と比べると誤差で「影」と出る。</text>
+  <text class="txt sub" x="36" y="468">対策は、第 1 パスで書く深度をわずかに奥へずらすこと（深度バイアス）。</text>
+</svg>
