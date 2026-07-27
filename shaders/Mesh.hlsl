@@ -5,17 +5,17 @@
 //   詳しい解説は docs/tutorial/ を参照。
 //=============================================================================
 
-// 描画全体で共通の値。C++ 側のルートシグネチャの ShaderRegister と番号を合わせる。
 // 定数バッファは 16 バイト単位で区切られる。float3 の後ろに float を書くと
 // 同じ 16 バイトに詰め込まれ、C++ 側とずれるため、全て float4 / float4x4 で揃えている。
-cbuffer SceneConstants : register(b0)
-{
-    // ワールド × ビュー × プロジェクションをまとめた変換行列。
-    // HLSL は列優先で読むため、C++ 側で転置してから書き込んでいる。
-    float4x4 g_worldViewProjection;
+//
+// b0 と b1 で分けているのは、書き換わる頻度が違うため。
+// カメラとライトは 1 フレームに 1 回、変換行列はオブジェクトごとに変わる。
 
-    // ワールド行列。法線をワールド空間へ移すために単体でも必要。
-    float4x4 g_world;
+// 1 フレームのあいだ、描くもの全てで共通の値。
+cbuffer FrameConstants : register(b0)
+{
+    // ビュー行列 × 射影行列。HLSL は列優先で読むため C++ 側で転置してある。
+    float4x4 g_viewProjection;
 
     // xyz = 光が進む向き（正規化済み）。w は未使用。
     float4 g_lightDirection;
@@ -25,6 +25,16 @@ cbuffer SceneConstants : register(b0)
 
     // xyz = 視点のワールド座標。鏡面反射に使う。w は未使用。
     float4 g_cameraPosition;
+};
+
+// オブジェクト 1 個ごとに変わる値。描く直前に差し替える。
+cbuffer ObjectConstants : register(b1)
+{
+    // ワールド × ビュー × 射影。CPU 側で合成済み。
+    float4x4 g_worldViewProjection;
+
+    // ワールド行列。法線をワールド空間へ移すために単体でも必要。
+    float4x4 g_world;
 };
 
 // t = テクスチャ (SRV)、s = サンプラー。
