@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" width="720" height="300" role="img" aria-label="定数バッファのフレーム別レイアウト図">
   <style>
     .bg   { fill: #f6f8fa; }
-    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #24292f; }
+    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #1f2328; }
     .ttl  { font-size: 16px; font-weight: 600; }
     .lbl  { font-size: 14px; }
-    .sub  { font-size: 12px; fill: #57606a; }
-    .slot { fill: #ddf4ff; stroke: #0969da; stroke-width: 2; }
-    .used { fill: #fff1e5; stroke: #bc4c00; stroke-width: 2; }
-    .pad  { fill: #eaeef2; stroke: #8c959f; stroke-width: 1.4; stroke-dasharray: 4 3; }
+    .sub  { font-size: 12px; fill: #3d444d; }
+    .slot { fill: #ddf4ff; stroke: #0a4f9e; stroke-width: 2; }
+    .used { fill: #fff1e5; stroke: #7a3200; stroke-width: 2; }
+    .pad  { fill: #eaeef2; stroke: #6e7781; stroke-width: 1.4; stroke-dasharray: 4 3; }
   </style>
 
   <rect class="bg" width="720" height="300" rx="8"/>
@@ -35,11 +35,11 @@
   <text class="txt sub" x="40" y="162">↑ GpuAddress(0)</text>
   <text class="txt sub" x="340" y="162">↑ GpuAddress(1)</text>
 
-  <rect x="40" y="182" width="600" height="42" rx="6" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.5"/>
+  <rect x="40" y="182" width="600" height="42" rx="6" fill="#fff8c5" stroke="#8a6d00" stroke-width="1.5"/>
   <text class="txt sub" x="56" y="200">なぜ 256 B か：DirectX 12 は定数バッファの先頭アドレスが 256 バイト境界にあることを要求する。</text>
   <text class="txt sub" x="56" y="217">64 バイトの行列 1 個しか入れなくても、1 スロットは 256 バイトを消費する。</text>
 
-  <rect x="40" y="236" width="600" height="42" rx="6" fill="#ffebe9" stroke="#cf222e" stroke-width="1.5"/>
+  <rect x="40" y="236" width="600" height="42" rx="6" fill="#ffebe9" stroke="#9a1420" stroke-width="1.5"/>
   <text class="txt sub" x="56" y="254">なぜフレームごとに分けるか：CPU がフレーム 1 用に書き込む時点で、GPU はまだフレーム 0 用を読んでいる。</text>
   <text class="txt sub" x="56" y="271">1 個を使い回すと描画途中で値が変わり、絵が壊れる（コマンドアロケータと同じ理屈）。</text>
 </svg>

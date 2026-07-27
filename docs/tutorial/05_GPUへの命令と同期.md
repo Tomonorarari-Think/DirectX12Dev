@@ -16,9 +16,9 @@ flowchart LR
     A["① 記録<br/>コマンドリストに<br/>命令を書き込む"] --> B["② 投入<br/>コマンドキューへ<br/>並べる"]
     B --> C["③ 実行<br/>GPU が自分の<br/>ペースで処理"]
 
-    style A fill:#ddf4ff,stroke:#0969da
-    style B fill:#fff8c5,stroke:#d4a72c
-    style C fill:#dafbe1,stroke:#1a7f37
+    style A fill:#ddf4ff,stroke:#0a4f9e
+    style B fill:#fff8c5,stroke:#8a6d00
+    style C fill:#dafbe1,stroke:#0d4f21
 ```
 
 ```cpp

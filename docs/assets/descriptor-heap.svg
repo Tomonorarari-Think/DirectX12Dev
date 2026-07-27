@@ -1,15 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" width="720" height="360" role="img" aria-label="ディスクリプタヒープとバックバッファの対応図">
   <style>
     .bg    { fill: #f6f8fa; }
-    .txt   { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #24292f; }
+    .txt   { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #1f2328; }
     .ttl   { font-size: 16px; font-weight: 600; }
     .cap   { font-size: 13px; font-weight: 600; }
     .lbl   { font-size: 14px; }
-    .sub   { font-size: 12px; fill: #57606a; }
-    .heap  { fill: #ddf4ff; stroke: #0969da; stroke-width: 2; }
-    .res   { fill: #dafbe1; stroke: #1a7f37; stroke-width: 2; }
-    .link  { stroke: #57606a; stroke-width: 1.8; stroke-dasharray: 5 3; fill: none; }
-    .size  { stroke: #cf222e; stroke-width: 1.4; }
+    .sub   { font-size: 12px; fill: #3d444d; }
+    .heap  { fill: #ddf4ff; stroke: #0a4f9e; stroke-width: 2; }
+    .res   { fill: #dafbe1; stroke: #0d4f21; stroke-width: 2; }
+    .link  { stroke: #3d444d; stroke-width: 1.8; stroke-dasharray: 5 3; fill: none; }
+    .size  { stroke: #9a1420; stroke-width: 1.4; }
   </style>
 
   <rect class="bg" width="720" height="360" rx="8"/>
@@ -17,7 +17,7 @@
 
   <defs>
     <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#57606a"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3d444d"/>
     </marker>
   </defs>
 
@@ -46,16 +46,16 @@
   <line class="size" x1="40"  y1="60" x2="220" y2="60"/>
   <line class="size" x1="40"  y1="54" x2="40"  y2="66"/>
   <line class="size" x1="220" y1="54" x2="220" y2="66"/>
-  <text class="txt sub" text-anchor="middle" x="130" y="48" fill="#cf222e">1 個ぶんのサイズ</text>
+  <text class="txt sub" text-anchor="middle" x="130" y="48" fill="#9a1420">1 個ぶんのサイズ</text>
 
   <!-- 右側の注記 -->
-  <rect x="430" y="76" width="260" height="86" rx="6" fill="#ffebe9" stroke="#cf222e" stroke-width="1.5"/>
-  <text class="txt cap" x="446" y="100" fill="#cf222e">サイズはハードコード禁止</text>
+  <rect x="430" y="76" width="260" height="86" rx="6" fill="#ffebe9" stroke="#9a1420" stroke-width="1.5"/>
+  <text class="txt cap" x="446" y="100" fill="#9a1420">サイズはハードコード禁止</text>
   <text class="txt sub" x="446" y="122">1 個のバイト数は GPU の世代・ベンダー</text>
   <text class="txt sub" x="446" y="140">によって異なる（32 だったり 64 だったり）。</text>
   <text class="txt sub" x="446" y="156">GetDescriptorHandleIncrementSize() で取得。</text>
 
-  <rect x="430" y="176" width="260" height="90" rx="6" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.5"/>
+  <rect x="430" y="176" width="260" height="90" rx="6" fill="#fff8c5" stroke="#8a6d00" stroke-width="1.5"/>
   <text class="txt cap" x="446" y="200">N 番目の位置の求め方</text>
   <text class="txt sub" x="446" y="224">先頭アドレス + サイズ × N</text>
   <text class="txt sub" x="446" y="246">handle.ptr += m_rtvDescriptorSize * N;</text>

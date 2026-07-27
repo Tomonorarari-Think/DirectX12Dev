@@ -1,15 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 430" width="760" height="430" role="img" aria-label="アプリケーションの一生。起動時の準備、毎フレームの処理、終了処理の関係を示す図">
   <style>
     .bg   { fill: #f6f8fa; }
-    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #24292f; }
+    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #1f2328; }
     .ttl  { font-size: 16px; font-weight: 600; }
     .cap  { font-size: 13px; font-weight: 600; }
-    .sub  { font-size: 12px; fill: #57606a; }
-    .init { fill: #ddf4ff; stroke: #0969da; stroke-width: 2; }
-    .loop { fill: #dafbe1; stroke: #1a7f37; stroke-width: 2; }
-    .term { fill: #ffebe9; stroke: #cf222e; stroke-width: 2; }
-    .step { fill: #ffffff; stroke: #8c959f; stroke-width: 1.2; }
-    .ar   { stroke: #24292f; stroke-width: 2; fill: none; }
+    .sub  { font-size: 12px; fill: #3d444d; }
+    .init { fill: #ddf4ff; stroke: #0a4f9e; stroke-width: 2; }
+    .loop { fill: #dafbe1; stroke: #0d4f21; stroke-width: 2; }
+    .term { fill: #ffebe9; stroke: #9a1420; stroke-width: 2; }
+    .step { fill: #ffffff; stroke: #6e7781; stroke-width: 1.2; }
+    .ar   { stroke: #1f2328; stroke-width: 2; fill: none; }
   </style>
 
   <rect class="bg" width="760" height="430" rx="8"/>
@@ -17,7 +17,7 @@
 
   <defs>
     <marker id="al" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#24292f"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1f2328"/>
     </marker>
   </defs>
 
@@ -67,7 +67,7 @@
   <path class="ar" d="M 470 298 L 470 320 L 290 320 L 290 300" marker-end="url(#al)"/>
   <text class="txt sub" text-anchor="middle" x="380" y="336">閉じられるまで繰り返す</text>
 
-  <rect x="20" y="350" width="720" height="62" rx="6" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.5"/>
+  <rect x="20" y="350" width="720" height="62" rx="6" fill="#fff8c5" stroke="#8a6d00" stroke-width="1.5"/>
   <text class="txt cap" x="36" y="372">Unity との対応</text>
   <text class="txt sub" x="36" y="394">① は Awake / Start、② は Update ＋ レンダリング、③ は OnDestroy にあたる。</text>
   <text class="txt sub" x="36" y="406">Unity ではエンジンが用意していた部分を、ここでは自分で書くことになる。</text>
