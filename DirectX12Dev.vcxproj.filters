@@ -32,6 +32,9 @@
     <ClCompile Include="src\main.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="src\App\Camera.cpp">
+      <Filter>src\App</Filter>
+    </ClCompile>
     <ClCompile Include="src\App\Window.cpp">
       <Filter>src\App</Filter>
     </ClCompile>
@@ -68,12 +71,15 @@
     <ClCompile Include="src\Graphics\SwapChain.cpp">
       <Filter>src\Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="src\Graphics\TrianglePipeline.cpp">
+    <ClCompile Include="src\Graphics\MeshPipeline.cpp">
       <Filter>src\Graphics</Filter>
     </ClCompile>
   </ItemGroup>
 
   <ItemGroup>
+    <ClInclude Include="src\App\Camera.h">
+      <Filter>src\App</Filter>
+    </ClInclude>
     <ClInclude Include="src\App\Window.h">
       <Filter>src\App</Filter>
     </ClInclude>
@@ -110,13 +116,13 @@
     <ClInclude Include="src\Graphics\SwapChain.h">
       <Filter>src\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="src\Graphics\TrianglePipeline.h">
+    <ClInclude Include="src\Graphics\MeshPipeline.h">
       <Filter>src\Graphics</Filter>
     </ClInclude>
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="shaders\Triangle.hlsl">
+    <None Include="shaders\Mesh.hlsl">
       <Filter>shaders</Filter>
     </None>
   </ItemGroup>

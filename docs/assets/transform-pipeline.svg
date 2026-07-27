@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 400" width="760" height="400" role="img" aria-label="頂点がローカル空間から画面座標へ変換されるまでの各段階と、それぞれの行列の役割">
+  <style>
+    .bg   { fill: #f6f8fa; }
+    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #1f2328; }
+    .ttl  { font-size: 16px; font-weight: 600; }
+    .cap  { font-size: 13px; font-weight: 600; }
+    .sub  { font-size: 12px; fill: #3d444d; }
+    .sp   { fill: #ddf4ff; stroke: #0a4f9e; stroke-width: 2; }
+    .last { fill: #dafbe1; stroke: #0d4f21; stroke-width: 2; }
+    .gpu  { fill: #eaeef2; stroke: #6e7781; stroke-width: 1.6; }
+    .ar   { stroke: #1f2328; stroke-width: 2; fill: none; }
+  </style>
+
+  <rect class="bg" width="760" height="400" rx="8"/>
+  <text class="txt ttl" x="20" y="30">座標変換 — 頂点はどの空間を通って画面に出るか</text>
+
+  <defs>
+    <marker id="tp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1f2328"/>
+    </marker>
+  </defs>
+
+  <!-- 空間の箱 -->
+  <rect class="sp"   x="20"  y="62" width="120" height="60" rx="4"/>
+  <text class="txt cap" text-anchor="middle" x="80" y="88">ローカル空間</text>
+  <text class="txt sub" text-anchor="middle" x="80" y="108">モデルの原点基準</text>
+
+  <rect class="sp"   x="190" y="62" width="120" height="60" rx="4"/>
+  <text class="txt cap" text-anchor="middle" x="250" y="88">ワールド空間</text>
+  <text class="txt sub" text-anchor="middle" x="250" y="108">世界の中の位置</text>
+
+  <rect class="sp"   x="360" y="62" width="120" height="60" rx="4"/>
+  <text class="txt cap" text-anchor="middle" x="420" y="88">ビュー空間</text>
+  <text class="txt sub" text-anchor="middle" x="420" y="108">カメラ基準</text>
+
+  <rect class="sp"   x="530" y="62" width="120" height="60" rx="4"/>
+  <text class="txt cap" text-anchor="middle" x="590" y="88">クリップ空間</text>
+  <text class="txt sub" text-anchor="middle" x="590" y="108">w を持った状態</text>
+
+  <rect class="last" x="530" y="200" width="120" height="60" rx="4"/>
+  <text class="txt cap" text-anchor="middle" x="590" y="226">画面のピクセル</text>
+  <text class="txt sub" text-anchor="middle" x="590" y="246">ここに描かれる</text>
+
+  <!-- 矢印と行列名 -->
+  <line class="ar" x1="144" y1="92" x2="184" y2="92" marker-end="url(#tp)"/>
+  <text class="txt sub" text-anchor="middle" x="164" y="82">ワールド</text>
+  <text class="txt sub" text-anchor="middle" x="164" y="140">行列</text>
+
+  <line class="ar" x1="314" y1="92" x2="354" y2="92" marker-end="url(#tp)"/>
+  <text class="txt sub" text-anchor="middle" x="334" y="82">ビュー</text>
+  <text class="txt sub" text-anchor="middle" x="334" y="140">行列</text>
+
+  <line class="ar" x1="484" y1="92" x2="524" y2="92" marker-end="url(#tp)"/>
+  <text class="txt sub" text-anchor="middle" x="504" y="82">射影</text>
+  <text class="txt sub" text-anchor="middle" x="504" y="140">行列</text>
+
+  <line class="ar" x1="590" y1="126" x2="590" y2="196" marker-end="url(#tp)"/>
+  <text class="txt sub" x="600" y="152">透視除算 (÷ w)</text>
+  <text class="txt sub" x="600" y="172">＋ ビューポート変換</text>
+
+  <!-- 各行列の説明 -->
+  <rect class="gpu" x="20" y="200" width="480" height="60" rx="4"/>
+  <text class="txt cap" x="36" y="222">3 つの行列が、それぞれ別の役割を持つ</text>
+  <text class="txt sub" x="36" y="244">ワールド＝物体を動かす　／　ビュー＝カメラに合わせる　／　射影＝遠近感を付ける</text>
+
+  <!-- CPU / GPU の担当 -->
+  <rect x="20" y="278" width="720" height="46" rx="6" fill="#ddf4ff" stroke="#0a4f9e" stroke-width="1.5"/>
+  <text class="txt sub" x="36" y="300">CPU がやること : 3 つの行列を 1 個に合成し、転置して定数バッファへ書く（頂点が何万個でも合成は 1 回）。</text>
+  <text class="txt sub" x="36" y="318">頂点シェーダーは、その 1 個を掛けるだけでよい。</text>
+
+  <rect x="20" y="334" width="720" height="46" rx="6" fill="#fff8c5" stroke="#8a6d00" stroke-width="1.5"/>
+  <text class="txt sub" x="36" y="356">GPU が自動でやること : クリップ空間から先（w での割り算、ビューポートへの拡大）は固定機能。</text>
+  <text class="txt sub" x="36" y="374">この割り算があるおかげで、遠くのものが小さくなる。w = 1 のままなら遠近感は出ない。</text>
+</svg>

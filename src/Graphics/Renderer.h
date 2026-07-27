@@ -4,6 +4,7 @@
 //=============================================================================
 #pragma once
 
+#include "../App/Camera.h"
 #include "../Common/FrameTimer.h"
 #include "../Common/GraphicsCommon.h"
 #include "CommandQueue.h"
@@ -11,7 +12,7 @@
 #include "DescriptorHeap.h"
 #include "GraphicsDevice.h"
 #include "SwapChain.h"
-#include "TrianglePipeline.h"
+#include "MeshPipeline.h"
 
 #include <array>
 
@@ -120,9 +121,14 @@ private:
     DepthBuffer m_depthBuffer;
 
     /// <summary>
-    /// 三角形描画用の PSO と頂点・定数バッファ、テクスチャ。
+    /// 立方体描画用の PSO と頂点/インデックス/定数バッファ、テクスチャ。
     /// </summary>
-    TrianglePipeline m_trianglePipeline;
+    MeshPipeline m_meshPipeline;
+
+    /// <summary>
+    /// 視点と透視投影の設定。
+    /// </summary>
+    Camera m_camera;
 
     /// <summary>
     /// テクスチャなどをシェーダーへ渡すためのディスクリプタヒープ。

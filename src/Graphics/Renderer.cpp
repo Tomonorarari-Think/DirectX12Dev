@@ -74,9 +74,9 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
     //     増えても 1 本のヒープを共有するため、少し余裕を持たせておく。
     m_descriptorHeap.Initialize(device, kDescriptorHeapCapacity);
 
-    // (7) 三角形描画用のパイプライン
+    // (7) 立方体描画用のパイプライン
     //     PSO は描画先の形式（RTV / DSV）を知っている必要があるため両方渡す。
-    m_trianglePipeline.Initialize(device,
+    m_meshPipeline.Initialize(device,
                                   SwapChain::kBackBufferFormat,
                                   DepthBuffer::kFormat,
                                   SwapChain::kBackBufferCount,
@@ -196,12 +196,13 @@ void Renderer::Render()
 
     // (2-b) このフレームの定数（変換行列）を更新する
     //   (0) でこのフレームのフェンスを待っているため、GPU はもうこの領域を読んでいない。
-    const float aspectRatio =
-        static_cast<float>(m_swapChain.Width()) / static_cast<float>(m_swapChain.Height());
+    //   縦横比は毎フレーム渡す。ウィンドウをリサイズしても歪まないようにするため。
+    m_camera.SetAspectRatio(
+        static_cast<float>(m_swapChain.Width()) / static_cast<float>(m_swapChain.Height()));
 
-    m_trianglePipeline.Update(frameIndex,
-                              aspectRatio,
-                              static_cast<float>(m_frameTimer.TotalSeconds()));
+    m_meshPipeline.Update(frameIndex,
+                          m_camera.ViewProjectionMatrix(),
+                          static_cast<float>(m_frameTimer.TotalSeconds()));
 
     ID3D12Resource* backBuffer = m_swapChain.CurrentBackBuffer();
 
@@ -248,8 +249,8 @@ void Renderer::Render()
         0,                          // ステンシルのクリア値（未使用）
         0, nullptr);                // 部分クリアの矩形（0 / nullptr で全体）
 
-    // (7) 三角形の描画命令を記録
-    m_trianglePipeline.RecordDrawCommands(m_commandList.Get(), frameIndex);
+    // (7) 立方体の描画命令を記録
+    m_meshPipeline.RecordDrawCommands(m_commandList.Get(), frameIndex);
 
     // (8) バリア : RENDER_TARGET → PRESENT
     //   描き終わったので、表示できる状態へ戻します。
