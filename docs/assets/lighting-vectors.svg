@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 570" width="760" height="570" role="img" aria-label="ライティングで使う 4 つのベクトル。法線 N、光源へ向かう L、視点へ向かう V、その中間の H と、拡散反射および鏡面反射の計算式">
+  <style>
+    .bg   { fill: #f6f8fa; }
+    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #1f2328; }
+    .ttl  { font-size: 16px; font-weight: 600; }
+    .cap  { font-size: 14px; font-weight: 600; }
+    .sub  { font-size: 12px; fill: #3d444d; }
+    .obj  { fill: #eaeef2; stroke: #6e7781; stroke-width: 1.6; }
+    .face { stroke: #1f2328; stroke-width: 2.5; }
+    .nrm  { stroke: #0d4f21; stroke-width: 2.4; fill: none; }
+    .lit  { stroke: #8a6d00; stroke-width: 2.4; fill: none; }
+    .eye  { stroke: #0a4f9e; stroke-width: 2.4; fill: none; }
+    .hlf  { stroke: #9a1420; stroke-width: 2.4; fill: none; stroke-dasharray: 6 4; }
+    .arc  { stroke: #3d444d; stroke-width: 1.2; fill: none; }
+    .sep  { stroke: #6e7781; stroke-width: 1; }
+  </style>
+
+  <rect class="bg" width="760" height="570" rx="8"/>
+  <text class="txt ttl" x="20" y="32">ライティングで使う 4 つのベクトル</text>
+  <text class="txt sub" x="20" y="52">すべて長さ 1 に正規化し、同じ空間（ここではワールド空間）で揃えておく。</text>
+
+  <defs>
+    <marker id="mn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0d4f21"/>
+    </marker>
+    <marker id="ml" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8a6d00"/>
+    </marker>
+    <marker id="me" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a4f9e"/>
+    </marker>
+    <marker id="mh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9a1420"/>
+    </marker>
+  </defs>
+
+  <!-- ===== 上段 : 拡散反射 ===== -->
+  <rect class="obj" x="60" y="255" width="320" height="34"/>
+  <line class="face" x1="60" y1="255" x2="380" y2="255"/>
+
+  <line class="nrm" x1="220" y1="255" x2="220" y2="120" marker-end="url(#mn)"/>
+  <text class="txt cap" x="230" y="128" fill="#0d4f21">N（法線）</text>
+
+  <line class="lit" x1="220" y1="255" x2="115" y2="150" marker-end="url(#ml)"/>
+  <text class="txt cap" text-anchor="end" x="112" y="140" fill="#7a3200">L（光源へ）</text>
+
+  <path class="arc" d="M 220 200 A 55 55 0 0 0 181 216"/>
+  <text class="txt sub" x="186" y="190">θ</text>
+
+  <circle cx="220" cy="255" r="4.5" fill="#1f2328"/>
+
+  <text class="txt cap" x="410" y="132">拡散反射（ランバート）</text>
+  <text class="txt sub" x="410" y="160">明るさ ＝ saturate( N・L ) ＝ cos θ</text>
+  <text class="txt sub" x="410" y="190">・正対しているとき (θ = 0°) → 1.0 で最も明るい</text>
+  <text class="txt sub" x="410" y="212">・真横のとき (θ = 90°) → 0.0</text>
+  <text class="txt sub" x="410" y="234">・裏を向くと負の値。saturate で 0 に切り上げる</text>
+  <text class="txt sub" x="410" y="266">ざらざらした物の見え方。どこから見ても明るさは変わらない。</text>
+
+  <line class="sep" x1="20" y1="312" x2="740" y2="312"/>
+
+  <!-- ===== 下段 : 鏡面反射 ===== -->
+  <polygon class="obj" points="75,475 365,525 365,559 75,509"/>
+  <line class="face" x1="75" y1="475" x2="365" y2="525"/>
+
+  <line class="nrm" x1="220" y1="500" x2="245" y2="352" marker-end="url(#mn)"/>
+  <text class="txt cap" x="254" y="350" fill="#0d4f21">N</text>
+
+  <line class="lit" x1="220" y1="500" x2="151" y2="408" marker-end="url(#ml)"/>
+  <text class="txt cap" text-anchor="end" x="146" y="400" fill="#7a3200">L</text>
+
+  <line class="eye" x1="220" y1="500" x2="289" y2="408" marker-end="url(#me)"/>
+  <text class="txt cap" x="295" y="404" fill="#0a4f9e">V（視点へ）</text>
+
+  <line class="hlf" x1="220" y1="500" x2="220" y2="380" marker-end="url(#mh)"/>
+  <text class="txt cap" text-anchor="end" x="208" y="374" fill="#9a1420">H</text>
+
+  <circle cx="220" cy="500" r="4.5" fill="#1f2328"/>
+
+  <text class="txt cap" x="410" y="368">鏡面反射（ブリン・フォン）</text>
+  <text class="txt sub" x="410" y="396">H ＝ normalize( L ＋ V ) … L と V のちょうど中間の向き</text>
+  <text class="txt sub" x="410" y="418">強さ ＝ saturate( N・H ) の n 乗</text>
+  <text class="txt sub" x="410" y="448">・N と H が一致したときに最も強く光る</text>
+  <text class="txt sub" x="410" y="470">・n を大きくするほど、狭く鋭いハイライトになる</text>
+  <text class="txt sub" x="410" y="502">見る位置によって変わるのが拡散反射との違い。</text>
+  <text class="txt sub" x="410" y="524">そのために視点のワールド座標を定数バッファで渡している。</text>
+</svg>

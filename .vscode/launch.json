@@ -29,7 +29,7 @@
       "stopAtEntry": false,
 
       // ★ 作業ディレクトリ
-      //   shaders/Triangle.hlsl を実行時に読み込むため、
+      //   shaders/Mesh.hlsl を実行時に読み込むため、
       //   プロジェクトルートを指定します。
       "cwd": "${workspaceFolder}",
 

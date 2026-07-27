@@ -1,4 +1,4 @@
-//=============================================================================
+﻿//=============================================================================
 // main.cpp
 //   アプリケーションの入口。ウィンドウを作り、レンダラを初期化し、
 //   メインループを回す。
@@ -36,7 +36,7 @@ constexpr uint32_t kInitialHeight = 720;
 /// <summary>
 /// タイトルバーに表示する文字列。
 /// </summary>
-constexpr const wchar_t* kWindowTitle = L"DirectX 12 Dev - Textured Cube";
+constexpr const wchar_t* kWindowTitle = L"DirectX 12 Dev - Lit Cube";
 
 /// <summary>
 /// コンソールで日本語（UTF-16 のワイド文字）を正しく表示できるようにします。
@@ -60,7 +60,7 @@ int main()
 
     try
     {
-        dx12::Log(L"===== DirectX 12 Dev : Textured Cube =====");
+        dx12::Log(L"===== DirectX 12 Dev : Lit Cube =====");
 
         // (1) ウィンドウの生成
         dx12::Window window;
