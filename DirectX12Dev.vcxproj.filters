@@ -14,6 +14,9 @@
     <Filter Include="src">
       <UniqueIdentifier>{a1000000-0000-4000-8000-000000000001}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\Assets">
+      <UniqueIdentifier>{a55e7c10-4d21-4a3e-9b7f-6c2f8d1e4b90}</UniqueIdentifier>
+    </Filter>
     <Filter Include="src\App">
       <UniqueIdentifier>{a1000000-0000-4000-8000-000000000002}</UniqueIdentifier>
     </Filter>
@@ -37,6 +40,12 @@
     </ClCompile>
     <ClCompile Include="src\App\CameraController.cpp">
       <Filter>src\App</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Assets\ModelLoader.cpp">
+      <Filter>src\Assets</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Assets\ObjLoader.cpp">
+      <Filter>src\Assets</Filter>
     </ClCompile>
     <ClCompile Include="src\App\Camera.cpp">
       <Filter>src\App</Filter>
@@ -97,6 +106,12 @@
     </ClInclude>
     <ClInclude Include="src\App\CameraController.h">
       <Filter>src\App</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Assets\ModelLoader.h">
+      <Filter>src\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Assets\ObjLoader.h">
+      <Filter>src\Assets</Filter>
     </ClInclude>
     <ClInclude Include="src\App\Camera.h">
       <Filter>src\App</Filter>
