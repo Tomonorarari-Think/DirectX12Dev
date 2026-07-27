@@ -17,6 +17,11 @@ cbuffer FrameConstants : register(b0)
     // ビュー行列 × 射影行列。HLSL は列優先で読むため C++ 側で転置してある。
     float4x4 g_viewProjection;
 
+    // 光源から見たビュー行列 × 射影行列。
+    // シャドウマップを描くときは変換行列として、画面を描くときは
+    // 「この点が影の中か」を調べる座標変換として、同じ行列を 2 度使う。
+    float4x4 g_lightViewProjection;
+
     // xyz = 光が進む向き（正規化済み）。w は未使用。
     float4 g_lightDirection;
 
@@ -41,6 +46,17 @@ cbuffer ObjectConstants : register(b1)
 // Texture2D が「画像データ」、SamplerState が「その読み方」。
 Texture2D    g_texture : register(t0);
 SamplerState g_sampler : register(s0);
+
+// 光源から見た深度を書き込んだテクスチャ。
+Texture2D g_shadowMap : register(t1);
+
+// 比較サンプラー。読んだ値をそのまま返すのではなく、渡した値と比較して
+// 「合格した割合」を返す。周囲 4 テクセルぶんを比較して補間するので、
+// 1 回の読み取りだけで影の境目がなめらかになる。
+SamplerComparisonState g_shadowSampler : register(s1);
+
+// シャドウマップの一辺のテクセル数。PCF のずらし幅を求めるのに使う。
+static const float kShadowMapSize = 2048.0f;
 
 // 鏡面反射の鋭さ。大きいほどハイライトが小さく硬くなる。
 // 立方体は面が平らなので、ハイライトは点ではなく面全体の明滅として現れる。
@@ -93,6 +109,61 @@ VSOutput VSMain(VSInput input)
     return output;
 }
 
+//-----------------------------------------------------------------------------
+// シャドウマップを描くパス
+//   色は要らないので頂点シェーダーだけ。深度が書き込まれれば目的は達する。
+//-----------------------------------------------------------------------------
+float4 VSShadow(VSInput input) : SV_POSITION
+{
+    // カメラの代わりに光源から見た行列を掛ける。それ以外は通常の描画と同じ。
+    return mul(mul(float4(input.position, 1.0f), g_world), g_lightViewProjection);
+}
+
+// この点が影の中にあるかを 0（完全な影）〜1（当たっている）で返す。
+float SampleShadow(float3 worldPosition)
+{
+    // (1) ワールド座標を、光源から見たクリップ空間へ移す。
+    float4 lightSpace = mul(float4(worldPosition, 1.0f), g_lightViewProjection);
+
+    // (2) 透視除算。正射影なので w は 1 だが、一般形で書いておく。
+    float3 projected = lightSpace.xyz / lightSpace.w;
+
+    // (3) クリップ空間 (-1〜+1) をテクスチャ座標 (0〜1) へ。
+    //   Y だけ符号が逆なのは、UV の V が下向きで、NDC の Y が上向きだから。
+    float2 uv = float2(projected.x * 0.5f + 0.5f, -projected.y * 0.5f + 0.5f);
+
+    // (4) 光源の視界の外は影にしない。
+    //   サンプラーの BORDER が UV の外を白（＝当たっている）にしてくれるが、
+    //   奥のクリップ面より遠い場合は自分で弾く必要がある。
+    if (projected.z > 1.0f)
+    {
+        return 1.0f;
+    }
+
+    // (5) PCF (Percentage Closer Filtering)
+    //   1 点だけ比べると影の輪郭がギザギザになる。周囲 3x3 を比べて平均すると、
+    //   段階的な値になって境目がなめらかに見える。
+    //   比較サンプラー自体も 2x2 を補間するので、実質 6x6 相当をならしている。
+    float texelSize = 1.0f / kShadowMapSize;
+    float lit = 0.0f;
+
+    [unroll]
+    for (int y = -1; y <= 1; ++y)
+    {
+        [unroll]
+        for (int x = -1; x <= 1; ++x)
+        {
+            float2 offset = float2(x, y) * texelSize;
+
+            // SampleCmpLevelZero : 「記録された深度 <= 渡した深度」の割合を返す。
+            //   合格 = 遮る物が無い = 光が当たっている。
+            lit += g_shadowMap.SampleCmpLevelZero(g_shadowSampler, uv + offset, projected.z);
+        }
+    }
+
+    return lit / 9.0f;
+}
+
 // 塗られるピクセル 1 個につき 1 回呼ばれ、そのピクセルの色を決める。
 float4 PSMain(VSOutput input) : SV_TARGET
 {
@@ -115,6 +186,14 @@ float4 PSMain(VSOutput input) : SV_TARGET
 
     // 光が当たっていない面にハイライトが乗らないよう、拡散の強さで打ち消す。
     specular *= diffuse;
+
+    // 遮る物があれば、光が「届かなかった」ことにする。
+    //   ★ 減らすのは直接光（拡散反射と鏡面反射）だけ。
+    //     環境光は周囲からの照り返しなので、影の中でも残る。
+    float shadow = SampleShadow(input.worldPosition);
+
+    diffuse  *= shadow;
+    specular *= shadow;
 
     // 物体そのものの色 ＝ 頂点カラー × テクスチャ。
     float4 baseColor = input.color * g_texture.Sample(g_sampler, input.uv);
