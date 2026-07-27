@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 470" width="760" height="470" role="img" aria-label="OBJ ファイルの構造。座標・UV・法線がそれぞれ別の配列で、面がその 3 つへの索引の組で書かれることを示す図">
+  <style>
+    .bg   { fill: #f6f8fa; }
+    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #1f2328; }
+    .mono { font-family: Consolas, "Courier New", monospace; }
+    .ttl  { font-size: 16px; font-weight: 600; }
+    .cap  { font-size: 13px; font-weight: 600; }
+    .sub  { font-size: 12px; fill: #3d444d; }
+    .pos  { fill: #ddf4ff; stroke: #0a4f9e; stroke-width: 1.6; }
+    .uv   { fill: #dafbe1; stroke: #0d4f21; stroke-width: 1.6; }
+    .nrm  { fill: #fff8c5; stroke: #8a6d00; stroke-width: 1.6; }
+    .ar   { stroke: #3d444d; stroke-width: 1.4; fill: none; }
+  </style>
+
+  <rect class="bg" width="760" height="470" rx="8"/>
+  <text class="txt ttl" x="20" y="30">OBJ の面は「3 本の配列への索引」で書かれている</text>
+  <text class="txt sub" x="20" y="52">座標・UV・法線は別々に並んでいて、面がそれぞれの何番目かを指す。索引は 1 から始まる。</text>
+
+  <defs>
+    <marker id="oa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3d444d"/>
+    </marker>
+  </defs>
+
+  <!-- 3 本の配列 -->
+  <text class="txt cap" x="20" y="92">ファイルの中身</text>
+
+  <rect class="pos" x="20" y="104" width="200" height="86" rx="4"/>
+  <text class="txt cap" x="34" y="126" fill="#0a4f9e">v — 座標</text>
+  <text class="txt sub mono" x="34" y="148">v 1.0 0.0 0.0   ← 1 番</text>
+  <text class="txt sub mono" x="34" y="168">v 0.0 1.0 0.0   ← 2 番</text>
+  <text class="txt sub mono" x="34" y="184">…</text>
+
+  <rect class="uv" x="240" y="104" width="200" height="86" rx="4"/>
+  <text class="txt cap" x="254" y="126" fill="#0d4f21">vt — UV</text>
+  <text class="txt sub mono" x="254" y="148">vt 0.0 0.0      ← 1 番</text>
+  <text class="txt sub mono" x="254" y="168">vt 1.0 0.0      ← 2 番</text>
+  <text class="txt sub mono" x="254" y="184">…</text>
+
+  <rect class="nrm" x="460" y="104" width="200" height="86" rx="4"/>
+  <text class="txt cap" x="474" y="126" fill="#7a3200">vn — 法線</text>
+  <text class="txt sub mono" x="474" y="148">vn 0.0 0.0 1.0  ← 1 番</text>
+  <text class="txt sub mono" x="474" y="168">vn 0.0 1.0 0.0  ← 2 番</text>
+  <text class="txt sub mono" x="474" y="184">…</text>
+
+  <!-- 面の行 -->
+  <text class="txt cap" x="20" y="240">面 (f) の行</text>
+  <rect x="20" y="252" width="640" height="46" rx="4" fill="#eaeef2" stroke="#6e7781" stroke-width="1.6"/>
+  <text class="txt mono" font-size="18" x="40" y="282">f  1/1/1   2/2/2   3/3/1</text>
+
+  <text class="txt sub" x="330" y="282">← 3 つ書けば三角形、4 つなら四角形</text>
+
+  <!-- 索引の矢印 -->
+  <line class="ar" x1="52" y1="252" x2="70" y2="196" marker-end="url(#oa)"/>
+  <line class="ar" x1="66" y1="252" x2="290" y2="196" marker-end="url(#oa)"/>
+  <line class="ar" x1="80" y1="252" x2="510" y2="196" marker-end="url(#oa)"/>
+
+  <text class="txt sub" x="34" y="318">1 つの組 `1/1/1` が、頂点 1 個ぶんの「座標・UV・法線」を決める。</text>
+  <text class="txt sub" x="34" y="338">同じ組が何度出てきても、GPU へ渡す頂点は 1 個にまとめてよい。</text>
+
+  <!-- 注意 -->
+  <rect x="20" y="356" width="720" height="46" rx="6" fill="#ddf4ff" stroke="#0a4f9e" stroke-width="1.5"/>
+  <text class="txt sub" x="36" y="376">`1//3` のように途中を省くと「UV は無し」の意味。`f 1 2 3` なら座標だけ。</text>
+  <text class="txt sub" x="36" y="394">負の索引は「末尾から数えて何番目」。-1 が直前に読んだ最後の要素。</text>
+
+  <rect x="20" y="412" width="720" height="46" rx="6" fill="#fff8c5" stroke="#8a6d00" stroke-width="1.5"/>
+  <text class="txt sub" x="36" y="432">組が違えば別の頂点になる。座標が同じでも UV が違えば、GPU 上では 2 個の頂点。</text>
+  <text class="txt sub" x="36" y="450">立方体の頂点が 8 個では足りず 24 個になるのは、これと同じ理由。</text>
+</svg>

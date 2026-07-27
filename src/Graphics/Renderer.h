@@ -5,6 +5,7 @@
 #pragma once
 
 #include "../App/Camera.h"
+#include "../Assets/ModelLoader.h"
 #include "../Common/FrameTimer.h"
 #include "../Common/GraphicsCommon.h"
 #include "CommandQueue.h"
@@ -176,12 +177,12 @@ private:
     MeshPipeline m_meshPipeline;
 
     /// <summary>
-    /// 回転する立方体。
+    /// 回転させるモデル。ファイルから読み込みます。
     /// </summary>
-    Mesh m_cube;
+    Mesh m_model;
 
     /// <summary>
-    /// 立方体を置く床。
+    /// モデルを置く床。
     /// </summary>
     Mesh m_floor;
 
