@@ -1,6 +1,9 @@
 //=============================================================================
 // MeshPipeline.h
-//   立方体を描くための描画設定一式（ルートシグネチャ・PSO・頂点/インデックスバッファ）。
+//   メッシュを描くための「描き方」一式（ルートシグネチャ・PSO・定数バッファ）。
+//
+//   「何を描くか」は Mesh が持つ。このクラスは形状を知らないので、
+//   同じ設定のまま何個でもメッシュを描ける。
 //=============================================================================
 #pragma once
 
@@ -17,109 +20,66 @@ class CommandQueue;
 class DescriptorHeap;
 
 /// <summary>
-/// シェーダーへ毎フレーム渡す定数の内容。
+/// 1 フレームのあいだ、描くもの全てで共通の定数。
 /// </summary>
 /// <remarks>
 /// HLSL の定数バッファは 16 バイト単位で区切られます。`float3` の直後に `float` を
 /// 置くと同じ 16 バイトに詰め込まれ、C++ 側とずれます。ここで全て `XMFLOAT4` /
 /// `XMFLOAT4X4` に揃えているのは、そのずれを構造的に起こさないためです。
 /// </remarks>
-struct SceneConstants
+struct FrameConstants
 {
-    /// <summary>
-    /// ワールド × ビュー × プロジェクションをまとめた変換行列。
-    /// </summary>
-    DirectX::XMFLOAT4X4 worldViewProjection;
+    /// <summary>ビュー行列 × 射影行列。カメラが決まれば全オブジェクトで共通。</summary>
+    DirectX::XMFLOAT4X4 viewProjection;
 
-    /// <summary>
-    /// ワールド行列。頂点と法線をワールド空間へ移すために単体でも渡します。
-    /// </summary>
-    DirectX::XMFLOAT4X4 world;
-
-    /// <summary>
-    /// 平行光源の進む向き (xyz)。正規化済み。w は未使用。
-    /// </summary>
+    /// <summary>平行光源の進む向き (xyz)。正規化済み。w は未使用。</summary>
     /// <remarks>
     /// 「光が飛んでいく向き」であり「光源の方向」ではありません。符号を取り違えると
     /// 明暗が裏返ります。
     /// </remarks>
     DirectX::XMFLOAT4 lightDirection;
 
-    /// <summary>
-    /// 光の色と強さ (rgb)。w は環境光の強さ。
-    /// </summary>
+    /// <summary>光の色と強さ (rgb)。w は環境光の強さ。</summary>
     DirectX::XMFLOAT4 lightColor;
 
-    /// <summary>
-    /// 視点のワールド座標 (xyz)。鏡面反射の計算に使います。w は未使用。
-    /// </summary>
+    /// <summary>視点のワールド座標 (xyz)。鏡面反射の計算に使います。w は未使用。</summary>
     DirectX::XMFLOAT4 cameraPosition;
 };
 
 
 /// <summary>
-/// 頂点 1 個ぶんのデータ構造。
+/// オブジェクト 1 個ごとに変わる定数。
 /// </summary>
-struct Vertex
+struct ObjectConstants
 {
-    /// <summary>
-    /// 頂点の座標 (x, y, z)。モデルの原点を基準としたローカル座標。
-    /// </summary>
-    float position[3];
+    /// <summary>ワールド × ビュー × 射影。CPU 側で合成済み。</summary>
+    DirectX::XMFLOAT4X4 worldViewProjection;
 
-    /// <summary>
-    /// 面の向きを表す法線ベクトル (x, y, z)。長さ 1 に正規化しておきます。
-    /// </summary>
-    /// <remarks>
-    /// 光の当たり具合はこのベクトルだけで決まります。座標が同じ頂点でも、属する面が
-    /// 違えば法線が違うため、立方体の頂点は 8 個ではなく 24 個必要になります。
-    /// </remarks>
-    float normal[3];
-
-    /// <summary>
-    /// 頂点の色 (r, g, b, a)。各成分は 0.0〜1.0。
-    /// </summary>
-    float color[4];
-
-    /// <summary>
-    /// テクスチャ座標 (u, v)。左上が (0,0)、右下が (1,1)。
-    /// </summary>
-    /// <remarks>
-    /// V は下向きが正です（画面の Y が上向きなのと逆）。 取り違えるとテクスチャが上下逆さまに貼
-    /// られます。
-    /// </remarks>
-    float uv[2];
+    /// <summary>ワールド行列。法線と頂点をワールド空間へ移すために使います。</summary>
+    DirectX::XMFLOAT4X4 world;
 };
 
 
 /// <summary>
-/// 立方体を描くのに必要な「描画の設定一式」と「頂点データ」を持つクラス。
+/// メッシュを描くための描画設定一式を持つクラス。
 /// </summary>
 class MeshPipeline
 {
 public:
-    /// <summary>
-    /// 既定のコンストラクタ。まだ何も生成されません。
-    /// </summary>
+    /// <summary>既定のコンストラクタ。まだ何も生成されません。</summary>
     MeshPipeline() = default;
 
-    /// <summary>
-    /// デストラクタ。ComPtr により全ての COM オブジェクトが自動解放されます。
-    /// </summary>
+    /// <summary>デストラクタ。ComPtr により COM オブジェクトが自動解放されます。</summary>
     ~MeshPipeline() = default;
 
-    /// <summary>
-    /// コピー構築は禁止です。
-    /// </summary>
+    /// <summary>コピー構築は禁止です。</summary>
     MeshPipeline(const MeshPipeline&) = delete;
 
-    /// <summary>
-    /// コピー代入は禁止です。
-    /// </summary>
+    /// <summary>コピー代入は禁止です。</summary>
     MeshPipeline& operator=(const MeshPipeline&) = delete;
 
     /// <summary>
-    /// ルートシグネチャ・PSO・頂点バッファ・定数バッファを生成します。
+    /// ルートシグネチャ・PSO・定数バッファ・テクスチャを生成します。
     /// </summary>
     /// <param name="device">生成に使う D3D12 デバイス。</param>
     /// <param name="renderTargetFormat">
@@ -131,6 +91,7 @@ public:
     /// <param name="frameCount">
     /// 定数バッファに用意するフレーム数（通常はバックバッファの枚数）。
     /// </param>
+    /// <param name="maxObjectCount">1 フレームで描くオブジェクトの上限。</param>
     /// <param name="commandQueue">
     /// テクスチャ転送に使うキュー。転送の完了まで待機します。
     /// </param>
@@ -141,27 +102,54 @@ public:
                     DXGI_FORMAT renderTargetFormat,
                     DXGI_FORMAT depthStencilFormat,
                     uint32_t frameCount,
+                    uint32_t maxObjectCount,
                     CommandQueue& commandQueue,
                     DescriptorHeap& descriptorHeap);
 
     /// <summary>
-    /// このフレームの変換行列とライト情報を計算し、定数バッファへ書き込みます。
+    /// このフレームの共通定数（カメラとライト）を書き込みます。
     /// </summary>
     /// <param name="frameIndex">書き込み先のフレーム番号。</param>
     /// <param name="viewProjection">カメラのビュー行列 × 射影行列。</param>
-    /// <param name="cameraPosition">視点のワールド座標。鏡面反射の計算に使います。</param>
-    /// <param name="totalSeconds">起動からの経過秒数。回転角の算出に使います。</param>
-    void Update(uint32_t frameIndex,
-                const DirectX::XMMATRIX& viewProjection,
-                const DirectX::XMFLOAT3& cameraPosition,
-                float totalSeconds);
+    /// <param name="cameraPosition">視点のワールド座標。</param>
+    void UpdateFrameConstants(uint32_t frameIndex,
+                              const DirectX::XMMATRIX& viewProjection,
+                              const DirectX::XMFLOAT3& cameraPosition);
 
     /// <summary>
-    /// コマンドリストに「立方体を描く」命令を記録します。
+    /// オブジェクト 1 個ぶんの定数（変換行列）を書き込みます。
+    /// </summary>
+    /// <param name="frameIndex">書き込み先のフレーム番号。</param>
+    /// <param name="objectIndex">オブジェクトの番号。0 から始まる連番。</param>
+    /// <param name="world">そのオブジェクトのワールド行列。</param>
+    /// <param name="viewProjection">カメラのビュー行列 × 射影行列。</param>
+    /// <exception cref="std::out_of_range">`maxObjectCount` を超えた場合。</exception>
+    void UpdateObjectConstants(uint32_t frameIndex,
+                               uint32_t objectIndex,
+                               const DirectX::XMMATRIX& world,
+                               const DirectX::XMMATRIX& viewProjection);
+
+    /// <summary>
+    /// 描画の共通設定（PSO・ルートシグネチャ・フレーム定数・テクスチャ）を記録します。
     /// </summary>
     /// <param name="commandList">記録先の（Reset 済みで開いている）コマンドリスト。</param>
-    /// <param name="frameIndex">使用する定数バッファのフレーム番号。</param>
-    void RecordDrawCommands(ID3D12GraphicsCommandList* commandList, uint32_t frameIndex) const;
+    /// <param name="frameIndex">使用するフレーム番号。</param>
+    /// <remarks>
+    /// テクスチャを結び付けるため、呼び出し側が先に `SetDescriptorHeaps` で
+    /// シェーダー可視ヒープを設定しておく必要があります。
+    /// </remarks>
+    void Bind(ID3D12GraphicsCommandList* commandList, uint32_t frameIndex) const;
+
+    /// <summary>
+    /// これから描くオブジェクトの定数を結び付けます。
+    /// </summary>
+    /// <param name="commandList">記録先のコマンドリスト。</param>
+    /// <param name="frameIndex">使用するフレーム番号。</param>
+    /// <param name="objectIndex">オブジェクトの番号。</param>
+    /// <remarks>`Bind` を呼んだ後、メッシュを描く直前に呼びます。</remarks>
+    void BindObject(ID3D12GraphicsCommandList* commandList,
+                    uint32_t frameIndex,
+                    uint32_t objectIndex) const;
 
 private:
     /// <summary>
@@ -183,12 +171,15 @@ private:
                              DXGI_FORMAT depthStencilFormat);
 
     /// <summary>
-    /// 頂点バッファとインデックスバッファを DEFAULT ヒープに作り、データを転送します。
+    /// フレーム番号とオブジェクト番号から、定数バッファのスロット番号を求めます。
     /// </summary>
-    /// <param name="device">生成に使う D3D12 デバイス。</param>
-    /// <param name="commandQueue">転送コマンドを実行するキュー。完了まで待機します。</param>
-    /// <exception cref="HrException">リソースの生成または転送に失敗した場合。</exception>
-    void CreateGeometryBuffers(ID3D12Device* device, CommandQueue& commandQueue);
+    /// <param name="frameIndex">フレーム番号。</param>
+    /// <param name="objectIndex">オブジェクト番号。</param>
+    /// <returns>スロット番号。</returns>
+    uint32_t ObjectSlot(uint32_t frameIndex, uint32_t objectIndex) const
+    {
+        return frameIndex * m_maxObjectCount + objectIndex;
+    }
 
     /// <summary>
     /// HLSL ファイルをコンパイルして、GPU 用のバイトコードを得ます。
@@ -204,7 +195,7 @@ private:
 
 private:
     /// <summary>
-    /// シェーダーが受け取る外部入力の一覧表（今回は空）。
+    /// シェーダーが受け取る外部入力の一覧表。
     /// </summary>
     ComPtr<ID3D12RootSignature> m_rootSignature;
 
@@ -214,37 +205,22 @@ private:
     ComPtr<ID3D12PipelineState> m_pipelineState;
 
     /// <summary>
-    /// 頂点データを置く GPU 上のメモリ領域（DEFAULT ヒープ）。
+    /// カメラとライトを渡す定数バッファ（フレーム数ぶんのスロット）。
     /// </summary>
-    ComPtr<ID3D12Resource> m_vertexBuffer;
+    ConstantBuffer m_frameConstantBuffer;
 
     /// <summary>
-    /// 変換行列をシェーダーへ渡すための定数バッファ（フレーム数ぶん）。
+    /// 変換行列を渡す定数バッファ（フレーム数 × オブジェクト数ぶんのスロット）。
     /// </summary>
-    ConstantBuffer m_constantBuffer;
+    ConstantBuffer m_objectConstantBuffer;
 
     /// <summary>
-    /// 立方体に貼るテクスチャ（市松模様）。
+    /// メッシュに貼るテクスチャ（市松模様）。
     /// </summary>
     Texture2D m_texture;
 
-    /// <summary>
-    /// インデックスデータを置く GPU 上のメモリ領域（DEFAULT ヒープ）。
-    /// </summary>
-    ComPtr<ID3D12Resource> m_indexBuffer;
-
-    /// <summary>
-    /// 頂点バッファの読み取り方を GPU に伝える構造体。
-    /// </summary>
-    D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView = {};
-
-    /// <summary>
-    /// インデックスバッファの読み取り方を GPU に伝える構造体。
-    /// </summary>
-    D3D12_INDEX_BUFFER_VIEW m_indexBufferView = {};
-
-    /// <summary>描画するインデックスの個数。</summary>
-    uint32_t m_indexCount = 0;
+    /// <summary>1 フレームで描けるオブジェクトの上限。</summary>
+    uint32_t m_maxObjectCount = 0;
 };
 
 } // namespace dx12

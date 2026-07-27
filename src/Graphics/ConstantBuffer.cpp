@@ -26,20 +26,20 @@ ConstantBuffer::~ConstantBuffer()
 
 
 /// <summary>
-/// フレーム数ぶんの領域を持つ定数バッファを生成します。
+/// 指定した個数の領域（スロット）を持つ定数バッファを生成します。
 /// </summary>
-void ConstantBuffer::Initialize(ID3D12Device* device, uint32_t sizeInBytes, uint32_t frameCount)
+void ConstantBuffer::Initialize(ID3D12Device* device, uint32_t sizeInBytes, uint32_t slotCount)
 {
     assert(device != nullptr);
     assert(sizeInBytes > 0);
-    assert(frameCount > 0);
+    assert(slotCount > 0);
 
-    // 1 フレームぶんのサイズを 256 バイト境界へ切り上げる。
+    // 1 スロットぶんのサイズを 256 バイト境界へ切り上げる。
     m_alignedSize = Align(sizeInBytes);
-    m_frameCount  = frameCount;
+    m_slotCount   = slotCount;
 
-    // フレーム数ぶんを 1 本のバッファにまとめて確保する
-    const uint64_t totalSize = static_cast<uint64_t>(m_alignedSize) * frameCount;
+    // 全スロットぶんを 1 本のバッファにまとめて確保する
+    const uint64_t totalSize = static_cast<uint64_t>(m_alignedSize) * slotCount;
 
     // UPLOAD ヒープ : CPU から書けて GPU から読める共有メモリ。
     D3D12_HEAP_PROPERTIES heapProperties = {};
@@ -81,38 +81,38 @@ void ConstantBuffer::Initialize(ID3D12Device* device, uint32_t sizeInBytes, uint
     DX_CHECK(m_resource->Map(0, &readRange, &mapped));
     m_mappedData = static_cast<uint8_t*>(mapped);
 
-    Log(std::format(L"定数バッファを作成しました（{} バイト × {} フレーム = {} バイト）",
-                    m_alignedSize, frameCount, totalSize));
+    Log(std::format(L"定数バッファを作成しました（{} バイト × {} スロット = {} バイト）",
+                    m_alignedSize, slotCount, totalSize));
 }
 
 
 /// <summary>
-/// 指定フレームの領域へデータを書き込みます。
+/// 指定スロットへデータを書き込みます。
 /// </summary>
-void ConstantBuffer::Update(uint32_t frameIndex, const void* data, uint32_t sizeInBytes)
+void ConstantBuffer::Update(uint32_t slotIndex, const void* data, uint32_t sizeInBytes)
 {
     assert(m_mappedData != nullptr);
-    assert(frameIndex < m_frameCount);
+    assert(slotIndex < m_slotCount);
     assert(sizeInBytes <= m_alignedSize);
 
-    // フレーム番号ぶんだけアドレスをずらした位置へ書き込む。
-    std::memcpy(m_mappedData + static_cast<size_t>(frameIndex) * m_alignedSize,
+    // スロット番号ぶんだけアドレスをずらした位置へ書き込む。
+    std::memcpy(m_mappedData + static_cast<size_t>(slotIndex) * m_alignedSize,
                 data,
                 sizeInBytes);
 }
 
 
 /// <summary>
-/// 指定フレームの領域の GPU アドレスを取得します。
+/// 指定スロットの GPU アドレスを取得します。
 /// </summary>
-D3D12_GPU_VIRTUAL_ADDRESS ConstantBuffer::GpuAddress(uint32_t frameIndex) const
+D3D12_GPU_VIRTUAL_ADDRESS ConstantBuffer::GpuAddress(uint32_t slotIndex) const
 {
     assert(m_resource != nullptr);
-    assert(frameIndex < m_frameCount);
+    assert(slotIndex < m_slotCount);
 
     // GetGPUVirtualAddress() は「GPU から見たアドレス」を返す。
     return m_resource->GetGPUVirtualAddress()
-         + static_cast<uint64_t>(frameIndex) * m_alignedSize;
+         + static_cast<uint64_t>(slotIndex) * m_alignedSize;
 }
 
 } // namespace dx12

@@ -6,118 +6,26 @@
 
 #include "CommandQueue.h"
 #include "DescriptorHeap.h"
-#include "UploadHelper.h"
+#include "Geometry.h"
 
 #include <cstddef>  // offsetof
 #include <cstdio>   // printf（シェーダーのコンパイルエラーをコンソールに出す）
-#include <cstring>  // memcpy
-#include <format>
+#include <stdexcept>
 
 namespace dx12
 {
 namespace
 {
 /// <summary>
-/// 立方体の頂点データ（6 面 × 4 頂点 = 24 個）。
-/// </summary>
-/// <remarks>
-/// 面ごとに UV と法線を持たせたいので、頂点は面ごとに分けて持ちます。8 個では
-/// 足りません。各面は外から見て時計回りに並べており、逆にすると背面カリングで消えます。
-/// 面の色は一様です。濃淡はライティングが付けるため、頂点カラーで作る必要がありません。
-/// </remarks>
-constexpr Vertex kCubeVertices[] = {
-    // 手前 (-Z) 青
-    { { -0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f },
-      { 0.35f, 0.55f, 0.95f, 1.0f }, { 0.0f, 0.0f } },
-    { {  0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f },
-      { 0.35f, 0.55f, 0.95f, 1.0f }, { 1.0f, 0.0f } },
-    { {  0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f },
-      { 0.35f, 0.55f, 0.95f, 1.0f }, { 1.0f, 1.0f } },
-    { { -0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f },
-      { 0.35f, 0.55f, 0.95f, 1.0f }, { 0.0f, 1.0f } },
-
-    // 奥 (+Z) 緑
-    { {  0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f },
-      { 0.35f, 0.85f, 0.45f, 1.0f }, { 0.0f, 0.0f } },
-    { { -0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f },
-      { 0.35f, 0.85f, 0.45f, 1.0f }, { 1.0f, 0.0f } },
-    { { -0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f },
-      { 0.35f, 0.85f, 0.45f, 1.0f }, { 1.0f, 1.0f } },
-    { {  0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f },
-      { 0.35f, 0.85f, 0.45f, 1.0f }, { 0.0f, 1.0f } },
-
-    // 左 (-X) 赤
-    { { -0.5f,  0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f },
-      { 0.90f, 0.40f, 0.35f, 1.0f }, { 0.0f, 0.0f } },
-    { { -0.5f,  0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f },
-      { 0.90f, 0.40f, 0.35f, 1.0f }, { 1.0f, 0.0f } },
-    { { -0.5f, -0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f },
-      { 0.90f, 0.40f, 0.35f, 1.0f }, { 1.0f, 1.0f } },
-    { { -0.5f, -0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f },
-      { 0.90f, 0.40f, 0.35f, 1.0f }, { 0.0f, 1.0f } },
-
-    // 右 (+X) 黄
-    { {  0.5f,  0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f },
-      { 0.95f, 0.80f, 0.30f, 1.0f }, { 0.0f, 0.0f } },
-    { {  0.5f,  0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f },
-      { 0.95f, 0.80f, 0.30f, 1.0f }, { 1.0f, 0.0f } },
-    { {  0.5f, -0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f },
-      { 0.95f, 0.80f, 0.30f, 1.0f }, { 1.0f, 1.0f } },
-    { {  0.5f, -0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f },
-      { 0.95f, 0.80f, 0.30f, 1.0f }, { 0.0f, 1.0f } },
-
-    // 上 (+Y) 水色
-    { { -0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f },
-      { 0.45f, 0.85f, 0.95f, 1.0f }, { 0.0f, 0.0f } },
-    { {  0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f },
-      { 0.45f, 0.85f, 0.95f, 1.0f }, { 1.0f, 0.0f } },
-    { {  0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f },
-      { 0.45f, 0.85f, 0.95f, 1.0f }, { 1.0f, 1.0f } },
-    { { -0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f },
-      { 0.45f, 0.85f, 0.95f, 1.0f }, { 0.0f, 1.0f } },
-
-    // 下 (-Y) 紫
-    { { -0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f },
-      { 0.70f, 0.50f, 0.95f, 1.0f }, { 0.0f, 0.0f } },
-    { {  0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f },
-      { 0.70f, 0.50f, 0.95f, 1.0f }, { 1.0f, 0.0f } },
-    { {  0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f },
-      { 0.70f, 0.50f, 0.95f, 1.0f }, { 1.0f, 1.0f } },
-    { { -0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f },
-      { 0.70f, 0.50f, 0.95f, 1.0f }, { 0.0f, 1.0f } },
-};
-
-/// <summary>
-/// 立方体のインデックスデータ（6 面 × 三角形 2 枚 × 3 頂点 = 36 個）。
-/// </summary>
-/// <remarks>
-/// 四角形 1 枚は三角形 2 枚で作ります。同じ頂点を 2 つの三角形で共有できるため、
-/// 頂点を並べ直すよりデータが小さくなります。
-/// </remarks>
-constexpr uint16_t kCubeIndices[] = {
-     0,  1,  2,   0,  2,  3,   // 手前
-     4,  5,  6,   4,  6,  7,   // 奥
-     8,  9, 10,   8, 10, 11,   // 左
-    12, 13, 14,  12, 14, 15,   // 右
-    16, 17, 18,  16, 18, 19,   // 上
-    20, 21, 22,  20, 22, 23,   // 下
-};
-
-/// <summary>
 /// シェーダーファイルの場所（プロジェクトルートからの相対パス）。
 /// </summary>
 constexpr const wchar_t* kShaderRelativePath = L"shaders/Mesh.hlsl";
 
 /// <summary>
-/// 立方体が 1 回転するのにかかる秒数。
-/// </summary>
-constexpr float kSecondsPerRotation = 8.0f;
-
-/// <summary>
 /// 平行光源が進む向き（ワールド空間）。左上手前から差し込む設定。
 /// </summary>
 /// <remarks>
-/// 「光源がある方向」ではなく「光が飛んでいく向き」です。正規化は Update で行います。
+/// 「光源がある方向」ではなく「光が飛んでいく向き」です。正規化は更新時に行います。
 /// 立方体が回っても光は動かないため、面の明るさが移り変わる様子が観察できます。
 /// </remarks>
 constexpr float kLightDirection[3] = { 0.55f, -0.75f, 0.35f };
@@ -136,14 +44,19 @@ constexpr float kLightColor[3] = { 1.0f, 0.96f, 0.88f };
 constexpr float kAmbientIntensity = 0.25f;
 
 /// <summary>
-/// 定数バッファを結び付けるルートパラメータの番号。
+/// フレーム共通の定数バッファを結び付けるルートパラメータの番号。
 /// </summary>
-constexpr uint32_t kSceneConstantsRootParameterIndex = 0;
+constexpr uint32_t kFrameConstantsRootParameterIndex = 0;
+
+/// <summary>
+/// オブジェクト別の定数バッファを結び付けるルートパラメータの番号。
+/// </summary>
+constexpr uint32_t kObjectConstantsRootParameterIndex = 1;
 
 /// <summary>
 /// テクスチャ（SRV）を結び付けるルートパラメータの番号。
 /// </summary>
-constexpr uint32_t kTextureRootParameterIndex = 1;
+constexpr uint32_t kTextureRootParameterIndex = 2;
 
 /// <summary>
 /// 生成するテクスチャの一辺のピクセル数。
@@ -158,23 +71,31 @@ constexpr uint32_t kTextureCellSize = 32;
 
 
 /// <summary>
-/// ルートシグネチャ・PSO・頂点/インデックス/定数バッファを生成します。
+/// ルートシグネチャ・PSO・定数バッファ・テクスチャを生成します。
 /// </summary>
 void MeshPipeline::Initialize(ID3D12Device* device,
-                                  DXGI_FORMAT renderTargetFormat,
-                                  DXGI_FORMAT depthStencilFormat,
-                                  uint32_t frameCount,
-                                  CommandQueue& commandQueue,
-                                  DescriptorHeap& descriptorHeap)
+                              DXGI_FORMAT renderTargetFormat,
+                              DXGI_FORMAT depthStencilFormat,
+                              uint32_t frameCount,
+                              uint32_t maxObjectCount,
+                              CommandQueue& commandQueue,
+                              DescriptorHeap& descriptorHeap)
 {
+    m_maxObjectCount = maxObjectCount;
+
     CreateRootSignature(device);
     CreatePipelineState(device, renderTargetFormat, depthStencilFormat);
-    CreateGeometryBuffers(device, commandQueue);
 
-    // 変換行列を毎フレーム渡すための定数バッファ。
-    m_constantBuffer.Initialize(device, sizeof(SceneConstants), frameCount);
+    // カメラとライトはフレームごとに 1 組あればよい。
+    m_frameConstantBuffer.Initialize(device, sizeof(FrameConstants), frameCount);
 
-    // 立方体に貼るテクスチャ。画像ファイルは使わず、市松模様をコードで生成する。
+    // 変換行列はオブジェクトごとに違うため、フレーム数 × オブジェクト数ぶん要る。
+    //   GPU が前フレームを読んでいる最中に上書きしないためにフレーム別、
+    //   1 フレームの中で描く順に上書きしないためにオブジェクト別。
+    m_objectConstantBuffer.Initialize(
+        device, sizeof(ObjectConstants), frameCount * maxObjectCount);
+
+    // メッシュに貼るテクスチャ。画像ファイルは使わず、市松模様をコードで生成する。
     m_texture.Initialize(device,
                          commandQueue,
                          descriptorHeap,
@@ -192,23 +113,33 @@ void MeshPipeline::Initialize(ID3D12Device* device,
 void MeshPipeline::CreateRootSignature(ID3D12Device* device)
 {
     // ルートパラメータ : シェーダーへ何を渡すかの定義。関数の引数リストに相当する。
-    D3D12_ROOT_PARAMETER rootParameters[2] = {};
+    D3D12_ROOT_PARAMETER rootParameters[3] = {};
 
-    // 0 番 : シーン共通の定数バッファ（変換行列とライト情報）
-    rootParameters[kSceneConstantsRootParameterIndex].ParameterType =
+    // 0 番 : フレーム共通の定数バッファ（カメラとライト）
+    rootParameters[kFrameConstantsRootParameterIndex].ParameterType =
         D3D12_ROOT_PARAMETER_TYPE_CBV;
 
     // ShaderRegister = 0 は HLSL 側の register(b0) に対応する。
-    rootParameters[kSceneConstantsRootParameterIndex].Descriptor.ShaderRegister = 0;
-    rootParameters[kSceneConstantsRootParameterIndex].Descriptor.RegisterSpace  = 0;
+    rootParameters[kFrameConstantsRootParameterIndex].Descriptor.ShaderRegister = 0;
+    rootParameters[kFrameConstantsRootParameterIndex].Descriptor.RegisterSpace  = 0;
 
     // ShaderVisibility : どのシェーダー段から見えるようにするか。
     //   変換行列は頂点シェーダー、ライト情報はピクセルシェーダーが読むため ALL にする。
-    //   VERTEX のままだとピクセルシェーダー側でコンパイルは通り、実行時に値が 0 になる。
-    rootParameters[kSceneConstantsRootParameterIndex].ShaderVisibility =
+    rootParameters[kFrameConstantsRootParameterIndex].ShaderVisibility =
         D3D12_SHADER_VISIBILITY_ALL;
 
-    // 1 番 : テクスチャ（ディスクリプタテーブル）
+    // 1 番 : オブジェクト別の定数バッファ（変換行列）
+    rootParameters[kObjectConstantsRootParameterIndex].ParameterType =
+        D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameters[kObjectConstantsRootParameterIndex].Descriptor.ShaderRegister = 1;
+    rootParameters[kObjectConstantsRootParameterIndex].Descriptor.RegisterSpace  = 0;
+
+    // 行列を使うのは頂点シェーダーだけなので VERTEX に絞る。
+    // 可視性は狭いほど GPU の負担が軽くなる。
+    rootParameters[kObjectConstantsRootParameterIndex].ShaderVisibility =
+        D3D12_SHADER_VISIBILITY_VERTEX;
+
+    // 2 番 : テクスチャ（ディスクリプタテーブル）
     D3D12_DESCRIPTOR_RANGE srvRange = {};
     srvRange.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
     srvRange.NumDescriptors     = 1;
@@ -234,6 +165,7 @@ void MeshPipeline::CreateRootSignature(ID3D12Device* device)
     staticSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 
     //   AddressU/V/W : UV が 0〜1 の外に出たときの扱い。
+    //   床は UV を 1 より大きくしているので、WRAP によって模様が繰り返される。
     staticSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
     staticSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
     staticSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -293,8 +225,8 @@ void MeshPipeline::CreateRootSignature(ID3D12Device* device)
 /// HLSL ファイルをコンパイルして、GPU 用のバイトコードを得ます。
 /// </summary>
 ComPtr<ID3DBlob> MeshPipeline::CompileShader(const std::wstring& filePath,
-                                                 const char* entryPoint,
-                                                 const char* target)
+                                             const char* entryPoint,
+                                             const char* target)
 {
     UINT compileFlags = 0;
 
@@ -345,8 +277,8 @@ ComPtr<ID3DBlob> MeshPipeline::CompileShader(const std::wstring& filePath,
 /// HLSL をコンパイルし、パイプラインステートオブジェクトを生成します。
 /// </summary>
 void MeshPipeline::CreatePipelineState(ID3D12Device* device,
-                                           DXGI_FORMAT renderTargetFormat,
-                                           DXGI_FORMAT depthStencilFormat)
+                                       DXGI_FORMAT renderTargetFormat,
+                                       DXGI_FORMAT depthStencilFormat)
 {
     // (1) シェーダーのコンパイル
     //   "vs_5_0" の意味 : vs = Vertex Shader、5_0 = シェーダーモデル 5.0
@@ -509,63 +441,18 @@ void MeshPipeline::CreatePipelineState(ID3D12Device* device,
 
 
 /// <summary>
-/// 頂点バッファを作り、頂点データを書き込みます。
+/// このフレームの共通定数（カメラとライト）を書き込みます。
 /// </summary>
-void MeshPipeline::CreateGeometryBuffers(ID3D12Device* device, CommandQueue& commandQueue)
-{
-    const UINT vertexBufferSize = sizeof(kCubeVertices);
-    const UINT indexBufferSize  = sizeof(kCubeIndices);
-
-    // どちらも一度書いたら変わらないので、GPU 専用の DEFAULT ヒープに置く。
-    m_vertexBuffer = upload::CreateBufferWithData(
-        device, commandQueue, kCubeVertices, vertexBufferSize,
-        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-
-    m_indexBuffer = upload::CreateBufferWithData(
-        device, commandQueue, kCubeIndices, indexBufferSize,
-        D3D12_RESOURCE_STATE_INDEX_BUFFER);
-
-    m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
-    m_vertexBufferView.StrideInBytes  = sizeof(Vertex);
-    m_vertexBufferView.SizeInBytes    = vertexBufferSize;
-
-    // インデックスは形式を指定する。頂点が 65536 個未満なら R16_UINT で足りる。
-    m_indexBufferView.BufferLocation = m_indexBuffer->GetGPUVirtualAddress();
-    m_indexBufferView.Format         = DXGI_FORMAT_R16_UINT;
-    m_indexBufferView.SizeInBytes    = indexBufferSize;
-
-    m_indexCount = _countof(kCubeIndices);
-
-    Log(std::format(L"立方体を作成しました（頂点 {} 個 / インデックス {} 個, DEFAULT ヒープ）",
-                    _countof(kCubeVertices), m_indexCount));
-}
-
-
-/// <summary>
-/// このフレームの変換行列とライト情報を計算し、定数バッファへ書き込みます。
-/// </summary>
-void MeshPipeline::Update(uint32_t frameIndex,
-                          const DirectX::XMMATRIX& viewProjection,
-                          const DirectX::XMFLOAT3& cameraPosition,
-                          float totalSeconds)
+void MeshPipeline::UpdateFrameConstants(uint32_t frameIndex,
+                                        const DirectX::XMMATRIX& viewProjection,
+                                        const DirectX::XMFLOAT3& cameraPosition)
 {
     using namespace DirectX;
 
-    // ワールド行列 : 立方体そのものを回す。
-    //   2 軸で回すと、面の前後関係が入れ替わる様子が分かりやすい。
-    const float angle = totalSeconds * (XM_2PI / kSecondsPerRotation);
-    const XMMATRIX world = XMMatrixRotationY(angle) * XMMatrixRotationX(angle * 0.45f);
-
-    // ワールド × ビュー × 射影。行ベクトル規約なので「先に適用する変換を左」に書く。
-    // アスペクト比の補正は射影行列が担うため、ここでは不要になった。
-    const XMMATRIX worldViewProjection = world * viewProjection;
+    FrameConstants constants = {};
 
     // HLSL は定数バッファの行列を列優先で読むため、転置してから書き込む。
-    SceneConstants constants = {};
-    XMStoreFloat4x4(&constants.worldViewProjection, XMMatrixTranspose(worldViewProjection));
-
-    // ワールド行列も単体で渡す。法線をワールド空間へ移すのに必要なため。
-    XMStoreFloat4x4(&constants.world, XMMatrixTranspose(world));
+    XMStoreFloat4x4(&constants.viewProjection, XMMatrixTranspose(viewProjection));
 
     // ライトの向きは長さ 1 でなければ内積が明るさにならない。
     const XMVECTOR lightDirection = XMVector3Normalize(
@@ -579,57 +466,75 @@ void MeshPipeline::Update(uint32_t frameIndex,
 
     constants.cameraPosition = { cameraPosition.x, cameraPosition.y, cameraPosition.z, 1.0f };
 
-    m_constantBuffer.Update(frameIndex, &constants, sizeof(constants));
+    m_frameConstantBuffer.Update(frameIndex, &constants, sizeof(constants));
 }
 
 
 /// <summary>
-/// コマンドリストに「立方体を描く」命令を記録します。
+/// オブジェクト 1 個ぶんの定数（変換行列）を書き込みます。
 /// </summary>
-void MeshPipeline::RecordDrawCommands(ID3D12GraphicsCommandList* commandList,
-                                          uint32_t frameIndex) const
+void MeshPipeline::UpdateObjectConstants(uint32_t frameIndex,
+                                         uint32_t objectIndex,
+                                         const DirectX::XMMATRIX& world,
+                                         const DirectX::XMMATRIX& viewProjection)
 {
-    // (0) 使用するパイプラインステート（PSO）を設定する
-    //   コマンドリストは Reset するたびに「PSO 未設定」の状態に戻ります。
-    commandList->SetPipelineState(m_pipelineState.Get());
+    using namespace DirectX;
 
-    // (1) 使用するルートシグネチャを設定する。
+    if (objectIndex >= m_maxObjectCount)
+    {
+        throw std::out_of_range("オブジェクト数が maxObjectCount を超えました。");
+    }
+
+    ObjectConstants constants = {};
+
+    // 行列の合成は CPU 側で済ませる。頂点が何万個あっても合成は 1 回で足りるため。
+    XMStoreFloat4x4(&constants.worldViewProjection,
+                    XMMatrixTranspose(world * viewProjection));
+
+    // ワールド行列も単体で渡す。法線をワールド空間へ移すのに必要なため。
+    XMStoreFloat4x4(&constants.world, XMMatrixTranspose(world));
+
+    m_objectConstantBuffer.Update(
+        ObjectSlot(frameIndex, objectIndex), &constants, sizeof(constants));
+}
+
+
+/// <summary>
+/// 描画の共通設定（PSO・ルートシグネチャ・フレーム定数・テクスチャ）を記録します。
+/// </summary>
+void MeshPipeline::Bind(ID3D12GraphicsCommandList* commandList, uint32_t frameIndex) const
+{
+    // コマンドリストは Reset するたびに「PSO 未設定」の状態に戻ります。
+    commandList->SetPipelineState(m_pipelineState.Get());
     commandList->SetGraphicsRootSignature(m_rootSignature.Get());
 
-    // (1-b) 定数バッファをルートパラメータ 0 番に結び付ける
-    //   ルートディスクリプタなので、ディスクリプタヒープを経由せず
-    //   GPU アドレスを直接渡せます。
+    // ルートディスクリプタなので、ディスクリプタヒープを経由せず GPU アドレスを直接渡せる。
     commandList->SetGraphicsRootConstantBufferView(
-        kSceneConstantsRootParameterIndex,
-        m_constantBuffer.GpuAddress(frameIndex));
+        kFrameConstantsRootParameterIndex,
+        m_frameConstantBuffer.GpuAddress(frameIndex));
 
-    // (1-c) テクスチャをルートパラメータ 1 番に結び付ける
-    //   ★ 前提として、呼び出し側が SetDescriptorHeaps() で
-    //     シェーダー可視ヒープを設定しておく必要があります（Renderer が行う）。
+    // ★ 前提として、呼び出し側が SetDescriptorHeaps() で
+    //   シェーダー可視ヒープを設定しておく必要があります（Renderer が行う）。
     commandList->SetGraphicsRootDescriptorTable(
         kTextureRootParameterIndex,
         m_texture.ShaderResourceView());
 
-    // (2) プリミティブトポロジ（頂点の結び方）を設定する
-    //   TRIANGLELIST : 3 頂点ごとに独立した三角形を作る（頂点 6 個 → 三角形 2 枚）
+    // TRIANGLELIST : 3 頂点ごとに独立した三角形を作る。
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
 
-    // (3) 使用する頂点バッファを 0 番スロットに設定する
-    //     IA は Input Assembler（入力アセンブラ）の略で、
-    //     頂点データを組み立ててシェーダーに送り込む GPU の最初の段のこと。
-    commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 
-    // インデックスバッファは 1 本だけ設定する（頂点バッファのような複数スロットは無い）
-    commandList->IASetIndexBuffer(&m_indexBufferView);
-
-    // (4) 描画命令
-    //   インデックスの順に頂点を引いて描く。同じ頂点を複数の三角形で共有できる。
-    commandList->DrawIndexedInstanced(
-        m_indexCount,   // 描くインデックスの個数
-        1,              // インスタンス数
-        0,              // 何番目のインデックスから始めるか
-        0,              // 各インデックスに足すオフセット
-        0);             // 何番目のインスタンスから始めるか
+/// <summary>
+/// これから描くオブジェクトの定数を結び付けます。
+/// </summary>
+void MeshPipeline::BindObject(ID3D12GraphicsCommandList* commandList,
+                              uint32_t frameIndex,
+                              uint32_t objectIndex) const
+{
+    // オブジェクトごとに違うのはここだけ。PSO の切り替えより遥かに軽い。
+    commandList->SetGraphicsRootConstantBufferView(
+        kObjectConstantsRootParameterIndex,
+        m_objectConstantBuffer.GpuAddress(ObjectSlot(frameIndex, objectIndex)));
 }
 
 } // namespace dx12
