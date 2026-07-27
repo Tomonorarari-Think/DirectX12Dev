@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 430" width="760" height="430" role="img" aria-label="アプリケーションの一生。起動時の準備、毎フレームの処理、終了処理の関係を示す図">
+  <style>
+    .bg   { fill: #f6f8fa; }
+    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #24292f; }
+    .ttl  { font-size: 16px; font-weight: 600; }
+    .cap  { font-size: 13px; font-weight: 600; }
+    .sub  { font-size: 12px; fill: #57606a; }
+    .init { fill: #ddf4ff; stroke: #0969da; stroke-width: 2; }
+    .loop { fill: #dafbe1; stroke: #1a7f37; stroke-width: 2; }
+    .term { fill: #ffebe9; stroke: #cf222e; stroke-width: 2; }
+    .step { fill: #ffffff; stroke: #8c959f; stroke-width: 1.2; }
+    .ar   { stroke: #24292f; stroke-width: 2; fill: none; }
+  </style>
+
+  <rect class="bg" width="760" height="430" rx="8"/>
+  <text class="txt ttl" x="20" y="30">アプリケーションの一生 — 準備は 1 回、描画は毎フレーム</text>
+
+  <defs>
+    <marker id="al" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#24292f"/>
+    </marker>
+  </defs>
+
+  <!-- 起動時 -->
+  <rect class="init" x="20" y="56" width="200" height="240" rx="6"/>
+  <text class="txt cap" x="36" y="80">① 起動時（1 回だけ）</text>
+  <rect class="step" x="36" y="94" width="168" height="34" rx="3"/>
+  <text class="txt sub" x="48" y="115">ウィンドウを作る</text>
+  <rect class="step" x="36" y="134" width="168" height="34" rx="3"/>
+  <text class="txt sub" x="48" y="155">GPU を選んでデバイスを作る</text>
+  <rect class="step" x="36" y="174" width="168" height="34" rx="3"/>
+  <text class="txt sub" x="48" y="195">画面に出す仕組みを作る</text>
+  <rect class="step" x="36" y="214" width="168" height="34" rx="3"/>
+  <text class="txt sub" x="48" y="235">描くもの（三角形）を用意</text>
+  <text class="txt sub" x="36" y="272">重い処理はここに集める。</text>
+  <text class="txt sub" x="36" y="288">毎フレームやってはいけない。</text>
+
+  <!-- 毎フレーム -->
+  <rect class="loop" x="255" y="56" width="250" height="240" rx="6"/>
+  <text class="txt cap" x="271" y="80">② 毎フレーム（何千回も）</text>
+  <rect class="step" x="271" y="94" width="218" height="34" rx="3"/>
+  <text class="txt sub" x="283" y="115">OS からのメッセージを処理</text>
+  <rect class="step" x="271" y="134" width="218" height="34" rx="3"/>
+  <text class="txt sub" x="283" y="155">GPU への命令を記録する</text>
+  <rect class="step" x="271" y="174" width="218" height="34" rx="3"/>
+  <text class="txt sub" x="283" y="195">命令を GPU に投げる</text>
+  <rect class="step" x="271" y="214" width="218" height="34" rx="3"/>
+  <text class="txt sub" x="283" y="235">描けた絵を画面に出す</text>
+
+  <!-- 終了時 -->
+  <rect class="term" x="540" y="56" width="200" height="240" rx="6"/>
+  <text class="txt cap" x="556" y="80">③ 終了時（1 回だけ）</text>
+  <rect class="step" x="556" y="94" width="168" height="34" rx="3"/>
+  <text class="txt sub" x="568" y="115">GPU の完了を待つ</text>
+  <rect class="step" x="556" y="134" width="168" height="34" rx="3"/>
+  <text class="txt sub" x="568" y="155">リソースを解放する</text>
+  <text class="txt sub" x="556" y="196">待たずに解放すると、GPU が</text>
+  <text class="txt sub" x="556" y="212">使用中のメモリが消えて落ちる。</text>
+  <text class="txt sub" x="556" y="236">「片付ける前に、相手が使い</text>
+  <text class="txt sub" x="556" y="252">終わるのを待つ」が鉄則。</text>
+
+  <!-- 矢印 -->
+  <line class="ar" x1="222" y1="176" x2="251" y2="176" marker-end="url(#al)"/>
+  <line class="ar" x1="507" y1="176" x2="536" y2="176" marker-end="url(#al)"/>
+
+  <!-- ループの矢印 -->
+  <path class="ar" d="M 470 298 L 470 320 L 290 320 L 290 300" marker-end="url(#al)"/>
+  <text class="txt sub" text-anchor="middle" x="380" y="336">閉じられるまで繰り返す</text>
+
+  <rect x="20" y="350" width="720" height="62" rx="6" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.5"/>
+  <text class="txt cap" x="36" y="372">Unity との対応</text>
+  <text class="txt sub" x="36" y="394">① は Awake / Start、② は Update ＋ レンダリング、③ は OnDestroy にあたる。</text>
+  <text class="txt sub" x="36" y="406">Unity ではエンジンが用意していた部分を、ここでは自分で書くことになる。</text>
+</svg>

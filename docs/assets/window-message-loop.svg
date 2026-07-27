@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 400" width="760" height="400" role="img" aria-label="Win32 のメッセージがキューを経由してウィンドウプロシージャへ届くまでの流れ">
+  <style>
+    .bg   { fill: #f6f8fa; }
+    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #24292f; }
+    .ttl  { font-size: 16px; font-weight: 600; }
+    .cap  { font-size: 13px; font-weight: 600; }
+    .sub  { font-size: 12px; fill: #57606a; }
+    .os   { fill: #fff1e5; stroke: #bc4c00; stroke-width: 2; }
+    .que  { fill: #fff8c5; stroke: #d4a72c; stroke-width: 2; }
+    .app  { fill: #ddf4ff; stroke: #0969da; stroke-width: 2; }
+    .proc { fill: #dafbe1; stroke: #1a7f37; stroke-width: 2; }
+    .msg  { fill: #ffffff; stroke: #8c959f; stroke-width: 1.2; }
+    .ar   { stroke: #24292f; stroke-width: 2; fill: none; }
+  </style>
+
+  <rect class="bg" width="760" height="400" rx="8"/>
+  <text class="txt ttl" x="20" y="30">ウィンドウメッセージが届くまで</text>
+
+  <defs>
+    <marker id="am" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#24292f"/>
+    </marker>
+  </defs>
+
+  <!-- OS -->
+  <rect class="os" x="20" y="60" width="170" height="150" rx="6"/>
+  <text class="txt cap" x="36" y="84">① Windows（OS）</text>
+  <text class="txt sub" x="36" y="108">マウスが動いた</text>
+  <text class="txt sub" x="36" y="128">キーが押された</text>
+  <text class="txt sub" x="36" y="148">ウィンドウが動かされた</text>
+  <text class="txt sub" x="36" y="168">× が押された</text>
+  <text class="txt sub" x="36" y="196">…を検知する</text>
+
+  <!-- メッセージキュー -->
+  <rect class="que" x="230" y="60" width="180" height="150" rx="6"/>
+  <text class="txt cap" x="246" y="84">② メッセージキュー</text>
+  <rect class="msg" x="246" y="96" width="148" height="24" rx="3"/>
+  <text class="txt sub" x="256" y="113">WM_MOUSEMOVE</text>
+  <rect class="msg" x="246" y="124" width="148" height="24" rx="3"/>
+  <text class="txt sub" x="256" y="141">WM_KEYDOWN</text>
+  <rect class="msg" x="246" y="152" width="148" height="24" rx="3"/>
+  <text class="txt sub" x="256" y="169">WM_SIZE</text>
+  <text class="txt sub" x="246" y="196">スレッドごとの待ち行列</text>
+
+  <!-- アプリのループ -->
+  <rect class="app" x="450" y="60" width="140" height="150" rx="6"/>
+  <text class="txt cap" x="466" y="84">③ 自分のループ</text>
+  <text class="txt sub" x="466" y="110">PeekMessage</text>
+  <text class="txt sub" x="466" y="130">で取り出す</text>
+  <text class="txt sub" x="466" y="158">DispatchMessage</text>
+  <text class="txt sub" x="466" y="178">で配送する</text>
+
+  <!-- ウィンドウプロシージャ -->
+  <rect class="proc" x="620" y="60" width="120" height="150" rx="6"/>
+  <text class="txt cap" x="636" y="84">④ WndProc</text>
+  <text class="txt sub" x="636" y="110">switch (message)</text>
+  <text class="txt sub" x="636" y="134">で分岐して</text>
+  <text class="txt sub" x="636" y="154">処理する</text>
+  <text class="txt sub" x="636" y="182">＝ OS からの</text>
+  <text class="txt sub" x="636" y="198">　 コールバック</text>
+
+  <line class="ar" x1="192" y1="135" x2="226" y2="135" marker-end="url(#am)"/>
+  <line class="ar" x1="412" y1="135" x2="446" y2="135" marker-end="url(#am)"/>
+  <line class="ar" x1="592" y1="135" x2="616" y2="135" marker-end="url(#am)"/>
+
+  <!-- PeekMessage vs GetMessage -->
+  <rect x="20" y="234" width="360" height="104" rx="6" fill="#ffffff" stroke="#8c959f" stroke-width="1.5"/>
+  <text class="txt cap" x="36" y="256">PeekMessage（本プロジェクト）</text>
+  <text class="txt sub" x="36" y="278">メッセージが無ければ、すぐに戻る。</text>
+  <text class="txt sub" x="36" y="298">→ 入力が無くても描画を続けられる。</text>
+  <text class="txt sub" x="36" y="322">ゲームやリアルタイム描画はこちら。</text>
+
+  <rect x="400" y="234" width="340" height="104" rx="6" fill="#ffffff" stroke="#8c959f" stroke-width="1.5"/>
+  <text class="txt cap" x="416" y="256">GetMessage</text>
+  <text class="txt sub" x="416" y="278">メッセージが来るまで待って止まる。</text>
+  <text class="txt sub" x="416" y="298">→ 入力があるまで何もしない。</text>
+  <text class="txt sub" x="416" y="322">電卓やメモ帳のようなアプリ向け。</text>
+
+  <rect x="20" y="352" width="720" height="34" rx="6" fill="#ffebe9" stroke="#cf222e" stroke-width="1.5"/>
+  <text class="txt sub" x="36" y="374">自分で処理しないメッセージは、必ず DefWindowProc に渡すこと。忘れるとウィンドウの移動やサイズ変更ができなくなる。</text>
+</svg>

@@ -43,7 +43,7 @@ DirectX 12 の**学習**を目的としたプロジェクトです。
 - 区切りが付いたら `release/x.y.z` を切って `main` へマージし、タグを打つ。
 - コミットメッセージは Conventional Commits（`feat:` / `fix:` / `perf:` / `docs:` / `chore:` …）。
   概要行で「何を」、本文で「なぜ」を書く。
-- 詳細は [docs/conventions/06_Git運用ルール.md](docs/conventions/06_Git運用ルール.md) を参照。
+- 詳細は [Git 運用ルール](docs/misc/conventions/Git運用ルール.md) を参照。
 
 ## 資料
 
@@ -54,12 +54,14 @@ DirectX 12 の**学習**を目的としたプロジェクトです。
 
 | フォルダ | 内容 |
 |---------|------|
-| `docs/setup/` | 環境構築と実行手順 |
-| `docs/concepts/` | DirectX 12 そのものの概念 |
-| `docs/architecture/` | 本プロジェクトの設計 |
-| `docs/troubleshooting/` | 症状別の原因逆引き |
-| `docs/conventions/` | 開発ルール |
+| `docs/tutorial/` | 仕組みの解説。1 トピック 1 ファイル。初学者向けの主資料 |
+| `docs/design/` | 本プロジェクトのクラス設計・描画フロー |
+| `docs/misc/` | 用語集・環境構築・逆引き・規約・参考文献 |
 | `docs/assets/` | 図（SVG） |
+
+長い解説はコメントではなく `docs/tutorial/` に書く。
+仕様を断定するときは一次情報（Microsoft Learn）を確認し、
+ページ末尾に参照した URL を必ず記載する。
 
 ### 図
 
@@ -70,4 +72,4 @@ DirectX 12 の**学習**を目的としたプロジェクトです。
   （`docs/assets/` に置き、背景 `#f6f8fa`・`viewBox`・`aria-label` を付ける）
 - ディレクトリ構成やコンソール出力は、そのままで読めるのでコードブロックでよい。
 
-詳細は [docs/conventions/07_コーディング規約.md](docs/conventions/07_コーディング規約.md#5-ドキュメントの図) を参照。
+詳細は [コーディング規約](docs/misc/conventions/コーディング規約.md#5-ドキュメントの図) を参照。

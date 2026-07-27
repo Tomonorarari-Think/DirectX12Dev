@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 340" width="760" height="340" role="img" aria-label="頂点データが画面のピクセルになるまでのグラフィックスパイプライン">
+  <style>
+    .bg   { fill: #f6f8fa; }
+    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #24292f; }
+    .ttl  { font-size: 16px; font-weight: 600; }
+    .cap  { font-size: 13px; font-weight: 600; }
+    .sub  { font-size: 12px; fill: #57606a; }
+    .fixed{ fill: #eaeef2; stroke: #8c959f; stroke-width: 1.6; }
+    .prog { fill: #ddf4ff; stroke: #0969da; stroke-width: 2; }
+    .out  { fill: #dafbe1; stroke: #1a7f37; stroke-width: 2; }
+    .ar   { stroke: #24292f; stroke-width: 2; fill: none; }
+  </style>
+
+  <rect class="bg" width="760" height="340" rx="8"/>
+  <text class="txt ttl" x="20" y="30">グラフィックスパイプライン — 頂点が画面のピクセルになるまで</text>
+
+  <defs>
+    <marker id="ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#24292f"/>
+    </marker>
+  </defs>
+
+  <rect class="fixed" x="20" y="60" width="132" height="76" rx="4"/>
+  <text class="txt cap" text-anchor="middle" x="86" y="86">入力アセンブラ</text>
+  <text class="txt sub" text-anchor="middle" x="86" y="106">頂点バッファから</text>
+  <text class="txt sub" text-anchor="middle" x="86" y="124">頂点を組み立てる</text>
+
+  <rect class="prog" x="176" y="60" width="132" height="76" rx="4"/>
+  <text class="txt cap" text-anchor="middle" x="242" y="86">頂点シェーダー</text>
+  <text class="txt sub" text-anchor="middle" x="242" y="106">頂点 1 個につき 1 回</text>
+  <text class="txt sub" text-anchor="middle" x="242" y="124">位置を決める</text>
+
+  <rect class="fixed" x="332" y="60" width="132" height="76" rx="4"/>
+  <text class="txt cap" text-anchor="middle" x="398" y="86">ラスタライザ</text>
+  <text class="txt sub" text-anchor="middle" x="398" y="106">三角形の内側の</text>
+  <text class="txt sub" text-anchor="middle" x="398" y="124">ピクセルを列挙</text>
+
+  <rect class="prog" x="488" y="60" width="132" height="76" rx="4"/>
+  <text class="txt cap" text-anchor="middle" x="554" y="86">ピクセルシェーダー</text>
+  <text class="txt sub" text-anchor="middle" x="554" y="106">ピクセル 1 個につき</text>
+  <text class="txt sub" text-anchor="middle" x="554" y="124">1 回。色を決める</text>
+
+  <rect class="out" x="644" y="60" width="96" height="76" rx="4"/>
+  <text class="txt cap" text-anchor="middle" x="692" y="86">出力結合</text>
+  <text class="txt sub" text-anchor="middle" x="692" y="106">深度テスト</text>
+  <text class="txt sub" text-anchor="middle" x="692" y="124">ブレンド</text>
+
+  <line class="ar" x1="154" y1="98" x2="172" y2="98" marker-end="url(#ap)"/>
+  <line class="ar" x1="310" y1="98" x2="328" y2="98" marker-end="url(#ap)"/>
+  <line class="ar" x1="466" y1="98" x2="484" y2="98" marker-end="url(#ap)"/>
+  <line class="ar" x1="622" y1="98" x2="640" y2="98" marker-end="url(#ap)"/>
+
+  <text class="txt sub" x="20" y="166">青が「自分でプログラムを書く段」、灰色が「GPU が固定機能で処理する段」。</text>
+
+  <!-- 補間の説明 -->
+  <rect x="20" y="186" width="720" height="80" rx="6" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.5"/>
+  <text class="txt cap" x="36" y="208">ラスタライザが自動でやってくれること：頂点間の補間</text>
+  <text class="txt sub" x="36" y="230">頂点シェーダーが出した値（色・UV など）は、三角形の内側のピクセルごとに自動で混ぜられる。</text>
+  <text class="txt sub" x="36" y="250">3 頂点に赤・緑・青を置くだけで中央がグラデーションになるのはこのため。自分で補間を書く必要はない。</text>
+
+  <rect x="20" y="278" width="720" height="46" rx="6" fill="#ddf4ff" stroke="#0969da" stroke-width="1.5"/>
+  <text class="txt sub" x="36" y="300">この一連の設定（どのシェーダーを使うか、カリングするか、深度テストするか…）をひとまとめにしたものが</text>
+  <text class="txt sub" x="36" y="318">PSO（パイプラインステートオブジェクト）。DirectX 12 では実行前にすべて確定させておく。</text>
+</svg>
