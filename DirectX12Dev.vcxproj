@@ -95,7 +95,7 @@
     ==========================================================================
       デバッグ実行時の作業ディレクトリ
       ==========================================
-      シェーダー (shaders/Triangle.hlsl) を実行時に読み込むため、
+      シェーダー (shaders/Mesh.hlsl) を実行時に読み込むため、
       カレントディレクトリをプロジェクトルートに固定します。
       （※ ソース側の ResolveAssetPath は親フォルダも探索するので、
         この設定が無くても動作しますが、明示しておくのが確実です）
@@ -218,6 +218,7 @@
   -->
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\App\Camera.cpp" />
     <ClCompile Include="src\App\Window.cpp" />
     <ClCompile Include="src\Common\FrameTimer.cpp" />
     <ClCompile Include="src\Common\GraphicsCommon.cpp" />
@@ -230,7 +231,7 @@
     <ClCompile Include="src\Graphics\GraphicsDevice.cpp" />
     <ClCompile Include="src\Graphics\Renderer.cpp" />
     <ClCompile Include="src\Graphics\SwapChain.cpp" />
-    <ClCompile Include="src\Graphics\TrianglePipeline.cpp" />
+    <ClCompile Include="src\Graphics\MeshPipeline.cpp" />
   </ItemGroup>
 
   <!--
@@ -242,6 +243,7 @@
     ==========================================================================
   -->
   <ItemGroup>
+    <ClInclude Include="src\App\Camera.h" />
     <ClInclude Include="src\App\Window.h" />
     <ClInclude Include="src\Common\FrameTimer.h" />
     <ClInclude Include="src\Common\GraphicsCommon.h" />
@@ -254,7 +256,7 @@
     <ClInclude Include="src\Graphics\GraphicsDevice.h" />
     <ClInclude Include="src\Graphics\Renderer.h" />
     <ClInclude Include="src\Graphics\SwapChain.h" />
-    <ClInclude Include="src\Graphics\TrianglePipeline.h" />
+    <ClInclude Include="src\Graphics\MeshPipeline.h" />
   </ItemGroup>
 
   <!--
@@ -270,7 +272,7 @@
     ==========================================================================
   -->
   <ItemGroup>
-    <None Include="shaders\Triangle.hlsl" />
+    <None Include="shaders\Mesh.hlsl" />
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
