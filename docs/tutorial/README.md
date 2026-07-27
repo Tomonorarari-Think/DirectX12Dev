@@ -41,8 +41,8 @@ flowchart LR
     G --> H["08 奥行き"]
     H --> I["09 テクスチャ"]
 
-    style A fill:#dafbe1,stroke:#1a7f37
-    style F fill:#ddf4ff,stroke:#0969da
+    style A fill:#dafbe1,stroke:#0d4f21
+    style F fill:#ddf4ff,stroke:#0a4f9e
 ```
 
 ## 関連する資料

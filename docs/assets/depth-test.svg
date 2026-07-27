@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 400" width="760" height="400" role="img" aria-label="深度テストの有無による見え方の違い">
   <style>
     .bg   { fill: #f6f8fa; }
-    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #24292f; }
+    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #1f2328; }
     .ttl  { font-size: 16px; font-weight: 600; }
     .sec  { font-size: 14px; font-weight: 600; }
-    .sub  { font-size: 12px; fill: #57606a; }
-    .scr  { fill: #1b2a4a; stroke: #57606a; stroke-width: 1.5; }
-    .ok   { fill: #1a7f37; font-size: 13px; font-weight: 600; }
-    .ng   { fill: #cf222e; font-size: 13px; font-weight: 600; }
+    .sub  { font-size: 12px; fill: #3d444d; }
+    .scr  { fill: #1b2a4a; stroke: #3d444d; stroke-width: 1.5; }
+    .ok   { fill: #0d4f21; font-size: 13px; font-weight: 600; }
+    .ng   { fill: #9a1420; font-size: 13px; font-weight: 600; }
     .tri  { stroke: #1b2a4a; stroke-width: 1; }
   </style>
 
@@ -16,14 +16,14 @@
   <text class="txt sub" x="20" y="52">頂点配列はわざと「手前 → 奥」の順。つまり GPU は奥の赤を最後に描く。</text>
 
   <!-- 描画順の帯 -->
-  <rect x="20" y="66" width="720" height="30" rx="4" fill="#eaeef2" stroke="#8c959f" stroke-width="1.2"/>
+  <rect x="20" y="66" width="720" height="30" rx="4" fill="#eaeef2" stroke="#6e7781" stroke-width="1.2"/>
   <text class="txt sub" x="34" y="86">描画順：</text>
-  <rect x="96"  y="72" width="168" height="18" rx="3" fill="#4a7fe0"/>
-  <rect x="274" y="72" width="146" height="18" rx="3" fill="#3fae4a"/>
-  <rect x="430" y="72" width="160" height="18" rx="3" fill="#d94b3a"/>
-  <text class="txt sub" text-anchor="middle" x="180" y="86" fill="#ffffff">① 青  z=0.25（手前）</text>
-  <text class="txt sub" text-anchor="middle" x="347" y="86" fill="#ffffff">② 緑  z=0.50</text>
-  <text class="txt sub" text-anchor="middle" x="510" y="86" fill="#ffffff">③ 赤  z=0.75（奥）</text>
+  <rect x="100" y="74" width="14" height="14" rx="2" fill="#4a7fe0" stroke="#1f2328" stroke-width="1"/>
+  <text class="txt sub" x="122" y="86">① 青  z=0.25（手前）</text>
+  <rect x="290" y="74" width="14" height="14" rx="2" fill="#3fae4a" stroke="#1f2328" stroke-width="1"/>
+  <text class="txt sub" x="312" y="86">② 緑  z=0.50</text>
+  <rect x="420" y="74" width="14" height="14" rx="2" fill="#d94b3a" stroke="#1f2328" stroke-width="1"/>
+  <text class="txt sub" x="442" y="86">③ 赤  z=0.75（奥）</text>
 
   <!-- ===== 左：深度テストあり ===== -->
   <text class="txt sec" x="60" y="130">深度テスト あり（DepthEnable = TRUE）</text>

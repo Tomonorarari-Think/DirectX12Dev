@@ -1,15 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 400" width="760" height="400" role="img" aria-label="フレームバッファリング導入前後の CPU と GPU のタイムライン比較">
   <style>
     .bg   { fill: #f6f8fa; }
-    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #24292f; }
+    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #1f2328; }
     .ttl  { font-size: 16px; font-weight: 600; }
     .sec  { font-size: 14px; font-weight: 600; }
     .lbl  { font-size: 13px; }
-    .sub  { font-size: 12px; fill: #57606a; }
-    .cpu  { fill: #ddf4ff; stroke: #0969da; stroke-width: 1.6; }
-    .gpu  { fill: #dafbe1; stroke: #1a7f37; stroke-width: 1.6; }
-    .idle { fill: #ffebe9; stroke: #cf222e; stroke-width: 1.6; stroke-dasharray: 4 3; }
-    .axis { stroke: #8c959f; stroke-width: 1.2; }
+    .sub  { font-size: 12px; fill: #3d444d; }
+    .cpu  { fill: #ddf4ff; stroke: #0a4f9e; stroke-width: 1.6; }
+    .gpu  { fill: #dafbe1; stroke: #0d4f21; stroke-width: 1.6; }
+    .idle { fill: #ffebe9; stroke: #9a1420; stroke-width: 1.6; stroke-dasharray: 4 3; }
+    .axis { stroke: #6e7781; stroke-width: 1.2; }
   </style>
 
   <rect class="bg" width="760" height="400" rx="8"/>
@@ -28,11 +28,11 @@
   <rect class="cpu"  x="500" y="84"  width="90" height="26" rx="3"/>
   <rect class="idle" x="590" y="84"  width="130" height="26" rx="3"/>
   <text class="txt sub" text-anchor="middle" x="105" y="102">記録0</text>
-  <text class="txt sub" text-anchor="middle" x="215" y="102" fill="#cf222e">待機（無駄）</text>
+  <text class="txt sub" text-anchor="middle" x="215" y="102" fill="#9a1420">待機（無駄）</text>
   <text class="txt sub" text-anchor="middle" x="325" y="102">記録1</text>
-  <text class="txt sub" text-anchor="middle" x="435" y="102" fill="#cf222e">待機（無駄）</text>
+  <text class="txt sub" text-anchor="middle" x="435" y="102" fill="#9a1420">待機（無駄）</text>
   <text class="txt sub" text-anchor="middle" x="545" y="102">記録2</text>
-  <text class="txt sub" text-anchor="middle" x="655" y="102" fill="#cf222e">待機（無駄）</text>
+  <text class="txt sub" text-anchor="middle" x="655" y="102" fill="#9a1420">待機（無駄）</text>
 
   <rect class="gpu" x="150" y="118" width="130" height="26" rx="3"/>
   <rect class="gpu" x="370" y="118" width="130" height="26" rx="3"/>
@@ -67,6 +67,6 @@
 
   <text class="txt sub" x="60" y="328">CPU が 1 フレーム先行できる。GPU の実行が詰まって並ぶ。</text>
 
-  <rect x="20" y="346" width="720" height="40" rx="6" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.5"/>
+  <rect x="20" y="346" width="720" height="40" rx="6" fill="#fff8c5" stroke="#8a6d00" stroke-width="1.5"/>
   <text class="txt sub" x="36" y="371">ただし GPU の仕事が軽いうちは「待機」自体がほぼ 0 のため、この改善で速くはならない（実測結果は本文参照）。</text>
 </svg>
