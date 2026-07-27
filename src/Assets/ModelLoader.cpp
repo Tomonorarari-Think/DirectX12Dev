@@ -4,10 +4,13 @@
 //=============================================================================
 #include "ModelLoader.h"
 
+#include "../Common/GraphicsCommon.h"
+#include "GltfLoader.h"
 #include "ObjLoader.h"
 
 #include <algorithm>
 #include <cwctype>   // std::towlower
+#include <format>
 #include <limits>
 #include <stdexcept>
 
@@ -49,7 +52,12 @@ MeshData LoadModel(const std::wstring& filePath, const ModelLoadOptions& options
         return LoadObj(filePath, options);
     }
 
-    throw std::runtime_error("対応していないモデル形式です。");
+    if (extension == L"gltf" || extension == L"glb")
+    {
+        return LoadGltf(filePath, options);
+    }
+
+    throw std::runtime_error("対応していないモデル形式です（.obj / .gltf / .glb）。");
 }
 
 
@@ -101,6 +109,10 @@ void FitToTargetSize(MeshData& mesh, float targetSize, float groundLevel)
     }
 
     // 法線は「向き」なので、3 軸共通の拡大縮小では変わらない。触らなくてよい。
+
+    // 元の大きさを残しておくと、モデルの単位や変換の誤りに気付きやすい。
+    Log(std::format(L"モデルの元の大きさ: {:.3f} x {:.3f} x {:.3f} → 倍率 {:.3f}",
+                    extent[0], extent[1], extent[2], scale));
 }
 
 } // namespace dx12::assets
