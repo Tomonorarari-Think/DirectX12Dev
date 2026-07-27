@@ -1,8 +1,8 @@
 //=============================================================================
-// TrianglePipeline.cpp
-//   TrianglePipeline の実装。
+// MeshPipeline.cpp
+//   MeshPipeline の実装。
 //=============================================================================
-#include "TrianglePipeline.h"
+#include "MeshPipeline.h"
 
 #include "CommandQueue.h"
 #include "DescriptorHeap.h"
@@ -17,35 +17,75 @@ namespace dx12
 namespace
 {
 /// <summary>
-/// 描画する三角形の頂点データ（3 枚ぶん = 9 頂点）。
+/// 立方体の頂点データ（6 面 × 4 頂点 = 24 個）。
 /// </summary>
-constexpr Vertex kTriangleVertices[] = {
-    // --- 1 枚目 : 手前 (z = 0.25) 青系。右上寄りに配置 -------------------------
-    // 位置 { x, y, z }              色 { r, g, b, a }                UV { u, v }
-    { {  0.25f,  0.45f, 0.25f }, { 0.35f, 0.65f, 1.00f, 1.0f }, { 0.5f, 0.0f } }, // 上
-    { {  0.60f, -0.18f, 0.25f }, { 0.10f, 0.25f, 0.90f, 1.0f }, { 1.0f, 1.0f } }, // 右下
-    { { -0.10f, -0.18f, 0.25f }, { 0.55f, 0.85f, 1.00f, 1.0f }, { 0.0f, 1.0f } }, // 左下
+/// <remarks>
+/// 面ごとに UV を 0〜1 で貼りたいので、頂点は面ごとに分けて持ちます。8 個では
+/// 足りません。各面は外から見て時計回りに並べており、逆にすると背面カリングで消えます。
+/// </remarks>
+constexpr Vertex kCubeVertices[] = {
+    // 手前 (-Z) 青
+    { { -0.5f,  0.5f, -0.5f }, { 0.45f, 0.68f, 1.00f, 1.0f }, { 0.0f, 0.0f } },
+    { {  0.5f,  0.5f, -0.5f }, { 0.45f, 0.68f, 1.00f, 1.0f }, { 1.0f, 0.0f } },
+    { {  0.5f, -0.5f, -0.5f }, { 0.20f, 0.40f, 0.90f, 1.0f }, { 1.0f, 1.0f } },
+    { { -0.5f, -0.5f, -0.5f }, { 0.20f, 0.40f, 0.90f, 1.0f }, { 0.0f, 1.0f } },
 
-    // --- 2 枚目 : 中間 (z = 0.50) 緑系。下寄りに配置 ---------------------------
-    { {  0.00f,  0.20f, 0.50f }, { 0.40f, 1.00f, 0.40f, 1.0f }, { 0.5f, 0.0f } }, // 上
-    { {  0.35f, -0.43f, 0.50f }, { 0.10f, 0.70f, 0.20f, 1.0f }, { 1.0f, 1.0f } }, // 右下
-    { { -0.35f, -0.43f, 0.50f }, { 0.70f, 1.00f, 0.30f, 1.0f }, { 0.0f, 1.0f } }, // 左下
+    // 奥 (+Z) 緑
+    { {  0.5f,  0.5f,  0.5f }, { 0.55f, 1.00f, 0.55f, 1.0f }, { 0.0f, 0.0f } },
+    { { -0.5f,  0.5f,  0.5f }, { 0.55f, 1.00f, 0.55f, 1.0f }, { 1.0f, 0.0f } },
+    { { -0.5f, -0.5f,  0.5f }, { 0.20f, 0.70f, 0.30f, 1.0f }, { 1.0f, 1.0f } },
+    { {  0.5f, -0.5f,  0.5f }, { 0.20f, 0.70f, 0.30f, 1.0f }, { 0.0f, 1.0f } },
 
-    // --- 3 枚目 : 奥 (z = 0.75) 赤系。左上寄りに配置 ---------------------------
-    { { -0.25f,  0.45f, 0.75f }, { 1.00f, 0.45f, 0.35f, 1.0f }, { 0.5f, 0.0f } }, // 上
-    { {  0.10f, -0.18f, 0.75f }, { 0.90f, 0.15f, 0.15f, 1.0f }, { 1.0f, 1.0f } }, // 右下
-    { { -0.60f, -0.18f, 0.75f }, { 1.00f, 0.70f, 0.30f, 1.0f }, { 0.0f, 1.0f } }, // 左下
+    // 左 (-X) 赤
+    { { -0.5f,  0.5f,  0.5f }, { 1.00f, 0.55f, 0.45f, 1.0f }, { 0.0f, 0.0f } },
+    { { -0.5f,  0.5f, -0.5f }, { 1.00f, 0.55f, 0.45f, 1.0f }, { 1.0f, 0.0f } },
+    { { -0.5f, -0.5f, -0.5f }, { 0.85f, 0.25f, 0.20f, 1.0f }, { 1.0f, 1.0f } },
+    { { -0.5f, -0.5f,  0.5f }, { 0.85f, 0.25f, 0.20f, 1.0f }, { 0.0f, 1.0f } },
+
+    // 右 (+X) 黄
+    { {  0.5f,  0.5f, -0.5f }, { 1.00f, 0.88f, 0.45f, 1.0f }, { 0.0f, 0.0f } },
+    { {  0.5f,  0.5f,  0.5f }, { 1.00f, 0.88f, 0.45f, 1.0f }, { 1.0f, 0.0f } },
+    { {  0.5f, -0.5f,  0.5f }, { 0.90f, 0.65f, 0.15f, 1.0f }, { 1.0f, 1.0f } },
+    { {  0.5f, -0.5f, -0.5f }, { 0.90f, 0.65f, 0.15f, 1.0f }, { 0.0f, 1.0f } },
+
+    // 上 (+Y) 水色
+    { { -0.5f,  0.5f,  0.5f }, { 0.60f, 0.95f, 1.00f, 1.0f }, { 0.0f, 0.0f } },
+    { {  0.5f,  0.5f,  0.5f }, { 0.60f, 0.95f, 1.00f, 1.0f }, { 1.0f, 0.0f } },
+    { {  0.5f,  0.5f, -0.5f }, { 0.30f, 0.80f, 0.95f, 1.0f }, { 1.0f, 1.0f } },
+    { { -0.5f,  0.5f, -0.5f }, { 0.30f, 0.80f, 0.95f, 1.0f }, { 0.0f, 1.0f } },
+
+    // 下 (-Y) 紫
+    { { -0.5f, -0.5f, -0.5f }, { 0.80f, 0.60f, 1.00f, 1.0f }, { 0.0f, 0.0f } },
+    { {  0.5f, -0.5f, -0.5f }, { 0.80f, 0.60f, 1.00f, 1.0f }, { 1.0f, 0.0f } },
+    { {  0.5f, -0.5f,  0.5f }, { 0.55f, 0.35f, 0.85f, 1.0f }, { 1.0f, 1.0f } },
+    { { -0.5f, -0.5f,  0.5f }, { 0.55f, 0.35f, 0.85f, 1.0f }, { 0.0f, 1.0f } },
+};
+
+/// <summary>
+/// 立方体のインデックスデータ（6 面 × 三角形 2 枚 × 3 頂点 = 36 個）。
+/// </summary>
+/// <remarks>
+/// 四角形 1 枚は三角形 2 枚で作ります。同じ頂点を 2 つの三角形で共有できるため、
+/// 頂点を並べ直すよりデータが小さくなります。
+/// </remarks>
+constexpr uint16_t kCubeIndices[] = {
+     0,  1,  2,   0,  2,  3,   // 手前
+     4,  5,  6,   4,  6,  7,   // 奥
+     8,  9, 10,   8, 10, 11,   // 左
+    12, 13, 14,  12, 14, 15,   // 右
+    16, 17, 18,  16, 18, 19,   // 上
+    20, 21, 22,  20, 22, 23,   // 下
 };
 
 /// <summary>
 /// シェーダーファイルの場所（プロジェクトルートからの相対パス）。
 /// </summary>
-constexpr const wchar_t* kShaderRelativePath = L"shaders/Triangle.hlsl";
+constexpr const wchar_t* kShaderRelativePath = L"shaders/Mesh.hlsl";
 
 /// <summary>
-/// 三角形が 1 回転するのにかかる秒数。
+/// 立方体が 1 回転するのにかかる秒数。
 /// </summary>
-constexpr float kSecondsPerRotation = 4.0f;
+constexpr float kSecondsPerRotation = 8.0f;
 
 /// <summary>
 /// 定数バッファを結び付けるルートパラメータの番号。
@@ -70,9 +110,9 @@ constexpr uint32_t kTextureCellSize = 32;
 
 
 /// <summary>
-/// ルートシグネチャ・PSO・頂点バッファ・定数バッファを生成します。
+/// ルートシグネチャ・PSO・頂点/インデックス/定数バッファを生成します。
 /// </summary>
-void TrianglePipeline::Initialize(ID3D12Device* device,
+void MeshPipeline::Initialize(ID3D12Device* device,
                                   DXGI_FORMAT renderTargetFormat,
                                   DXGI_FORMAT depthStencilFormat,
                                   uint32_t frameCount,
@@ -81,12 +121,12 @@ void TrianglePipeline::Initialize(ID3D12Device* device,
 {
     CreateRootSignature(device);
     CreatePipelineState(device, renderTargetFormat, depthStencilFormat);
-    CreateVertexBuffer(device, commandQueue);
+    CreateGeometryBuffers(device, commandQueue);
 
     // 変換行列を毎フレーム渡すための定数バッファ。
     m_constantBuffer.Initialize(device, sizeof(SceneConstants), frameCount);
 
-    // 三角形に貼るテクスチャ。画像ファイルは使わず、市松模様をコードで生成する。
+    // 立方体に貼るテクスチャ。画像ファイルは使わず、市松模様をコードで生成する。
     m_texture.Initialize(device,
                          commandQueue,
                          descriptorHeap,
@@ -94,14 +134,14 @@ void TrianglePipeline::Initialize(ID3D12Device* device,
                          kTextureSize,
                          CreateCheckerboardPixels(kTextureSize, kTextureSize, kTextureCellSize));
 
-    Log(L"三角形描画パイプラインを構築しました。");
+    Log(L"メッシュ描画パイプラインを構築しました。");
 }
 
 
 /// <summary>
 /// ルートシグネチャを生成します。
 /// </summary>
-void TrianglePipeline::CreateRootSignature(ID3D12Device* device)
+void MeshPipeline::CreateRootSignature(ID3D12Device* device)
 {
     // ルートパラメータ : シェーダーへ何を渡すかの定義。関数の引数リストに相当する。
     D3D12_ROOT_PARAMETER rootParameters[2] = {};
@@ -202,7 +242,7 @@ void TrianglePipeline::CreateRootSignature(ID3D12Device* device)
 /// <summary>
 /// HLSL ファイルをコンパイルして、GPU 用のバイトコードを得ます。
 /// </summary>
-ComPtr<ID3DBlob> TrianglePipeline::CompileShader(const std::wstring& filePath,
+ComPtr<ID3DBlob> MeshPipeline::CompileShader(const std::wstring& filePath,
                                                  const char* entryPoint,
                                                  const char* target)
 {
@@ -254,7 +294,7 @@ ComPtr<ID3DBlob> TrianglePipeline::CompileShader(const std::wstring& filePath,
 /// <summary>
 /// HLSL をコンパイルし、パイプラインステートオブジェクトを生成します。
 /// </summary>
-void TrianglePipeline::CreatePipelineState(ID3D12Device* device,
+void MeshPipeline::CreatePipelineState(ID3D12Device* device,
                                            DXGI_FORMAT renderTargetFormat,
                                            DXGI_FORMAT depthStencilFormat)
 {
@@ -405,52 +445,55 @@ void TrianglePipeline::CreatePipelineState(ID3D12Device* device,
 /// <summary>
 /// 頂点バッファを作り、頂点データを書き込みます。
 /// </summary>
-void TrianglePipeline::CreateVertexBuffer(ID3D12Device* device, CommandQueue& commandQueue)
+void MeshPipeline::CreateGeometryBuffers(ID3D12Device* device, CommandQueue& commandQueue)
 {
-    const UINT vertexBufferSize = sizeof(kTriangleVertices);
+    const UINT vertexBufferSize = sizeof(kCubeVertices);
+    const UINT indexBufferSize  = sizeof(kCubeIndices);
 
-    // 頂点データは一度書いたら変わらないので、GPU 専用の DEFAULT ヒープに置く。
-    // CPU から直接書けないため、UPLOAD ヒープを中継して GPU にコピーさせる。
+    // どちらも一度書いたら変わらないので、GPU 専用の DEFAULT ヒープに置く。
     m_vertexBuffer = upload::CreateBufferWithData(
-        device,
-        commandQueue,
-        kTriangleVertices,
-        vertexBufferSize,
+        device, commandQueue, kCubeVertices, vertexBufferSize,
         D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 
-    // 頂点バッファビュー : バッファのどこから何バイトを、1 頂点何バイトで読むか。
+    m_indexBuffer = upload::CreateBufferWithData(
+        device, commandQueue, kCubeIndices, indexBufferSize,
+        D3D12_RESOURCE_STATE_INDEX_BUFFER);
+
     m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
     m_vertexBufferView.StrideInBytes  = sizeof(Vertex);
     m_vertexBufferView.SizeInBytes    = vertexBufferSize;
 
-    Log(std::format(L"頂点バッファを作成しました（{} 頂点 / {} バイト, DEFAULT ヒープ）",
-                    _countof(kTriangleVertices), vertexBufferSize));
+    // インデックスは形式を指定する。頂点が 65536 個未満なら R16_UINT で足りる。
+    m_indexBufferView.BufferLocation = m_indexBuffer->GetGPUVirtualAddress();
+    m_indexBufferView.Format         = DXGI_FORMAT_R16_UINT;
+    m_indexBufferView.SizeInBytes    = indexBufferSize;
+
+    m_indexCount = _countof(kCubeIndices);
+
+    Log(std::format(L"立方体を作成しました（頂点 {} 個 / インデックス {} 個, DEFAULT ヒープ）",
+                    _countof(kCubeVertices), m_indexCount));
 }
 
 
 /// <summary>
 /// このフレームの変換行列を計算し、定数バッファへ書き込みます。
 /// </summary>
-void TrianglePipeline::Update(uint32_t frameIndex, float aspectRatio, float totalSeconds)
+void MeshPipeline::Update(uint32_t frameIndex,
+                          const DirectX::XMMATRIX& viewProjection,
+                          float totalSeconds)
 {
     using namespace DirectX;
 
-    // (1) ワールド行列 : 物体そのものを動かす変換
-    //   ここでは Z 軸まわりの回転だけを行います。
-    const float rotationAngle = totalSeconds * (XM_2PI / kSecondsPerRotation);
+    // ワールド行列 : 立方体そのものを回す。
+    //   2 軸で回すと、面の前後関係が入れ替わる様子が分かりやすい。
+    const float angle = totalSeconds * (XM_2PI / kSecondsPerRotation);
+    const XMMATRIX world = XMMatrixRotationY(angle) * XMMatrixRotationX(angle * 0.45f);
 
-    const XMMATRIX world = XMMatrixRotationZ(rotationAngle);
+    // ワールド × ビュー × 射影。行ベクトル規約なので「先に適用する変換を左」に書く。
+    // アスペクト比の補正は射影行列が担うため、ここでは不要になった。
+    const XMMATRIX worldViewProjection = world * viewProjection;
 
-    // (2) アスペクト比の補正
-    //   NDC（正規化デバイス座標）は、縦横どちらも -1〜+1 の「正方形」です。
-    const XMMATRIX aspectCorrection = XMMatrixScaling(1.0f / aspectRatio, 1.0f, 1.0f);
-
-    // (3) 行列を 1 個にまとめる
-    //   行列の掛け算は順序が意味を持ちます（交換法則が成り立たない）。
-    const XMMATRIX worldViewProjection = world * aspectCorrection;
-
-    // (4) 転置してから定数バッファへ書き込む
-    //   ★ 初学者が必ず一度は嵌まる箇所です。
+    // HLSL は定数バッファの行列を列優先で読むため、転置してから書き込む。
     SceneConstants constants = {};
     XMStoreFloat4x4(&constants.worldViewProjection, XMMatrixTranspose(worldViewProjection));
 
@@ -461,7 +504,7 @@ void TrianglePipeline::Update(uint32_t frameIndex, float aspectRatio, float tota
 /// <summary>
 /// コマンドリストに「三角形を描く」命令を記録します。
 /// </summary>
-void TrianglePipeline::RecordDrawCommands(ID3D12GraphicsCommandList* commandList,
+void MeshPipeline::RecordDrawCommands(ID3D12GraphicsCommandList* commandList,
                                           uint32_t frameIndex) const
 {
     // (0) 使用するパイプラインステート（PSO）を設定する
@@ -494,13 +537,17 @@ void TrianglePipeline::RecordDrawCommands(ID3D12GraphicsCommandList* commandList
     //     頂点データを組み立ててシェーダーに送り込む GPU の最初の段のこと。
     commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 
+    // インデックスバッファは 1 本だけ設定する（頂点バッファのような複数スロットは無い）
+    commandList->IASetIndexBuffer(&m_indexBufferView);
+
     // (4) 描画命令
-    //   DrawInstanced(頂点数, インスタンス数, 開始頂点位置, 開始インスタンス位置)
-    commandList->DrawInstanced(
-        _countof(kTriangleVertices), // 頂点数 = 9（三角形 3 枚）
-        1,                           // インスタンス数 = 1
-        0,                           // 何番目の頂点から描き始めるか
-        0);                          // 何番目のインスタンスから描き始めるか
+    //   インデックスの順に頂点を引いて描く。同じ頂点を複数の三角形で共有できる。
+    commandList->DrawIndexedInstanced(
+        m_indexCount,   // 描くインデックスの個数
+        1,              // インスタンス数
+        0,              // 何番目のインデックスから始めるか
+        0,              // 各インデックスに足すオフセット
+        0);             // 何番目のインスタンスから始めるか
 }
 
 } // namespace dx12

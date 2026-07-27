@@ -1,6 +1,6 @@
 //=============================================================================
-// TrianglePipeline.h
-//   三角形 1 枚を描くための描画設定一式（ルートシグネチャ・PSO・頂点バッファ）。
+// MeshPipeline.h
+//   立方体を描くための描画設定一式（ルートシグネチャ・PSO・頂点/インデックスバッファ）。
 //=============================================================================
 #pragma once
 
@@ -57,28 +57,28 @@ struct Vertex
 /// <summary>
 /// 三角形 1 枚を描くのに必要な「描画の設定一式」と「頂点データ」を持つクラス。
 /// </summary>
-class TrianglePipeline
+class MeshPipeline
 {
 public:
     /// <summary>
     /// 既定のコンストラクタ。まだ何も生成されません。
     /// </summary>
-    TrianglePipeline() = default;
+    MeshPipeline() = default;
 
     /// <summary>
     /// デストラクタ。ComPtr により全ての COM オブジェクトが自動解放されます。
     /// </summary>
-    ~TrianglePipeline() = default;
+    ~MeshPipeline() = default;
 
     /// <summary>
     /// コピー構築は禁止です。
     /// </summary>
-    TrianglePipeline(const TrianglePipeline&) = delete;
+    MeshPipeline(const MeshPipeline&) = delete;
 
     /// <summary>
     /// コピー代入は禁止です。
     /// </summary>
-    TrianglePipeline& operator=(const TrianglePipeline&) = delete;
+    MeshPipeline& operator=(const MeshPipeline&) = delete;
 
     /// <summary>
     /// ルートシグネチャ・PSO・頂点バッファ・定数バッファを生成します。
@@ -110,9 +110,11 @@ public:
     /// このフレームの変換行列を計算し、定数バッファへ書き込みます。
     /// </summary>
     /// <param name="frameIndex">書き込み先のフレーム番号。</param>
-    /// <param name="aspectRatio">画面の縦横比（幅 ÷ 高さ）。</param>
+    /// <param name="viewProjection">カメラのビュー行列 × 射影行列。</param>
     /// <param name="totalSeconds">起動からの経過秒数。回転角の算出に使います。</param>
-    void Update(uint32_t frameIndex, float aspectRatio, float totalSeconds);
+    void Update(uint32_t frameIndex,
+                const DirectX::XMMATRIX& viewProjection,
+                float totalSeconds);
 
     /// <summary>
     /// コマンドリストに「三角形を描く」命令を記録します。
@@ -141,12 +143,12 @@ private:
                              DXGI_FORMAT depthStencilFormat);
 
     /// <summary>
-    /// 頂点バッファを DEFAULT ヒープに作り、頂点データを転送します。
+    /// 頂点バッファとインデックスバッファを DEFAULT ヒープに作り、データを転送します。
     /// </summary>
     /// <param name="device">生成に使う D3D12 デバイス。</param>
     /// <param name="commandQueue">転送コマンドを実行するキュー。完了まで待機します。</param>
     /// <exception cref="HrException">リソースの生成または転送に失敗した場合。</exception>
-    void CreateVertexBuffer(ID3D12Device* device, CommandQueue& commandQueue);
+    void CreateGeometryBuffers(ID3D12Device* device, CommandQueue& commandQueue);
 
     /// <summary>
     /// HLSL ファイルをコンパイルして、GPU 用のバイトコードを得ます。
@@ -187,9 +189,22 @@ private:
     Texture2D m_texture;
 
     /// <summary>
+    /// インデックスデータを置く GPU 上のメモリ領域（DEFAULT ヒープ）。
+    /// </summary>
+    ComPtr<ID3D12Resource> m_indexBuffer;
+
+    /// <summary>
     /// 頂点バッファの読み取り方を GPU に伝える構造体。
     /// </summary>
     D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView = {};
+
+    /// <summary>
+    /// インデックスバッファの読み取り方を GPU に伝える構造体。
+    /// </summary>
+    D3D12_INDEX_BUFFER_VIEW m_indexBufferView = {};
+
+    /// <summary>描画するインデックスの個数。</summary>
+    uint32_t m_indexCount = 0;
 };
 
 } // namespace dx12

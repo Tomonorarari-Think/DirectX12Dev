@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 430" width="760" height="430" role="img" aria-label="視錐台の図。カメラの位置、画角、手前と奥のクリップ面、映る範囲と映らない範囲">
+  <style>
+    .bg   { fill: #f6f8fa; }
+    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #1f2328; }
+    .ttl  { font-size: 16px; font-weight: 600; }
+    .cap  { font-size: 13px; font-weight: 600; }
+    .sub  { font-size: 12px; fill: #3d444d; }
+    .frus { fill: #ddf4ff; stroke: #0a4f9e; stroke-width: 2; }
+    .plane{ stroke: #0d4f21; stroke-width: 2.5; }
+    .guide{ stroke: #6e7781; stroke-width: 1.2; stroke-dasharray: 4 3; }
+    .ar   { stroke: #1f2328; stroke-width: 1.6; fill: none; }
+  </style>
+
+  <rect class="bg" width="760" height="430" rx="8"/>
+  <text class="txt ttl" x="20" y="30">視錐台（ビューフラスタム）— カメラに映る範囲</text>
+  <text class="txt sub" x="20" y="52">真上から見た図。この四角錐の内側だけが画面に出る。</text>
+
+  <defs>
+    <marker id="vf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1f2328"/>
+    </marker>
+  </defs>
+
+  <!-- 視錐台 -->
+  <polygon class="frus" points="80,200 260,130 560,72 560,328 260,270"/>
+
+  <!-- クリップ面 -->
+  <line class="plane" x1="260" y1="130" x2="260" y2="270"/>
+  <line class="plane" x1="560" y1="72"  x2="560" y2="328"/>
+  <text class="txt cap" text-anchor="middle" x="260" y="120" fill="#0d4f21">手前のクリップ面</text>
+  <text class="txt sub" text-anchor="middle" x="260" y="290">nearZ = 0.1</text>
+  <text class="txt cap" text-anchor="middle" x="560" y="62" fill="#0d4f21">奥のクリップ面</text>
+  <text class="txt sub" text-anchor="middle" x="560" y="348">farZ = 100.0</text>
+
+  <!-- カメラ -->
+  <circle cx="80" cy="200" r="7" fill="#1f2328"/>
+  <text class="txt cap" x="30" y="186">カメラ</text>
+  <text class="txt sub" x="20" y="228">SetPosition</text>
+
+  <!-- 画角 -->
+  <path class="guide" d="M 152 172 A 75 75 0 0 1 152 228" fill="none"/>
+  <text class="txt sub" x="120" y="264">画角 fieldOfViewY</text>
+
+  <!-- 視線 -->
+  <line class="ar" x1="92" y1="200" x2="600" y2="200" marker-end="url(#vf)"/>
+  <text class="txt sub" x="606" y="204">注視点の方向</text>
+
+  <!-- 内側の例 -->
+  <rect x="360" y="170" width="52" height="52" rx="4" fill="#dafbe1" stroke="#0d4f21" stroke-width="2"/>
+  <text class="txt sub" text-anchor="middle" x="386" y="200">映る</text>
+
+  <!-- 外側の例 : 画角の外 -->
+  <rect x="150" y="308" width="72" height="44" rx="4" fill="#ffebe9" stroke="#9a1420" stroke-width="2"/>
+  <text class="txt sub" text-anchor="middle" x="186" y="335">画角の外</text>
+
+  <!-- 外側の例 : 遠すぎ -->
+  <rect x="620" y="244" width="72" height="44" rx="4" fill="#ffebe9" stroke="#9a1420" stroke-width="2"/>
+  <text class="txt sub" text-anchor="middle" x="656" y="271">遠すぎ</text>
+
+  <text class="txt sub" x="20" y="378">外側にはみ出した部分は GPU が捨てる（クリッピング）。カメラを動かすとは、この四角錐ごと動かすこと。</text>
+
+  <rect x="20" y="390" width="720" height="30" rx="6" fill="#fff8c5" stroke="#8a6d00" stroke-width="1.5"/>
+  <text class="txt sub" x="34" y="410">nearZ を小さくしすぎると、奥の深度の精度が落ちて面がちらつく（Z ファイティング）。</text>
+</svg>

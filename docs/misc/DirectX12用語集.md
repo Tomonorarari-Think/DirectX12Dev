@@ -219,7 +219,7 @@ GPU が扱うデータの入れ物。頂点バッファもテクスチャもレ�
 本プロジェクトの頂点バッファは、学習の初回として手順を減らすため
 `UPLOAD` に直接置いています（本来は `DEFAULT` が正しい選択です）。
 
-> 該当コード: [`TrianglePipeline::CreateVertexBuffer`](../../src/Graphics/TrianglePipeline.cpp)
+> 該当コード: [`MeshPipeline::CreateVertexBuffer`](../../src/Graphics/MeshPipeline.cpp)
 
 ### リソースバリア (Resource Barrier)
 
@@ -401,9 +401,9 @@ GPU 用コードの生成を **読み込み時**に済ませられます。
 **★ 3 か所を一致させる必要があります。**
 
 ```
-C++ の struct Vertex           （TrianglePipeline.h）
-D3D12_INPUT_ELEMENT_DESC       （TrianglePipeline.cpp）
-HLSL の struct VSInput         （shaders/Triangle.hlsl）
+C++ の struct Vertex           （MeshPipeline.h）
+D3D12_INPUT_ELEMENT_DESC       （MeshPipeline.cpp）
+HLSL の struct VSInput         （shaders/Mesh.hlsl）
 ```
 
 どれか 1 つでもずれると、頂点が明後日の方向に飛んだり色が壊れたりします。
