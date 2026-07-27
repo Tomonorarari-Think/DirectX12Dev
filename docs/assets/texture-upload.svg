@@ -1,16 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 420" width="760" height="420" role="img" aria-label="テクスチャを UPLOAD ヒープ経由で DEFAULT ヒープへ転送する流れと行ピッチの整列">
   <style>
     .bg    { fill: #f6f8fa; }
-    .txt   { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #24292f; }
+    .txt   { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #1f2328; }
     .ttl   { font-size: 16px; font-weight: 600; }
     .cap   { font-size: 13px; font-weight: 600; }
-    .sub   { font-size: 12px; fill: #57606a; }
-    .cpu   { fill: #ddf4ff; stroke: #0969da; stroke-width: 2; }
-    .upl   { fill: #fff1e5; stroke: #bc4c00; stroke-width: 2; }
-    .def   { fill: #dafbe1; stroke: #1a7f37; stroke-width: 2; }
-    .pad   { fill: #eaeef2; stroke: #8c959f; stroke-width: 1.2; stroke-dasharray: 3 2; }
-    .data  { fill: #ffd8b5; stroke: #bc4c00; stroke-width: 1.2; }
-    .arrow { stroke: #24292f; stroke-width: 2; fill: none; }
+    .sub   { font-size: 12px; fill: #3d444d; }
+    .cpu   { fill: #ddf4ff; stroke: #0a4f9e; stroke-width: 2; }
+    .upl   { fill: #fff1e5; stroke: #7a3200; stroke-width: 2; }
+    .def   { fill: #dafbe1; stroke: #0d4f21; stroke-width: 2; }
+    .pad   { fill: #eaeef2; stroke: #6e7781; stroke-width: 1.2; stroke-dasharray: 3 2; }
+    .data  { fill: #ffd8b5; stroke: #7a3200; stroke-width: 1.2; }
+    .arrow { stroke: #1f2328; stroke-width: 2; fill: none; }
   </style>
 
   <rect class="bg" width="760" height="420" rx="8"/>
@@ -18,7 +18,7 @@
 
   <defs>
     <marker id="ta" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#24292f"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1f2328"/>
     </marker>
   </defs>
 
@@ -78,13 +78,13 @@
   <text class="txt sub" text-anchor="middle" x="470" y="317">詰め物</text>
   <text class="txt sub" x="290" y="340">RowPitch（256 の倍数）</text>
 
-  <rect x="530" y="248" width="200" height="94" rx="6" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.5"/>
+  <rect x="530" y="248" width="200" height="94" rx="6" fill="#fff8c5" stroke="#8a6d00" stroke-width="1.5"/>
   <text class="txt sub" x="544" y="270">行の間に詰め物が入るため、</text>
   <text class="txt sub" x="544" y="290">画像全体を一度に memcpy できない。</text>
   <text class="txt sub" x="544" y="314">サイズや詰め物の量は自分で計算せず、</text>
   <text class="txt sub" x="544" y="332">GetCopyableFootprints() に聞く。</text>
 
-  <rect x="30" y="358" width="700" height="46" rx="6" fill="#ffebe9" stroke="#cf222e" stroke-width="1.5"/>
+  <rect x="30" y="358" width="700" height="46" rx="6" fill="#ffebe9" stroke="#9a1420" stroke-width="1.5"/>
   <text class="txt sub" x="46" y="378">転送後は必ずバリアで COPY_DEST → PIXEL_SHADER_RESOURCE へ切り替える。</text>
   <text class="txt sub" x="46" y="396">また、GPU のコピー完了を待ってから中継バッファを破棄すること（待たずに捨てると壊れる）。</text>
 </svg>
