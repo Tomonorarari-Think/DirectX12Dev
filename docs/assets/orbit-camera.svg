@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 480" width="760" height="480" role="img" aria-label="軌道カメラの図。注視点からの方位角 yaw、仰角 pitch、距離 distance の 3 つで視点の位置を決める仕組み">
+  <style>
+    .bg   { fill: #f6f8fa; }
+    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #1f2328; }
+    .ttl  { font-size: 16px; font-weight: 600; }
+    .cap  { font-size: 13px; font-weight: 600; }
+    .sub  { font-size: 12px; fill: #3d444d; }
+    .gd   { stroke: #6e7781; stroke-width: 1.2; stroke-dasharray: 5 4; fill: none; }
+    .arm  { stroke: #0a4f9e; stroke-width: 2.4; fill: none; }
+    .arc  { stroke: #3d444d; stroke-width: 1.4; fill: none; }
+  </style>
+
+  <rect class="bg" width="760" height="480" rx="8"/>
+  <text class="txt ttl" x="20" y="30">軌道カメラ — 注視点のまわりを回る</text>
+  <text class="txt sub" x="20" y="52">視点の座標を直接持たず、注視点からの向きと距離で持つ。</text>
+
+  <defs>
+    <marker id="oc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a4f9e"/>
+    </marker>
+  </defs>
+
+  <!-- 水平面を表す楕円（yaw はこの上を回る） -->
+  <ellipse class="gd" cx="200" cy="250" rx="100" ry="26"/>
+  <text class="txt sub" text-anchor="middle" x="200" y="306">yaw（方位角）はこの円をまわる</text>
+
+  <!-- 補助線 -->
+  <line class="gd" x1="80" y1="250" x2="340" y2="250"/>
+  <line class="gd" x1="200" y1="250" x2="200" y2="112"/>
+  <text class="txt sub" x="208" y="118">＋Y</text>
+  <text class="txt sub" x="300" y="242">水平</text>
+
+  <!-- 注視点 -->
+  <circle cx="200" cy="250" r="5" fill="#1f2328"/>
+  <text class="txt cap" x="212" y="272">注視点</text>
+
+  <!-- 視点までの腕 -->
+  <line class="arm" x1="200" y1="250" x2="94" y2="175" marker-end="url(#oc)"/>
+  <text class="txt cap" x="34" y="164" fill="#0a4f9e">カメラ</text>
+  <text class="txt sub" text-anchor="end" x="195" y="192">distance</text>
+
+  <!-- 仰角 -->
+  <path class="arc" d="M 145 250 A 55 55 0 0 1 155 219"/>
+  <text class="txt sub" x="116" y="242">pitch</text>
+
+  <!-- 右側の説明 -->
+  <text class="txt cap" x="400" y="108">「位置」ではなく 3 つの値で持つ</text>
+  <text class="txt sub" x="400" y="136">・yaw … 水平方向の回転（方位角）</text>
+  <text class="txt sub" x="400" y="158">・pitch … 上下方向の回転（仰角）</text>
+  <text class="txt sub" x="400" y="180">・distance … 注視点までの距離</text>
+
+  <text class="txt sub" x="400" y="212">視点の座標は、毎フレームこの 3 つから計算する。</text>
+  <text class="txt sub" x="400" y="234">直接動かさないので、どう回しても注視点を見失わない。</text>
+
+  <text class="txt cap" x="400" y="266">操作の割り当て</text>
+  <text class="txt sub" x="400" y="290">左ドラッグ → yaw と pitch</text>
+  <text class="txt sub" x="400" y="312">ホイール → distance（足し算ではなく掛け算で変える）</text>
+
+  <!-- 注意 1 -->
+  <rect x="20" y="336" width="720" height="60" rx="6" fill="#ffebe9" stroke="#9a1420" stroke-width="1.5"/>
+  <text class="txt cap" x="36" y="358">仰角には必ず制限を掛ける</text>
+  <text class="txt sub" x="36" y="380">真上・真下を通り越すと視線と上方向が平行になり、LookAt が壊れて画面が消える。</text>
+
+  <!-- 注意 2 -->
+  <rect x="20" y="406" width="720" height="60" rx="6" fill="#fff8c5" stroke="#8a6d00" stroke-width="1.5"/>
+  <text class="txt cap" x="36" y="428">経過時間を掛けるもの・掛けないもの</text>
+  <text class="txt sub" x="36" y="450">マウスの移動量は「もう動いた距離」なので掛けない。キーの押しっぱなしは掛ける。</text>
+</svg>

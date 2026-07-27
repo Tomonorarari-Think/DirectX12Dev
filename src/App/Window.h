@@ -25,6 +25,15 @@ public:
     using ResizeCallback = std::function<void(uint32_t width, uint32_t height)>;
 
     /// <summary>
+    /// 届いたメッセージを横流しするコールバックの型。
+    /// </summary>
+    /// <remarks>
+    /// 入力を扱う `Input` へ渡すために使います。戻り値は「入力として記録したか」で、
+    /// `Window` 側の既定処理は戻り値によらず続行します。
+    /// </remarks>
+    using MessageCallback = std::function<bool(UINT message, WPARAM wParam, LPARAM lParam)>;
+
+    /// <summary>
     /// 既定のコンストラクタ。ウィンドウはまだ生成されません。
     /// </summary>
     Window() = default;
@@ -68,6 +77,16 @@ public:
     /// </summary>
     /// <param name="callback">新しい幅・高さを受け取る関数。</param>
     void SetResizeCallback(ResizeCallback callback) { m_onResize = std::move(callback); }
+
+    /// <summary>
+    /// メッセージの横流し先を登録します。
+    /// </summary>
+    /// <param name="callback">メッセージを受け取る関数。</param>
+    /// <remarks>
+    /// ウィンドウプロシージャの中で呼ばれます。**時間のかかる処理を書かないでください。**
+    /// メッセージ処理が滞ると、ウィンドウが応答なしになります。
+    /// </remarks>
+    void SetMessageCallback(MessageCallback callback) { m_onMessage = std::move(callback); }
 
     /// <summary>
     /// ウィンドウハンドルを取得します。
@@ -138,6 +157,20 @@ private:
     /// サイズ変更の通知先。未設定なら何もしません。
     /// </summary>
     ResizeCallback m_onResize;
+
+    /// <summary>
+    /// メッセージの横流し先。未設定なら何もしません。
+    /// </summary>
+    MessageCallback m_onMessage;
+
+    /// <summary>
+    /// 現在押されているマウスボタンの数。
+    /// </summary>
+    /// <remarks>
+    /// 0 から 1 になったときにマウスを捕捉し、0 に戻ったときに解放します。
+    /// ボタンごとに解放すると、2 つ押して 1 つ離した時点で捕捉が切れてしまいます。
+    /// </remarks>
+    uint32_t m_pressedMouseButtons = 0;
 };
 
 } // namespace dx12
