@@ -30,6 +30,7 @@ Unity で `GameObject` にマテリアルを付ければ絵が出ますが、
 | 08 | [奥行きを正しくする：深度バッファ](08_奥行きを正しくする.md) | 深度テスト |
 | 09 | [テクスチャを貼る](09_テクスチャを貼る.md) | SRV、サンプラー、GPU への転送 |
 | 10 | [3D にする：カメラと透視投影](10_3Dにする_カメラと透視投影.md) | ビュー行列、射影行列、立方体、インデックスバッファ |
+| 11 | [陰影を付ける：法線とライティング](11_陰影を付ける_法線とライティング.md) | 法線、拡散反射、鏡面反射、定数バッファのパッキング |
 
 ```mermaid
 flowchart LR
@@ -42,10 +43,11 @@ flowchart LR
     G --> H["08 奥行き"]
     H --> I["09 テクスチャ"]
     I --> J["10 3D 化"]
+    J --> K["11 ライティング"]
 
     style A fill:#dafbe1,stroke:#0d4f21
     style F fill:#ddf4ff,stroke:#0a4f9e
-    style J fill:#ddf4ff,stroke:#0a4f9e
+    style K fill:#ddf4ff,stroke:#0a4f9e
 ```
 
 ## 関連する資料

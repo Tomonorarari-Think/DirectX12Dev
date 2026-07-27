@@ -46,6 +46,11 @@ public:
     /// <param name="radians">画角（ラジアン）。既定は 45 度。</param>
     void SetFieldOfView(float radians) { m_fieldOfViewY = radians; }
 
+    /// <summary>視点のワールド座標を返します。</summary>
+    /// <returns>現在の視点の位置。</returns>
+    /// <remarks>ライティングの鏡面反射は「どこから見ているか」で変わるため必要です。</remarks>
+    const DirectX::XMFLOAT3& Position() const { return m_position; }
+
     /// <summary>ビュー行列（ワールド空間をカメラ基準へ移す行列）を返します。</summary>
     /// <returns>左手座標系のビュー行列。</returns>
     DirectX::XMMATRIX ViewMatrix() const;

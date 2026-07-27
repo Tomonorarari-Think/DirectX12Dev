@@ -19,12 +19,41 @@ class DescriptorHeap;
 /// <summary>
 /// シェーダーへ毎フレーム渡す定数の内容。
 /// </summary>
+/// <remarks>
+/// HLSL の定数バッファは 16 バイト単位で区切られます。`float3` の直後に `float` を
+/// 置くと同じ 16 バイトに詰め込まれ、C++ 側とずれます。ここで全て `XMFLOAT4` /
+/// `XMFLOAT4X4` に揃えているのは、そのずれを構造的に起こさないためです。
+/// </remarks>
 struct SceneConstants
 {
     /// <summary>
     /// ワールド × ビュー × プロジェクションをまとめた変換行列。
     /// </summary>
     DirectX::XMFLOAT4X4 worldViewProjection;
+
+    /// <summary>
+    /// ワールド行列。頂点と法線をワールド空間へ移すために単体でも渡します。
+    /// </summary>
+    DirectX::XMFLOAT4X4 world;
+
+    /// <summary>
+    /// 平行光源の進む向き (xyz)。正規化済み。w は未使用。
+    /// </summary>
+    /// <remarks>
+    /// 「光が飛んでいく向き」であり「光源の方向」ではありません。符号を取り違えると
+    /// 明暗が裏返ります。
+    /// </remarks>
+    DirectX::XMFLOAT4 lightDirection;
+
+    /// <summary>
+    /// 光の色と強さ (rgb)。w は環境光の強さ。
+    /// </summary>
+    DirectX::XMFLOAT4 lightColor;
+
+    /// <summary>
+    /// 視点のワールド座標 (xyz)。鏡面反射の計算に使います。w は未使用。
+    /// </summary>
+    DirectX::XMFLOAT4 cameraPosition;
 };
 
 
@@ -34,9 +63,18 @@ struct SceneConstants
 struct Vertex
 {
     /// <summary>
-    /// 頂点の座標 (x, y, z)。NDC 座標で、画面中央が原点、範囲は -1〜+1。
+    /// 頂点の座標 (x, y, z)。モデルの原点を基準としたローカル座標。
     /// </summary>
     float position[3];
+
+    /// <summary>
+    /// 面の向きを表す法線ベクトル (x, y, z)。長さ 1 に正規化しておきます。
+    /// </summary>
+    /// <remarks>
+    /// 光の当たり具合はこのベクトルだけで決まります。座標が同じ頂点でも、属する面が
+    /// 違えば法線が違うため、立方体の頂点は 8 個ではなく 24 個必要になります。
+    /// </remarks>
+    float normal[3];
 
     /// <summary>
     /// 頂点の色 (r, g, b, a)。各成分は 0.0〜1.0。
@@ -55,7 +93,7 @@ struct Vertex
 
 
 /// <summary>
-/// 三角形 1 枚を描くのに必要な「描画の設定一式」と「頂点データ」を持つクラス。
+/// 立方体を描くのに必要な「描画の設定一式」と「頂点データ」を持つクラス。
 /// </summary>
 class MeshPipeline
 {
@@ -107,17 +145,19 @@ public:
                     DescriptorHeap& descriptorHeap);
 
     /// <summary>
-    /// このフレームの変換行列を計算し、定数バッファへ書き込みます。
+    /// このフレームの変換行列とライト情報を計算し、定数バッファへ書き込みます。
     /// </summary>
     /// <param name="frameIndex">書き込み先のフレーム番号。</param>
     /// <param name="viewProjection">カメラのビュー行列 × 射影行列。</param>
+    /// <param name="cameraPosition">視点のワールド座標。鏡面反射の計算に使います。</param>
     /// <param name="totalSeconds">起動からの経過秒数。回転角の算出に使います。</param>
     void Update(uint32_t frameIndex,
                 const DirectX::XMMATRIX& viewProjection,
+                const DirectX::XMFLOAT3& cameraPosition,
                 float totalSeconds);
 
     /// <summary>
-    /// コマンドリストに「三角形を描く」命令を記録します。
+    /// コマンドリストに「立方体を描く」命令を記録します。
     /// </summary>
     /// <param name="commandList">記録先の（Reset 済みで開いている）コマンドリスト。</param>
     /// <param name="frameIndex">使用する定数バッファのフレーム番号。</param>
@@ -184,7 +224,7 @@ private:
     ConstantBuffer m_constantBuffer;
 
     /// <summary>
-    /// 三角形に貼るテクスチャ（市松模様）。
+    /// 立方体に貼るテクスチャ（市松模様）。
     /// </summary>
     Texture2D m_texture;
 
