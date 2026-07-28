@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 450" width="760" height="450" role="img" aria-label="WIC で画像ファイルを読み込む流れ。デコーダ、フレーム、フォーマットコンバータを経て RGBA8 のピクセル列になり、GPU へ転送される">
+  <style>
+    .bg   { fill: #f6f8fa; }
+    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #1f2328; }
+    .mono { font-family: Consolas, "Courier New", monospace; }
+    .ttl  { font-size: 16px; font-weight: 600; }
+    .cap  { font-size: 13px; font-weight: 600; }
+    .sub  { font-size: 12px; fill: #3d444d; }
+    .wic  { fill: #ddf4ff; stroke: #0a4f9e; stroke-width: 1.6; }
+    .out  { fill: #dafbe1; stroke: #0d4f21; stroke-width: 1.6; }
+    .file { fill: #eaeef2; stroke: #6e7781; stroke-width: 1.6; }
+    .ar   { stroke: #3d444d; stroke-width: 1.6; fill: none; }
+  </style>
+
+  <rect class="bg" width="760" height="450" rx="8"/>
+  <text class="txt ttl" x="20" y="30">WIC で画像を読む — 形式を問わず RGBA8 に揃える</text>
+  <text class="txt sub" x="20" y="52">対応形式は Windows 側が持っている。自分でデコーダを書く必要はない。</text>
+
+  <defs>
+    <marker id="wa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3d444d"/>
+    </marker>
+  </defs>
+
+  <!-- 入力ファイル -->
+  <rect class="file" x="20" y="86" width="150" height="90" rx="4"/>
+  <text class="txt cap" text-anchor="middle" x="95" y="110">画像ファイル</text>
+  <text class="txt sub" text-anchor="middle" x="95" y="132">PNG / JPEG / BMP</text>
+  <text class="txt sub" text-anchor="middle" x="95" y="152">GIF / TIFF …</text>
+  <text class="txt sub" text-anchor="middle" x="95" y="170">形式はばらばら</text>
+
+  <line class="ar" x1="172" y1="130" x2="206" y2="130" marker-end="url(#wa)"/>
+
+  <!-- デコーダ -->
+  <rect class="wic" x="210" y="86" width="160" height="90" rx="4"/>
+  <text class="txt cap mono" text-anchor="middle" x="290" y="110">Decoder</text>
+  <text class="txt sub" text-anchor="middle" x="290" y="132">中身を見て形式を判別</text>
+  <text class="txt sub" text-anchor="middle" x="290" y="152">拡張子は見ていない</text>
+  <text class="txt sub" text-anchor="middle" x="290" y="170">→ フレームを取り出す</text>
+
+  <line class="ar" x1="372" y1="130" x2="406" y2="130" marker-end="url(#wa)"/>
+
+  <!-- コンバータ -->
+  <rect class="wic" x="410" y="86" width="170" height="90" rx="4"/>
+  <text class="txt cap mono" text-anchor="middle" x="495" y="110">FormatConverter</text>
+  <text class="txt sub" text-anchor="middle" x="495" y="132">パレットでも 16bit でも</text>
+  <text class="txt sub" text-anchor="middle" x="495" y="152">グレースケールでも</text>
+  <text class="txt sub" text-anchor="middle" x="495" y="170">必ず 32bppRGBA にする</text>
+
+  <line class="ar" x1="582" y1="130" x2="616" y2="130" marker-end="url(#wa)"/>
+
+  <!-- 出力 -->
+  <rect class="out" x="620" y="86" width="120" height="90" rx="4"/>
+  <text class="txt cap" text-anchor="middle" x="680" y="110">RGBA8</text>
+  <text class="txt sub" text-anchor="middle" x="680" y="132">R G B A の</text>
+  <text class="txt sub" text-anchor="middle" x="680" y="152">1 バイトずつ</text>
+  <text class="txt sub" text-anchor="middle" x="680" y="170">左上から順に</text>
+
+  <!-- 下へ -->
+  <line class="ar" x1="680" y1="180" x2="680" y2="216" marker-end="url(#wa)"/>
+  <rect class="out" x="560" y="220" width="180" height="52" rx="4"/>
+  <text class="txt cap" text-anchor="middle" x="650" y="242">Texture2D</text>
+  <text class="txt sub" text-anchor="middle" x="650" y="262">そのまま GPU へ転送</text>
+
+  <!-- 説明 -->
+  <rect x="20" y="200" width="510" height="106" rx="6" fill="#ddf4ff" stroke="#0a4f9e" stroke-width="1.5"/>
+  <text class="txt cap" x="36" y="224">FormatConverter がこの仕組みの要</text>
+  <text class="txt sub" x="36" y="248">画像形式ごとの違い（色数・ビット深度・並び順）を、ここが全部吸収する。</text>
+  <text class="txt sub" x="36" y="268">おかげで呼び出し側は「元が何だったか」を一切気にしなくてよい。</text>
+  <text class="txt sub" x="36" y="292">対応形式を増やしたいときも、こちらのコードは変えなくてよい。</text>
+
+  <!-- 注意 -->
+  <rect x="20" y="320" width="720" height="52" rx="6" fill="#fff8c5" stroke="#8a6d00" stroke-width="1.5"/>
+  <text class="txt cap" x="36" y="342">WIC は COM のオブジェクト</text>
+  <text class="txt sub" x="36" y="362">使う前に CoInitializeEx が必要。忘れると生成時に「初期化されていない」で失敗する。</text>
+
+  <rect x="20" y="384" width="720" height="52" rx="6" fill="#ffebe9" stroke="#9a1420" stroke-width="1.5"/>
+  <text class="txt cap" x="36" y="406">1 行のバイト数（ストライド）に注意</text>
+  <text class="txt sub" x="36" y="426">CopyPixels に渡すのは「幅 × 4」。GPU へ転送するときは 256 バイト境界に揃え直す。</text>
+</svg>

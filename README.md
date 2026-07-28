@@ -4,15 +4,16 @@ DirectX 12 を **初期化から画面表示まで一歩ずつ理解する** た
 「動くサンプル」ではなく「**なぜそう書くのかが分かるサンプル**」を目指し、
 コードは読みやすさを優先し、仕組みの解説は `docs/tutorial/` にまとめています。
 
-現在の到達点：**OBJ / glTF から読み込んだモデルを、陰影と影付きで自由に見回せる**
+現在の到達点：**モデルもテクスチャもファイルから読み込み、陰影と影付きで自由に見回せる**
 
-![読み込んだ glTF のシーン](docs/assets/gltf-scene.png)
+![PNG を貼ったシーン](docs/assets/texture-uv-grid.png)
 
 カメラ（ビュー行列）と透視投影で 3D にしたうえで、平行光源による
 拡散反射・鏡面反射・環境光を計算しています。
 さらに、光源から見た深度をシャドウマップに記録する 1 パス目を挟むことで、
 モデルが床に影を落としています。
-画面に出ている形は、コードではなく `assets/models/scene.glb` から読み込んだものです。
+画面に出ている形は `assets/models/scene.glb` から、模様は
+`assets/textures/uv-grid.png` から読み込んだものです。
 ノードの入れ子と、平行移動・回転・拡大縮小もファイルの指定どおりに適用しています。
 
 **操作**: 左ドラッグで回転、右ドラッグで平行移動、ホイールで寄り引き、
@@ -85,6 +86,8 @@ DirectX12Dev/
 │   ├── Assets/ObjLoader.*            Wavefront OBJ の解析
 │   ├── Assets/GltfLoader.*           glTF 2.0（.gltf / .glb）の解析
 │   ├── Assets/Json.*                 最小限の JSON パーサ
+│   ├── Assets/ImageLoader.*          WIC による画像のデコード
+│   ├── Common/ComInitializer.*       COM の初期化と後始末（WIC 用）
 │   ├── Common/FrameTimer.*           フレーム時間の計測・FPS 表示
 │   ├── Common/GraphicsCommon.*       ComPtr / DX_CHECK / ログ / パス解決
 │   └── Graphics/
@@ -103,6 +106,7 @@ DirectX12Dev/
 │       └── Renderer.*                上記を束ねて 1 フレーム描く
 ├── shaders/Mesh.hlsl                 頂点シェーダー・ピクセルシェーダー
 ├── assets/models/                    サンプルモデル（本リポジトリで作成）
+├── assets/textures/                  サンプルテクスチャ（本リポジトリで作成）
 ├── tools/build.ps1                   MSBuild 呼び出しスクリプト
 ├── docs/                             学習資料（tutorial / design / misc）
 └── .vscode/                          VSCode のビルド・デバッグ設定
@@ -128,6 +132,7 @@ DirectX12Dev/
 - [x] **Step 14**: 入力とカメラ操作（マウス・キーボード・軌道カメラ）
 - [x] **Step 15**: OBJ モデルの読み込み（テキスト解析・右手系変換・法線生成）
 - [x] **Step 16**: glTF 2.0 の読み込み（JSON パーサ・アクセサ・ノード変換・GLB）
+- [x] **Step 17**: 画像ファイルの読み込み（WIC・PNG / JPEG・COM 初期化）
 
 各ステップで「なぜ現在の実装が単純化されているか」「どう改善するか」は
 コード内コメントと [描画フロー](docs/design/描画フロー.md) に記載しています。
