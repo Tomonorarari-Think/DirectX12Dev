@@ -71,6 +71,30 @@ constexpr uint16_t kQuadIndices[6] = { 0, 1, 2, 0, 2, 3 };
 
 
 /// <summary>
+/// 材質やサブメッシュが未設定なら、既定のものを 1 つ用意します。
+/// </summary>
+void MeshData::EnsureDefaultMaterial()
+{
+    if (materials.empty())
+    {
+        // 白 1 色。頂点カラーとテクスチャがそのまま出る。
+        MaterialData material;
+        material.name = "default";
+        materials.push_back(std::move(material));
+    }
+
+    if (subMeshes.empty() && !indices.empty())
+    {
+        SubMesh subMesh;
+        subMesh.indexOffset   = 0;
+        subMesh.indexCount    = static_cast<uint32_t>(indices.size());
+        subMesh.materialIndex = 0;
+        subMeshes.push_back(subMesh);
+    }
+}
+
+
+/// <summary>
 /// 原点を中心とした立方体を作ります。
 /// </summary>
 MeshData CreateCube(float halfExtent)
@@ -111,6 +135,7 @@ MeshData CreateCube(float halfExtent)
         }
     }
 
+    mesh.EnsureDefaultMaterial();
     return mesh;
 }
 
@@ -158,6 +183,7 @@ MeshData CreatePlane(float halfExtent, float height, float uvTiling)
 
     mesh.indices.assign(std::begin(kQuadIndices), std::end(kQuadIndices));
 
+    mesh.EnsureDefaultMaterial();
     return mesh;
 }
 

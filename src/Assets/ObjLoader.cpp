@@ -5,6 +5,7 @@
 #include "ObjLoader.h"
 
 #include "../Common/GraphicsCommon.h"
+#include "ImageLoader.h"
 
 #include <array>
 #include <cmath>
@@ -135,6 +136,116 @@ FaceVertexKey ParseFaceVertex(const std::string& token,
 
 
 /// <summary>
+/// パスからフォルダの部分（末尾の区切りを含む）を取り出します。
+/// </summary>
+std::wstring DirectoryOf(const std::wstring& filePath)
+{
+    const size_t separator = filePath.find_last_of(L"\\/");
+    return (separator == std::wstring::npos) ? std::wstring()
+                                             : filePath.substr(0, separator + 1);
+}
+
+
+/// <summary>
+/// マテリアルライブラリ (.mtl) を読み込みます。
+/// </summary>
+/// <param name="filePath">.mtl ファイルの絶対パス。</param>
+/// <param name="baseDirectory">画像を探す基準のフォルダ。</param>
+/// <param name="materials">読み込んだ材質を追加する先。</param>
+/// <param name="indexByName">材質名から番号を引く表。ここへも登録します。</param>
+/// <remarks>
+/// 読むのは `newmtl` / `Kd`（拡散色）/ `map_Kd`（拡散テクスチャ）だけです。
+/// 鏡面色 `Ks` や透明度 `d` などは読み飛ばします。
+/// </remarks>
+void LoadMaterialLibrary(const std::wstring& filePath,
+                         const std::wstring& baseDirectory,
+                         std::vector<MaterialData>& materials,
+                         std::unordered_map<std::string, uint32_t>& indexByName)
+{
+    std::ifstream file(filePath);
+    if (!file)
+    {
+        LogError(L"mtl ファイルを開けませんでした: " + filePath);
+        return;
+    }
+
+    MaterialData* current = nullptr;
+
+    std::string line;
+    while (std::getline(file, line))
+    {
+        if (!line.empty() && line.back() == '\r')
+        {
+            line.pop_back();
+        }
+
+        const size_t comment = line.find('#');
+        if (comment != std::string::npos)
+        {
+            line.erase(comment);
+        }
+
+        std::istringstream stream(line);
+        std::string keyword;
+        if (!(stream >> keyword))
+        {
+            continue;
+        }
+
+        if (keyword == "newmtl")
+        {
+            std::string name;
+            stream >> name;
+
+            indexByName[name] = static_cast<uint32_t>(materials.size());
+
+            MaterialData material;
+            material.name = name;
+            materials.push_back(std::move(material));
+
+            current = &materials.back();
+        }
+        else if (keyword == "Kd" && current != nullptr)
+        {
+            // 拡散色。0〜1 の 3 成分。
+            stream >> current->baseColorFactor[0]
+                   >> current->baseColorFactor[1]
+                   >> current->baseColorFactor[2];
+        }
+        else if (keyword == "map_Kd" && current != nullptr)
+        {
+            // 行の残り全部がファイル名。空白を含む名前もあり得る。
+            std::string name;
+            std::getline(stream, name);
+
+            // 先頭の空白を落とす。
+            const size_t first = name.find_first_not_of(" \t");
+            if (first == std::string::npos)
+            {
+                continue;
+            }
+            name = name.substr(first);
+
+            std::wstring relative(name.begin(), name.end());
+            for (wchar_t& c : relative)
+            {
+                if (c == L'/') { c = L'\\'; }
+            }
+
+            try
+            {
+                current->baseColorTexture = LoadImageFile(baseDirectory + relative);
+            }
+            catch (const std::exception&)
+            {
+                LogError(L"mtl のテクスチャを読めませんでした: " + relative);
+            }
+        }
+    }
+}
+
+
+/// <summary>
 /// 法線が 1 つも書かれていなかった場合に、面の向きから法線を作ります。
 /// </summary>
 /// <param name="mesh">対象のメッシュ。法線が書き換わります。</param>
@@ -239,6 +350,28 @@ MeshData LoadObj(const std::wstring& filePath, const ModelLoadOptions& options)
     std::vector<int> vertexPositionIndex;
 
     bool hasAnyNormal = false;
+
+    // 材質。mtllib で追加され、usemtl で切り替わる。
+    std::unordered_map<std::string, uint32_t> materialIndexByName;
+    const std::wstring baseDirectory = DirectoryOf(filePath);
+
+    // いま書き込み中のサブメッシュ。材質が変わるたびに区切る。
+    uint32_t currentMaterial = UINT32_MAX;
+    uint32_t currentStart    = 0;
+
+    // 直前のサブメッシュを閉じる処理。
+    const auto closeSubMesh = [&]() {
+        const uint32_t here = static_cast<uint32_t>(mesh.indices.size());
+        if (currentMaterial != UINT32_MAX && here > currentStart)
+        {
+            SubMesh subMesh;
+            subMesh.indexOffset   = currentStart;
+            subMesh.indexCount    = here - currentStart;
+            subMesh.materialIndex = currentMaterial;
+            mesh.subMeshes.push_back(subMesh);
+        }
+        currentStart = here;
+    };
 
     std::string line;
     while (std::getline(file, line))
@@ -351,9 +484,10 @@ MeshData LoadObj(const std::wstring& filePath, const ModelLoadOptions& options)
                     vertex.uv[1] = texCoords[key.texCoord][1];
                 }
 
+                // 色は材質が持つので、頂点カラーは白にしておく。
                 for (int channel = 0; channel < 4; ++channel)
                 {
-                    vertex.color[channel] = options.color[channel];
+                    vertex.color[channel] = 1.0f;
                 }
 
                 const uint16_t newIndex = static_cast<uint16_t>(mesh.vertices.size());
@@ -374,12 +508,63 @@ MeshData LoadObj(const std::wstring& filePath, const ModelLoadOptions& options)
                 mesh.indices.push_back(faceIndices[i + 1]);
             }
         }
-        // それ以外（mtllib / usemtl / g / o / s など）は読み飛ばす。
+        else if (keyword == "mtllib")
+        {
+            // 材質の定義は別ファイルに置かれている。
+            std::string name;
+            std::getline(stream, name);
+
+            const size_t first = name.find_first_not_of(" \t");
+            if (first == std::string::npos)
+            {
+                continue;
+            }
+
+            const std::string trimmed = name.substr(first);
+            std::wstring relative(trimmed.begin(), trimmed.end());
+
+            LoadMaterialLibrary(baseDirectory + relative, baseDirectory,
+                                mesh.materials, materialIndexByName);
+        }
+        else if (keyword == "usemtl")
+        {
+            // ここから先の面は別の材質で描く。いったん区切る。
+            std::string name;
+            stream >> name;
+
+            closeSubMesh();
+
+            const auto found = materialIndexByName.find(name);
+            currentMaterial = (found != materialIndexByName.end())
+                                ? found->second : UINT32_MAX;
+        }
+        // それ以外（g / o / s など）は読み飛ばす。
     }
+
+    closeSubMesh();
 
     if (mesh.vertices.empty() || mesh.indices.empty())
     {
         throw std::runtime_error("OBJ に面が 1 つも含まれていませんでした。");
+    }
+
+    // usemtl が 1 度も出てこなかった場合は、options.color の材質を 1 つ作る。
+    if (mesh.subMeshes.empty())
+    {
+        MaterialData material;
+        material.name = "default";
+        for (int channel = 0; channel < 4; ++channel)
+        {
+            material.baseColorFactor[channel] = options.color[channel];
+        }
+
+        mesh.materials.push_back(std::move(material));
+
+        SubMesh subMesh;
+        subMesh.indexOffset   = 0;
+        subMesh.indexCount    = static_cast<uint32_t>(mesh.indices.size());
+        subMesh.materialIndex = static_cast<uint32_t>(mesh.materials.size() - 1);
+        mesh.subMeshes.push_back(subMesh);
     }
 
     if (!hasAnyNormal)
@@ -392,10 +577,12 @@ MeshData LoadObj(const std::wstring& filePath, const ModelLoadOptions& options)
         FitToTargetSize(mesh, options.targetSize, options.groundLevel);
     }
 
-    Log(std::format(L"OBJ を読み込みました（頂点 {} 個 / 三角形 {} 枚 / 法線は{}）",
-                    mesh.vertices.size(),
-                    mesh.indices.size() / 3,
-                    hasAnyNormal ? L"ファイル内の値" : L"自動生成"));
+    Log(std::format(
+        L"OBJ を読み込みました（頂点 {} 個 / 三角形 {} 枚 / 材質 {} 個 / 法線は{}）",
+        mesh.vertices.size(),
+        mesh.indices.size() / 3,
+        mesh.materials.size(),
+        hasAnyNormal ? L"ファイル内の値" : L"自動生成"));
 
     return mesh;
 }

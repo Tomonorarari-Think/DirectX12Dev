@@ -13,6 +13,7 @@
 #include "DepthBuffer.h"
 #include "DescriptorHeap.h"
 #include "GraphicsDevice.h"
+#include "MaterialSet.h"
 #include "Mesh.h"
 #include "ShadowMap.h"
 #include "SwapChain.h"
@@ -112,13 +113,23 @@ private:
     void UpdateViewportAndScissor(uint32_t width, uint32_t height);
 
     /// <summary>
-    /// メッシュに貼るテクスチャを用意します。
+    /// 床に貼るテクスチャを用意します。
     /// </summary>
     /// <returns>RGBA8 のピクセル列と、その大きさ。</returns>
     /// <remarks>
     /// 画像ファイルを読み、失敗したらコードで市松模様を作って代用します。
     /// </remarks>
-    assets::ImageData CreateBaseTexture();
+    assets::ImageData CreateFloorTexture();
+
+    /// <summary>
+    /// 1 つのメッシュを、材質ごとに区切って描きます。
+    /// </summary>
+    /// <param name="commandList">記録先のコマンドリスト。</param>
+    /// <param name="mesh">描くメッシュ。</param>
+    /// <param name="materials">そのメッシュが使う材質。</param>
+    void RecordMeshWithMaterials(ID3D12GraphicsCommandList* commandList,
+                                 const Mesh& mesh,
+                                 const MaterialSet& materials);
 
     /// <summary>
     /// シーンに置くメッシュを生成します。
@@ -195,6 +206,16 @@ private:
     /// モデルを置く床。
     /// </summary>
     Mesh m_floor;
+
+    /// <summary>
+    /// モデルが使う材質（基本色とテクスチャ）。
+    /// </summary>
+    MaterialSet m_modelMaterials;
+
+    /// <summary>
+    /// 床が使う材質。
+    /// </summary>
+    MaterialSet m_floorMaterials;
 
     /// <summary>
     /// 光源から見た深度。影の判定に使う。

@@ -104,6 +104,9 @@
     <ClCompile Include="src\Graphics\ShadowMap.cpp">
       <Filter>src\Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="src\Graphics\MaterialSet.cpp">
+      <Filter>src\Graphics</Filter>
+    </ClCompile>
     <ClCompile Include="src\Graphics\MeshPipeline.cpp">
       <Filter>src\Graphics</Filter>
     </ClCompile>
@@ -180,6 +183,9 @@
       <Filter>src\Graphics</Filter>
     </ClInclude>
     <ClInclude Include="src\Graphics\ShadowMap.h">
+      <Filter>src\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Graphics\MaterialSet.h">
       <Filter>src\Graphics</Filter>
     </ClInclude>
     <ClInclude Include="src\Graphics\MeshPipeline.h">

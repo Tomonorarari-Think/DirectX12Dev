@@ -1,0 +1,10 @@
+# pyramid.mtl
+#   pyramid.obj が使う材質。このリポジトリで作成したものです。
+#   読み込み側が見るのは Kd（拡散色）と map_Kd（拡散テクスチャ）だけです。
+
+newmtl Sides
+Kd 0.86 0.72 0.42
+map_Kd ../textures/uv-grid.png
+
+newmtl Bottom
+Kd 0.32 0.40 0.62
