@@ -103,9 +103,9 @@ constexpr uint32_t kShadowMapSize = 2048;
 constexpr float kSceneRadius = 3.6f;
 
 /// <summary>
-/// メッシュに貼る画像（プロジェクトルートからの相対パス）。
+/// 床に貼る画像（プロジェクトルートからの相対パス）。
 /// </summary>
-constexpr const wchar_t* kTextureRelativePath = L"assets/textures/uv-grid.png";
+constexpr const wchar_t* kFloorTextureRelativePath = L"assets/textures/uv-grid.png";
 
 /// <summary>
 /// 画像を読めなかったときに代わりに作る市松模様の、一辺のピクセル数。
@@ -172,19 +172,12 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
 
     // (7) メッシュ描画用のパイプライン
     //     PSO は描画先の形式（RTV / DSV）を知っている必要があるため両方渡す。
-    const assets::ImageData baseTexture = CreateBaseTexture();
-
     m_meshPipeline.Initialize(device,
                               SwapChain::kBackBufferFormat,
                               DepthBuffer::kFormat,
                               SwapChain::kBackBufferCount,
                               kObjectCount,
-                              ShadowMap::kDepthStencilViewFormat,
-                              m_commandQueue,
-                              m_descriptorHeap,
-                              baseTexture.width,
-                              baseTexture.height,
-                              baseTexture.pixels);
+                              ShadowMap::kDepthStencilViewFormat);
 
     // (8) 描くもの（形状データ）
     CreateSceneMeshes();
@@ -235,13 +228,13 @@ void Renderer::CreateCommandObjects()
 
 
 /// <summary>
-/// メッシュに貼るテクスチャを用意します。
+/// 床に貼るテクスチャを用意します。
 /// </summary>
-assets::ImageData Renderer::CreateBaseTexture()
+assets::ImageData Renderer::CreateFloorTexture()
 {
     try
     {
-        return assets::LoadImageFile(ResolveAssetPath(kTextureRelativePath));
+        return assets::LoadImageFile(ResolveAssetPath(kFloorTextureRelativePath));
     }
     catch (const std::exception& e)
     {
@@ -290,12 +283,40 @@ void Renderer::CreateSceneMeshes()
 
     m_model.Initialize(device, m_commandQueue, modelData, L"モデル");
 
+    // モデルが持っている材質を GPU 上の資源に変える。
+    //   材質を持たないファイルでも、読み込み側が既定の 1 つを用意している。
+    m_modelMaterials.Initialize(
+        device, m_commandQueue, m_descriptorHeap, modelData.materials);
+
     // (2) 床は形が単純なのでコードで作る。
-    m_floor.Initialize(
-        device,
-        m_commandQueue,
-        CreatePlane(kFloorHalfExtent, kFloorHeight, kFloorUvTiling),
-        L"床");
+    MeshData floorData = CreatePlane(kFloorHalfExtent, kFloorHeight, kFloorUvTiling);
+    m_floor.Initialize(device, m_commandQueue, floorData, L"床");
+
+    // 床の材質は 1 つだけ。テクスチャは画像ファイルから読む。
+    m_floorMaterials.Initialize(device, m_commandQueue, m_descriptorHeap,
+                                floorData.materials, CreateFloorTexture());
+}
+
+
+/// <summary>
+/// 1 つのメッシュを、材質ごとに区切って描きます。
+/// </summary>
+void Renderer::RecordMeshWithMaterials(ID3D12GraphicsCommandList* commandList,
+                                       const Mesh& mesh,
+                                       const MaterialSet& materials)
+{
+    for (const SubMesh& subMesh : mesh.SubMeshes())
+    {
+        // 材質の番号が範囲外なら 0 番で代用する。壊れたファイルでも落ちないように。
+        const uint32_t materialIndex =
+            (subMesh.materialIndex < materials.Count()) ? subMesh.materialIndex : 0;
+
+        m_meshPipeline.BindMaterial(commandList,
+                                    materials.ConstantAddress(materialIndex),
+                                    materials.TextureView(materialIndex));
+
+        mesh.RecordDrawCommands(commandList, subMesh.indexOffset, subMesh.indexCount);
+    }
 }
 
 
@@ -341,12 +362,12 @@ void Renderer::RecordMeshDrawCommands(uint32_t frameIndex)
 {
     ID3D12GraphicsCommandList* commandList = m_commandList.Get();
 
-    // オブジェクトごとに変えるのは定数バッファと頂点バッファだけ。
+    // オブジェクトごとに定数を差し替え、その中で材質ごとにさらに区切って描く。
     m_meshPipeline.BindObject(commandList, frameIndex, kFloorObjectIndex);
-    m_floor.RecordDrawCommands(commandList);
+    RecordMeshWithMaterials(commandList, m_floor, m_floorMaterials);
 
     m_meshPipeline.BindObject(commandList, frameIndex, kModelObjectIndex);
-    m_model.RecordDrawCommands(commandList);
+    RecordMeshWithMaterials(commandList, m_model, m_modelMaterials);
 }
 
 
@@ -365,7 +386,12 @@ void Renderer::RecordShadowPass(uint32_t frameIndex)
 
     // ★ 画面を描くときと同じメッシュを、同じワールド行列で描く。
     //   ここがずれると、物体と影の位置が合わなくなる。
-    RecordMeshDrawCommands(frameIndex);
+    //   影の形しか要らないので、材質で区切らずメッシュ全体を一度に描く。
+    m_meshPipeline.BindObject(commandList, frameIndex, kFloorObjectIndex);
+    m_floor.RecordDrawCommands(commandList);
+
+    m_meshPipeline.BindObject(commandList, frameIndex, kModelObjectIndex);
+    m_model.RecordDrawCommands(commandList);
 
     // テクスチャとして読める状態に戻す。
     m_shadowMap.EndRender(commandList);

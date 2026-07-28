@@ -54,6 +54,21 @@ public:
     /// </remarks>
     void RecordDrawCommands(ID3D12GraphicsCommandList* commandList) const;
 
+    /// <summary>
+    /// この形状の一部（サブメッシュ）を描く命令を記録します。
+    /// </summary>
+    /// <param name="commandList">記録先のコマンドリスト。</param>
+    /// <param name="indexOffset">インデックス配列の何番目から描くか。</param>
+    /// <param name="indexCount">何個ぶんのインデックスを使うか。</param>
+    /// <remarks>材質が変わるたびに描画を区切るために使います。</remarks>
+    void RecordDrawCommands(ID3D12GraphicsCommandList* commandList,
+                            uint32_t indexOffset,
+                            uint32_t indexCount) const;
+
+    /// <summary>この形状が持つサブメッシュの一覧を返します。</summary>
+    /// <returns>サブメッシュの並び。</returns>
+    const std::vector<SubMesh>& SubMeshes() const noexcept { return m_subMeshes; }
+
     /// <summary>描画するインデックスの個数を返します。</summary>
     /// <returns>インデックス数。</returns>
     uint32_t IndexCount() const { return m_indexCount; }
@@ -73,6 +88,9 @@ private:
 
     /// <summary>描画するインデックスの個数。</summary>
     uint32_t m_indexCount = 0;
+
+    /// <summary>材質ごとに区切った描画範囲。</summary>
+    std::vector<SubMesh> m_subMeshes;
 };
 
 } // namespace dx12

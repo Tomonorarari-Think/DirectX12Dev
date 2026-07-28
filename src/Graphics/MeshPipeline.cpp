@@ -64,6 +64,11 @@ constexpr uint32_t kTextureRootParameterIndex = 2;
 constexpr uint32_t kShadowMapRootParameterIndex = 3;
 
 /// <summary>
+/// 材質別の定数バッファを結び付けるルートパラメータの番号。
+/// </summary>
+constexpr uint32_t kMaterialConstantsRootParameterIndex = 4;
+
+/// <summary>
 /// シャドウマップを描くときに深度へ加える下駄（整数バイアス）。
 /// </summary>
 /// <remarks>
@@ -92,12 +97,7 @@ void MeshPipeline::Initialize(ID3D12Device* device,
                               DXGI_FORMAT depthStencilFormat,
                               uint32_t frameCount,
                               uint32_t maxObjectCount,
-                              DXGI_FORMAT shadowMapFormat,
-                              CommandQueue& commandQueue,
-                              DescriptorHeap& descriptorHeap,
-                              uint32_t textureWidth,
-                              uint32_t textureHeight,
-                              const std::vector<uint8_t>& texturePixels)
+                              DXGI_FORMAT shadowMapFormat)
 {
     m_maxObjectCount = maxObjectCount;
 
@@ -117,15 +117,6 @@ void MeshPipeline::Initialize(ID3D12Device* device,
     m_objectConstantBuffer.Initialize(
         device, sizeof(ObjectConstants), frameCount * maxObjectCount);
 
-    // メッシュに貼るテクスチャ。中身は呼び出し側が用意する。
-    //   画像ファイルから読むのか、コードで作るのかを、このクラスは知らない。
-    m_texture.Initialize(device,
-                         commandQueue,
-                         descriptorHeap,
-                         textureWidth,
-                         textureHeight,
-                         texturePixels);
-
     Log(L"メッシュ描画パイプラインを構築しました。");
 }
 
@@ -136,7 +127,7 @@ void MeshPipeline::Initialize(ID3D12Device* device,
 void MeshPipeline::CreateRootSignature(ID3D12Device* device)
 {
     // ルートパラメータ : シェーダーへ何を渡すかの定義。関数の引数リストに相当する。
-    D3D12_ROOT_PARAMETER rootParameters[4] = {};
+    D3D12_ROOT_PARAMETER rootParameters[5] = {};
 
     // 0 番 : フレーム共通の定数バッファ（カメラとライト）
     rootParameters[kFrameConstantsRootParameterIndex].ParameterType =
@@ -198,6 +189,15 @@ void MeshPipeline::CreateRootSignature(ID3D12Device* device)
     rootParameters[kShadowMapRootParameterIndex].DescriptorTable.pDescriptorRanges =
         &shadowRange;
     rootParameters[kShadowMapRootParameterIndex].ShaderVisibility =
+        D3D12_SHADER_VISIBILITY_PIXEL;
+
+    // 4 番 : 材質別の定数バッファ（基本色）
+    //   サブメッシュを描く直前に差し替える。読むのはピクセルシェーダーだけ。
+    rootParameters[kMaterialConstantsRootParameterIndex].ParameterType =
+        D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameters[kMaterialConstantsRootParameterIndex].Descriptor.ShaderRegister = 2;
+    rootParameters[kMaterialConstantsRootParameterIndex].Descriptor.RegisterSpace  = 0;
+    rootParameters[kMaterialConstantsRootParameterIndex].ShaderVisibility =
         D3D12_SHADER_VISIBILITY_PIXEL;
 
     // 静的サンプラー (Static Sampler)
@@ -718,13 +718,9 @@ void MeshPipeline::Bind(ID3D12GraphicsCommandList* commandList,
         kFrameConstantsRootParameterIndex,
         m_frameConstantBuffer.GpuAddress(frameIndex));
 
-    // ★ 前提として、呼び出し側が SetDescriptorHeaps() で
-    //   シェーダー可視ヒープを設定しておく必要があります（Renderer が行う）。
-    commandList->SetGraphicsRootDescriptorTable(
-        kTextureRootParameterIndex,
-        m_texture.ShaderResourceView());
-
     // シャドウマップは、直前のパスで書き終えたものをそのまま読む。
+    //   ★ 前提として、呼び出し側が SetDescriptorHeaps() で
+    //     シェーダー可視ヒープを設定しておく必要があります（Renderer が行う）。
     commandList->SetGraphicsRootDescriptorTable(
         kShadowMapRootParameterIndex, shadowMapView);
 
@@ -750,6 +746,21 @@ void MeshPipeline::BindShadowPass(ID3D12GraphicsCommandList* commandList,
         m_frameConstantBuffer.GpuAddress(frameIndex));
 
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
+
+
+/// <summary>
+/// これから描くサブメッシュの材質を結び付けます。
+/// </summary>
+void MeshPipeline::BindMaterial(ID3D12GraphicsCommandList* commandList,
+                                D3D12_GPU_VIRTUAL_ADDRESS constantAddress,
+                                D3D12_GPU_DESCRIPTOR_HANDLE textureView) const
+{
+    commandList->SetGraphicsRootConstantBufferView(
+        kMaterialConstantsRootParameterIndex, constantAddress);
+
+    commandList->SetGraphicsRootDescriptorTable(
+        kTextureRootParameterIndex, textureView);
 }
 
 

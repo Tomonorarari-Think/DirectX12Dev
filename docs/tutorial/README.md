@@ -37,6 +37,7 @@ Unity で `GameObject` にマテリアルを付ければ絵が出ますが、
 | 15 | [モデルを読み込む：OBJ](15_モデルを読み込む_OBJ.md) | テキスト形式の解析、索引の組、右手系変換 |
 | 16 | [モデルを読み込む：glTF](16_モデルを読み込む_glTF.md) | JSON ＋ バイナリ、アクセサ、ノードの変換 |
 | 17 | [画像を読み込む：WIC](17_画像を読み込む_WIC.md) | PNG / JPEG のデコード、COM、ストライド |
+| 18 | [マテリアル](18_マテリアル.md) | サブメッシュ、glTF の materials、OBJ の .mtl |
 
 ```mermaid
 flowchart LR
@@ -56,10 +57,11 @@ flowchart LR
     N --> O["15 OBJ 読み込み"]
     O --> P["16 glTF 読み込み"]
     P --> Q["17 画像読み込み"]
+    Q --> R["18 マテリアル"]
 
     style A fill:#dafbe1,stroke:#0d4f21
     style F fill:#ddf4ff,stroke:#0a4f9e
-    style Q fill:#ddf4ff,stroke:#0a4f9e
+    style R fill:#ddf4ff,stroke:#0a4f9e
 ```
 
 ## 関連する資料

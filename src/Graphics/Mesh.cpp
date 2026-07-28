@@ -56,9 +56,11 @@ void Mesh::Initialize(ID3D12Device* device,
     m_indexBufferView.SizeInBytes    = indexBufferSize;
 
     m_indexCount = static_cast<uint32_t>(meshData.indices.size());
+    m_subMeshes  = meshData.subMeshes;
 
-    Log(std::format(L"メッシュ「{}」を作成しました（頂点 {} 個 / インデックス {} 個）",
-                    debugName, meshData.vertices.size(), m_indexCount));
+    Log(std::format(
+        L"メッシュ「{}」を作成しました（頂点 {} 個 / インデックス {} 個 / サブメッシュ {} 個）",
+        debugName, meshData.vertices.size(), m_indexCount, m_subMeshes.size()));
 }
 
 
@@ -76,6 +78,22 @@ void Mesh::RecordDrawCommands(ID3D12GraphicsCommandList* commandList) const
 
     // インデックスの順に頂点を引いて描く。
     commandList->DrawIndexedInstanced(m_indexCount, 1, 0, 0, 0);
+}
+
+
+/// <summary>
+/// この形状の一部（サブメッシュ）を描く命令を記録します。
+/// </summary>
+void Mesh::RecordDrawCommands(ID3D12GraphicsCommandList* commandList,
+                              uint32_t indexOffset,
+                              uint32_t indexCount) const
+{
+    commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+    commandList->IASetIndexBuffer(&m_indexBufferView);
+
+    // 第 3 引数が「何番目のインデックスから始めるか」。
+    //   頂点バッファは共有したまま、描く範囲だけを変えられる。
+    commandList->DrawIndexedInstanced(indexCount, 1, indexOffset, 0, 0);
 }
 
 } // namespace dx12

@@ -240,6 +240,7 @@
     <ClCompile Include="src\Graphics\SwapChain.cpp" />
     <ClCompile Include="src\Graphics\Geometry.cpp" />
     <ClCompile Include="src\Graphics\Mesh.cpp" />
+    <ClCompile Include="src\Graphics\MaterialSet.cpp" />
     <ClCompile Include="src\Graphics\MeshPipeline.cpp" />
     <ClCompile Include="src\Graphics\ShadowMap.cpp" />
   </ItemGroup>
@@ -276,6 +277,7 @@
     <ClInclude Include="src\Graphics\SwapChain.h" />
     <ClInclude Include="src\Graphics\Geometry.h" />
     <ClInclude Include="src\Graphics\Mesh.h" />
+    <ClInclude Include="src\Graphics\MaterialSet.h" />
     <ClInclude Include="src\Graphics\MeshPipeline.h" />
     <ClInclude Include="src\Graphics\ShadowMap.h" />
   </ItemGroup>

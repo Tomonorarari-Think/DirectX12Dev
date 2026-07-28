@@ -9,7 +9,6 @@
 
 #include "../Common/GraphicsCommon.h"
 #include "ConstantBuffer.h"
-#include "Texture2D.h"
 
 // DirectXMath : Windows SDK に同梱される数学ライブラリ。
 #include <DirectXMath.h>
@@ -105,23 +104,18 @@ public:
     /// <param name="commandQueue">
     /// テクスチャ転送に使うキュー。転送の完了まで待機します。
     /// </param>
-    /// <param name="descriptorHeap">テクスチャの SRV を登録するシェーダー可視ヒープ。</param>
-    /// <param name="textureWidth">貼り付けるテクスチャの横のピクセル数。</param>
-    /// <param name="textureHeight">貼り付けるテクスチャの縦のピクセル数。</param>
-    /// <param name="texturePixels">RGBA8 のピクセル列。</param>
     /// <exception cref="HrException">いずれかの生成に失敗した場合。</exception>
     /// <exception cref="std::runtime_error">シェーダーファイルが見つからない場合。</exception>
+    /// <remarks>
+    /// テクスチャはこのクラスが持ちません。材質ごとに違うため `MaterialSet` が持ち、
+    /// 描く直前に `BindMaterial` で差し替えます。
+    /// </remarks>
     void Initialize(ID3D12Device* device,
                     DXGI_FORMAT renderTargetFormat,
                     DXGI_FORMAT depthStencilFormat,
                     uint32_t frameCount,
                     uint32_t maxObjectCount,
-                    DXGI_FORMAT shadowMapFormat,
-                    CommandQueue& commandQueue,
-                    DescriptorHeap& descriptorHeap,
-                    uint32_t textureWidth,
-                    uint32_t textureHeight,
-                    const std::vector<uint8_t>& texturePixels);
+                    DXGI_FORMAT shadowMapFormat);
 
     /// <summary>
     /// 平行光源が進む向きを返します。
@@ -193,6 +187,20 @@ public:
     void BindObject(ID3D12GraphicsCommandList* commandList,
                     uint32_t frameIndex,
                     uint32_t objectIndex) const;
+
+    /// <summary>
+    /// これから描くサブメッシュの材質を結び付けます。
+    /// </summary>
+    /// <param name="commandList">記録先のコマンドリスト。</param>
+    /// <param name="constantAddress">材質の定数バッファの GPU アドレス。</param>
+    /// <param name="textureView">材質の基本色テクスチャの SRV。</param>
+    /// <remarks>
+    /// 材質が変わるたびに呼びます。差し替えるのは定数バッファ 1 本と
+    /// ディスクリプタテーブル 1 つだけなので、PSO の切り替えより遥かに軽い処理です。
+    /// </remarks>
+    void BindMaterial(ID3D12GraphicsCommandList* commandList,
+                      D3D12_GPU_VIRTUAL_ADDRESS constantAddress,
+                      D3D12_GPU_DESCRIPTOR_HANDLE textureView) const;
 
 private:
     /// <summary>
@@ -291,11 +299,6 @@ private:
     /// 変換行列を渡す定数バッファ（フレーム数 × オブジェクト数ぶんのスロット）。
     /// </summary>
     ConstantBuffer m_objectConstantBuffer;
-
-    /// <summary>
-    /// メッシュに貼るテクスチャ（市松模様）。
-    /// </summary>
-    Texture2D m_texture;
 
     /// <summary>1 フレームで描けるオブジェクトの上限。</summary>
     uint32_t m_maxObjectCount = 0;
