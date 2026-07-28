@@ -44,8 +44,8 @@ flowchart TD
     C -. 選んだ GPU が必要 .-> D
     D -. デバイスが必要 .-> E
 
-    style A fill:#fff8c5,stroke:#8a6d00
-    style D fill:#ddf4ff,stroke:#0a4f9e
+    style A fill:#fff8c5,stroke:#8a6d00,color:#1f2328
+    style D fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
 ```
 
 ---
@@ -113,8 +113,8 @@ flowchart LR
     A1 --> B1
     B1 --> A2
 
-    style DXGI fill:#fff8c5,stroke:#8a6d00
-    style D3D fill:#ddf4ff,stroke:#0a4f9e
+    style DXGI fill:#fff8c5,stroke:#8a6d00,color:#1f2328
+    style D3D fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
 ```
 
 「描く」のが Direct3D、「画面に出す」のが DXGI と覚えると整理できます。
@@ -215,7 +215,7 @@ flowchart LR
     C --> D["不要になったら -1<br/>Release()"]
     D --> E["0 になったら破棄"]
 
-    style E fill:#ffebe9,stroke:#9a1420
+    style E fill:#ffebe9,stroke:#9a1420,color:#1f2328
 ```
 
 `Release()` を呼び忘れるとメモリリークします。

@@ -26,19 +26,19 @@
   <text class="txt cap" x="20" y="92">ファイルの中身</text>
 
   <rect class="pos" x="20" y="104" width="200" height="86" rx="4"/>
-  <text class="txt cap" x="34" y="126" fill="#0a4f9e">v — 座標</text>
+  <text class="txt cap" x="34" y="126" fill="#1f2328">v — 座標</text>
   <text class="txt sub mono" x="34" y="148">v 1.0 0.0 0.0   ← 1 番</text>
   <text class="txt sub mono" x="34" y="168">v 0.0 1.0 0.0   ← 2 番</text>
   <text class="txt sub mono" x="34" y="184">…</text>
 
   <rect class="uv" x="240" y="104" width="200" height="86" rx="4"/>
-  <text class="txt cap" x="254" y="126" fill="#0d4f21">vt — UV</text>
+  <text class="txt cap" x="254" y="126" fill="#1f2328">vt — UV</text>
   <text class="txt sub mono" x="254" y="148">vt 0.0 0.0      ← 1 番</text>
   <text class="txt sub mono" x="254" y="168">vt 1.0 0.0      ← 2 番</text>
   <text class="txt sub mono" x="254" y="184">…</text>
 
   <rect class="nrm" x="460" y="104" width="200" height="86" rx="4"/>
-  <text class="txt cap" x="474" y="126" fill="#7a3200">vn — 法線</text>
+  <text class="txt cap" x="474" y="126" fill="#1f2328">vn — 法線</text>
   <text class="txt sub mono" x="474" y="148">vn 0.0 0.0 1.0  ← 1 番</text>
   <text class="txt sub mono" x="474" y="168">vn 0.0 1.0 0.0  ← 2 番</text>
   <text class="txt sub mono" x="474" y="184">…</text>

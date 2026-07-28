@@ -39,10 +39,10 @@
   <line class="face" x1="60" y1="255" x2="380" y2="255"/>
 
   <line class="nrm" x1="220" y1="255" x2="220" y2="120" marker-end="url(#mn)"/>
-  <text class="txt cap" x="230" y="128" fill="#0d4f21">N（法線）</text>
+  <text class="txt cap" x="230" y="128" fill="#1f2328">N（法線）</text>
 
   <line class="lit" x1="220" y1="255" x2="115" y2="150" marker-end="url(#ml)"/>
-  <text class="txt cap" text-anchor="end" x="112" y="140" fill="#7a3200">L（光源へ）</text>
+  <text class="txt cap" text-anchor="end" x="112" y="140" fill="#1f2328">L（光源へ）</text>
 
   <path class="arc" d="M 220 200 A 55 55 0 0 0 181 216"/>
   <text class="txt sub" x="186" y="190">θ</text>
@@ -63,16 +63,16 @@
   <line class="face" x1="75" y1="475" x2="365" y2="525"/>
 
   <line class="nrm" x1="220" y1="500" x2="245" y2="352" marker-end="url(#mn)"/>
-  <text class="txt cap" x="254" y="350" fill="#0d4f21">N</text>
+  <text class="txt cap" x="254" y="350" fill="#1f2328">N</text>
 
   <line class="lit" x1="220" y1="500" x2="151" y2="408" marker-end="url(#ml)"/>
-  <text class="txt cap" text-anchor="end" x="146" y="400" fill="#7a3200">L</text>
+  <text class="txt cap" text-anchor="end" x="146" y="400" fill="#1f2328">L</text>
 
   <line class="eye" x1="220" y1="500" x2="289" y2="408" marker-end="url(#me)"/>
-  <text class="txt cap" x="295" y="404" fill="#0a4f9e">V（視点へ）</text>
+  <text class="txt cap" x="295" y="404" fill="#1f2328">V（視点へ）</text>
 
   <line class="hlf" x1="220" y1="500" x2="220" y2="380" marker-end="url(#mh)"/>
-  <text class="txt cap" text-anchor="end" x="208" y="374" fill="#9a1420">H</text>
+  <text class="txt cap" text-anchor="end" x="208" y="374" fill="#1f2328">H</text>
 
   <circle cx="220" cy="500" r="4.5" fill="#1f2328"/>
 

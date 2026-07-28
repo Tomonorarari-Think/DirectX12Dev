@@ -48,8 +48,8 @@ flowchart LR
     A1 --> B1
     B1 --> A2
 
-    style DXGI fill:#fff8c5,stroke:#8a6d00
-    style D3D fill:#ddf4ff,stroke:#0a4f9e
+    style DXGI fill:#fff8c5,stroke:#8a6d00,color:#1f2328
+    style D3D fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
 ```
 
 ### アダプタ (IDXGIAdapter)
@@ -481,9 +481,9 @@ flowchart TD
     F --> G["コマンドを実行し、完了を待つ"]
     G --> H["中継バッファを破棄してよい"]
 
-    style C fill:#fff8c5,stroke:#8a6d00
-    style F fill:#ffebe9,stroke:#9a1420
-    style G fill:#ffebe9,stroke:#9a1420
+    style C fill:#fff8c5,stroke:#8a6d00,color:#1f2328
+    style F fill:#ffebe9,stroke:#9a1420,color:#1f2328
+    style G fill:#ffebe9,stroke:#9a1420,color:#1f2328
 ```
 
 **行ピッチ (RowPitch) の落とし穴:**
@@ -567,9 +567,9 @@ flowchart TD
     D --> E["深度バッファも z で更新<br/>（DepthWriteMask = ALL）"]
     C -- "不合格（奥）" --> F["ピクセルを捨てる<br/>シェーダーすら実行しない（Early-Z）"]
 
-    style D fill:#dafbe1,stroke:#0d4f21
-    style E fill:#dafbe1,stroke:#0d4f21
-    style F fill:#ffebe9,stroke:#9a1420
+    style D fill:#dafbe1,stroke:#0d4f21,color:#1f2328
+    style E fill:#dafbe1,stroke:#0d4f21,color:#1f2328
+    style F fill:#ffebe9,stroke:#9a1420,color:#1f2328
 ```
 
 ### 深度テストの設定（PSO の DepthStencilState）
