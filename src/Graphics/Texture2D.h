@@ -26,6 +26,16 @@ public:
     static constexpr DXGI_FORMAT kFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
     /// <summary>
+    /// 色として扱う画像のピクセル形式。
+    /// </summary>
+    /// <remarks>
+    /// PNG や JPEG の色は sRGB で記録されています。この形式で読むと、
+    /// GPU がシェーダーへ渡す前にリニアへ戻してくれます。
+    /// 法線マップや粗さのように「色ではない」画像には使ってはいけません。
+    /// </remarks>
+    static constexpr DXGI_FORMAT kColorFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+
+    /// <summary>
     /// 1 ピクセルあたりのバイト数（RGBA 各 1 バイト）。
     /// </summary>
     static constexpr uint32_t kBytesPerPixel = 4;
@@ -59,6 +69,10 @@ public:
     /// <param name="width">テクスチャの幅（ピクセル）。</param>
     /// <param name="height">テクスチャの高さ（ピクセル）。</param>
     /// <param name="pixels">RGBA 順に並んだピクセル列。要素数は width × height × 4。</param>
+    /// <param name="isColorTexture">
+    /// 見た目の色を表す画像なら `true`。sRGB として読み、リニアへ戻します。
+    /// 法線マップなど数値として使う画像は `false` にしてください。
+    /// </param>
     /// <exception cref="HrException">リソースの生成または転送に失敗した場合。</exception>
     /// <remarks>
     /// この関数は内部で GPU の完了を待ちます（同期処理）。 起動時に一度だけ呼ぶことを想定してお
@@ -69,7 +83,8 @@ public:
                     DescriptorHeap& descriptorHeap,
                     uint32_t width,
                     uint32_t height,
-                    const std::vector<uint8_t>& pixels);
+                    const std::vector<uint8_t>& pixels,
+                    bool isColorTexture = true);
 
     /// <summary>
     /// シェーダーへ渡す GPU ディスクリプタハンドルを取得します。

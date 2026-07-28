@@ -23,7 +23,8 @@ void Texture2D::Initialize(ID3D12Device* device,
                            DescriptorHeap& descriptorHeap,
                            uint32_t width,
                            uint32_t height,
-                           const std::vector<uint8_t>& pixels)
+                           const std::vector<uint8_t>& pixels,
+                          bool isColorTexture)
 {
     assert(device != nullptr);
     assert(width > 0 && height > 0);
@@ -51,7 +52,10 @@ void Texture2D::Initialize(ID3D12Device* device,
     // MipLevels : 縮小版を何段作るか。1 は「原寸のみ」。
     textureDesc.MipLevels          = 1;
 
-    textureDesc.Format             = kFormat;
+    // 色の画像は sRGB として作る。GPU が読み出し時にリニアへ戻してくれる。
+    const DXGI_FORMAT format = isColorTexture ? kColorFormat : kFormat;
+
+    textureDesc.Format             = format;
     textureDesc.SampleDesc.Count   = 1;
     textureDesc.SampleDesc.Quality = 0;
 
@@ -149,7 +153,7 @@ void Texture2D::Initialize(ID3D12Device* device,
     const uint32_t srvIndex = descriptorHeap.Allocate();
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.Format        = kFormat;
+    srvDesc.Format        = format;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 
     // Shader4ComponentMapping

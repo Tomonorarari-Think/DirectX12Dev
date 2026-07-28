@@ -50,7 +50,8 @@ void MaterialSet::Initialize(ID3D12Device* device,
 
     auto fallbackTexture2D = std::make_unique<Texture2D>();
     fallbackTexture2D->Initialize(device, commandQueue, descriptorHeap,
-                                  fallback.width, fallback.height, fallback.pixels);
+                                  fallback.width, fallback.height, fallback.pixels,
+                                  /* isColorTexture */ true);
 
     m_textures.push_back(std::move(fallbackTexture2D));
 
@@ -70,10 +71,12 @@ void MaterialSet::Initialize(ID3D12Device* device,
         }
 
         auto texture = std::make_unique<Texture2D>();
+        // 基本色テクスチャは「見た目の色」なので sRGB として読む。
         texture->Initialize(device, commandQueue, descriptorHeap,
                             material.baseColorTexture.width,
                             material.baseColorTexture.height,
-                            material.baseColorTexture.pixels);
+                            material.baseColorTexture.pixels,
+                            /* isColorTexture */ true);
 
         m_textureIndices.push_back(static_cast<uint32_t>(m_textures.size()));
         m_textures.push_back(std::move(texture));
