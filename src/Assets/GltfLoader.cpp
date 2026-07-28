@@ -536,6 +536,17 @@ std::vector<MaterialData> LoadMaterials(const Document& document,
                 }
             }
 
+            // ★ glTF の既定値はどちらも 1.0。
+            //   つまり「何も書かなければ、粗い金属」という扱いになる。
+            //   書き出し側は必ず指定するので実害は無いが、規格どおりに合わせておく。
+            material.metallicFactor = static_cast<float>(
+                pbr->Member("metallicFactor")
+                    ? pbr->Member("metallicFactor")->AsNumber(1.0) : 1.0);
+
+            material.roughnessFactor = static_cast<float>(
+                pbr->Member("roughnessFactor")
+                    ? pbr->Member("roughnessFactor")->AsNumber(1.0) : 1.0);
+
             // baseColorTexture は textures を経由して images に辿り着く。
             if (const json::Value* baseColorTexture = pbr->Member("baseColorTexture"))
             {
@@ -559,6 +570,32 @@ std::vector<MaterialData> LoadMaterials(const Document& document,
                     {
                         // 画像が読めなくても、基本色だけで描き続けられるようにする。
                         LogError(L"glTF の画像を展開できませんでした。基本色のみ使います。");
+                    }
+                }
+            }
+
+            // 金属らしさと粗さのテクスチャ。緑が粗さ、青が金属らしさ。
+            if (const json::Value* mrTexture = pbr->Member("metallicRoughnessTexture"))
+            {
+                const int textureIndex = mrTexture->Member("index")
+                                           ? mrTexture->Member("index")->AsInt(-1) : -1;
+
+                if (textures != nullptr && textureIndex >= 0)
+                {
+                    const json::Value& texture =
+                        textures->At(static_cast<size_t>(textureIndex));
+
+                    const int imageIndex = texture.Member("source")
+                                             ? texture.Member("source")->AsInt(-1) : -1;
+
+                    try
+                    {
+                        material.metallicRoughnessTexture =
+                            LoadImageAt(document, imageIndex, baseDirectory);
+                    }
+                    catch (const std::exception&)
+                    {
+                        LogError(L"glTF の金属らしさ・粗さの画像を展開できませんでした。");
                     }
                 }
             }

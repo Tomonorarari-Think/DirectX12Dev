@@ -318,7 +318,8 @@ void Renderer::RecordMeshWithMaterials(ID3D12GraphicsCommandList* commandList,
 
         m_meshPipeline.BindMaterial(commandList,
                                     materials.ConstantAddress(materialIndex),
-                                    materials.TextureView(materialIndex));
+                                    materials.TextureView(materialIndex),
+                                    materials.MetallicRoughnessView(materialIndex));
 
         mesh.RecordDrawCommands(commandList, subMesh.indexOffset, subMesh.indexCount);
     }
