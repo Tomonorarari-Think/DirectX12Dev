@@ -207,7 +207,7 @@
         ※ .lib は「DLL の呼び出し方が書かれた案内書」で、実体の DLL は
           Windows に標準搭載されています（別途配布は不要）。
       -->
-      <AdditionalDependencies>d3d12.lib;dxgi.lib;d3dcompiler.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d12.lib;dxgi.lib;d3dcompiler.lib;dxguid.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
 
@@ -221,6 +221,7 @@
     <ClCompile Include="src\App\Input.cpp" />
     <ClCompile Include="src\App\CameraController.cpp" />
     <ClCompile Include="src\Assets\GltfLoader.cpp" />
+    <ClCompile Include="src\Assets\ImageLoader.cpp" />
     <ClCompile Include="src\Assets\Json.cpp" />
     <ClCompile Include="src\Assets\ModelLoader.cpp" />
     <ClCompile Include="src\Assets\ObjLoader.cpp" />
@@ -255,12 +256,14 @@
     <ClInclude Include="src\App\Input.h" />
     <ClInclude Include="src\App\CameraController.h" />
     <ClInclude Include="src\Assets\GltfLoader.h" />
+    <ClInclude Include="src\Assets\ImageLoader.h" />
     <ClInclude Include="src\Assets\Json.h" />
     <ClInclude Include="src\Assets\ModelLoader.h" />
     <ClInclude Include="src\Assets\ObjLoader.h" />
     <ClInclude Include="src\App\Camera.h" />
     <ClInclude Include="src\App\Window.h" />
     <ClInclude Include="src\Common\FrameTimer.h" />
+    <ClInclude Include="src\Common\ComInitializer.h" />
     <ClInclude Include="src\Common\GraphicsCommon.h" />
     <ClInclude Include="src\Graphics\CommandQueue.h" />
     <ClInclude Include="src\Graphics\ConstantBuffer.h" />

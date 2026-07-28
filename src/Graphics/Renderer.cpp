@@ -101,6 +101,21 @@ constexpr uint32_t kShadowMapSize = 2048;
 /// 影を落とす範囲の半径。この球に収まる範囲だけがシャドウマップに入ります。
 /// </summary>
 constexpr float kSceneRadius = 3.6f;
+
+/// <summary>
+/// メッシュに貼る画像（プロジェクトルートからの相対パス）。
+/// </summary>
+constexpr const wchar_t* kTextureRelativePath = L"assets/textures/uv-grid.png";
+
+/// <summary>
+/// 画像を読めなかったときに代わりに作る市松模様の、一辺のピクセル数。
+/// </summary>
+constexpr uint32_t kFallbackTextureSize = 256;
+
+/// <summary>
+/// 代用する市松模様 1 マスのピクセル数。
+/// </summary>
+constexpr uint32_t kFallbackTextureCellSize = 32;
 } // namespace
 
 
@@ -157,6 +172,8 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
 
     // (7) メッシュ描画用のパイプライン
     //     PSO は描画先の形式（RTV / DSV）を知っている必要があるため両方渡す。
+    const assets::ImageData baseTexture = CreateBaseTexture();
+
     m_meshPipeline.Initialize(device,
                               SwapChain::kBackBufferFormat,
                               DepthBuffer::kFormat,
@@ -164,7 +181,10 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
                               kObjectCount,
                               ShadowMap::kDepthStencilViewFormat,
                               m_commandQueue,
-                              m_descriptorHeap);
+                              m_descriptorHeap,
+                              baseTexture.width,
+                              baseTexture.height,
+                              baseTexture.pixels);
 
     // (8) 描くもの（形状データ）
     CreateSceneMeshes();
@@ -211,6 +231,33 @@ void Renderer::CreateCommandObjects()
 
     Log(std::format(L"コマンドアロケータ {} 個とコマンドリストを生成しました。",
                     SwapChain::kBackBufferCount));
+}
+
+
+/// <summary>
+/// メッシュに貼るテクスチャを用意します。
+/// </summary>
+assets::ImageData Renderer::CreateBaseTexture()
+{
+    try
+    {
+        return assets::LoadImageFile(ResolveAssetPath(kTextureRelativePath));
+    }
+    catch (const std::exception& e)
+    {
+        // 画像が無くても動き続けられるよう、コードで市松模様を作る。
+        LogError(L"画像の読み込みに失敗したため、市松模様で代用します。");
+        ::OutputDebugStringA(e.what());
+        ::OutputDebugStringA("\n");
+
+        assets::ImageData fallback;
+        fallback.width  = kFallbackTextureSize;
+        fallback.height = kFallbackTextureSize;
+        fallback.pixels = CreateCheckerboardPixels(
+            kFallbackTextureSize, kFallbackTextureSize, kFallbackTextureCellSize);
+
+        return fallback;
+    }
 }
 
 

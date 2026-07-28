@@ -15,6 +15,7 @@
 #include "App/CameraController.h"
 #include "App/Input.h"
 #include "App/Window.h"
+#include "Common/ComInitializer.h"
 #include "Common/GraphicsCommon.h"
 #include "Graphics/Renderer.h"
 
@@ -78,6 +79,11 @@ int main()
     try
     {
         dx12::Log(L"===== DirectX 12 Dev : Interactive Camera =====");
+
+        // (0) COM の初期化
+        //   画像の読み込みに使う WIC が COM のオブジェクトなので、
+        //   それより前に済ませておく必要があります。
+        const dx12::ComInitializer comInitializer;
 
         // (1) ウィンドウの生成
         dx12::Window window;

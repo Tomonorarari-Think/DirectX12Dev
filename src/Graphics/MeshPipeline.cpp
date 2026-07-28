@@ -81,15 +81,6 @@ constexpr INT kShadowDepthBias = 3000;
 /// </remarks>
 constexpr float kShadowSlopeScaledDepthBias = 2.5f;
 
-/// <summary>
-/// 生成するテクスチャの一辺のピクセル数。
-/// </summary>
-constexpr uint32_t kTextureSize = 256;
-
-/// <summary>
-/// 市松模様 1 マスのピクセル数。
-/// </summary>
-constexpr uint32_t kTextureCellSize = 32;
 } // namespace
 
 
@@ -103,7 +94,10 @@ void MeshPipeline::Initialize(ID3D12Device* device,
                               uint32_t maxObjectCount,
                               DXGI_FORMAT shadowMapFormat,
                               CommandQueue& commandQueue,
-                              DescriptorHeap& descriptorHeap)
+                              DescriptorHeap& descriptorHeap,
+                              uint32_t textureWidth,
+                              uint32_t textureHeight,
+                              const std::vector<uint8_t>& texturePixels)
 {
     m_maxObjectCount = maxObjectCount;
 
@@ -123,13 +117,14 @@ void MeshPipeline::Initialize(ID3D12Device* device,
     m_objectConstantBuffer.Initialize(
         device, sizeof(ObjectConstants), frameCount * maxObjectCount);
 
-    // メッシュに貼るテクスチャ。画像ファイルは使わず、市松模様をコードで生成する。
+    // メッシュに貼るテクスチャ。中身は呼び出し側が用意する。
+    //   画像ファイルから読むのか、コードで作るのかを、このクラスは知らない。
     m_texture.Initialize(device,
                          commandQueue,
                          descriptorHeap,
-                         kTextureSize,
-                         kTextureSize,
-                         CreateCheckerboardPixels(kTextureSize, kTextureSize, kTextureCellSize));
+                         textureWidth,
+                         textureHeight,
+                         texturePixels);
 
     Log(L"メッシュ描画パイプラインを構築しました。");
 }
