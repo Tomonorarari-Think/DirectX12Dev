@@ -95,6 +95,12 @@
     <ClCompile Include="src\Graphics\Renderer.cpp">
       <Filter>src\Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="src\Graphics\ShaderCompiler.cpp">
+      <Filter>src\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Graphics\SkyboxPipeline.cpp">
+      <Filter>src\Graphics</Filter>
+    </ClCompile>
     <ClCompile Include="src\Graphics\SwapChain.cpp">
       <Filter>src\Graphics</Filter>
     </ClCompile>
@@ -177,6 +183,12 @@
       <Filter>src\Graphics</Filter>
     </ClInclude>
     <ClInclude Include="src\Graphics\Renderer.h">
+      <Filter>src\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Graphics\ShaderCompiler.h">
+      <Filter>src\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Graphics\SkyboxPipeline.h">
       <Filter>src\Graphics</Filter>
     </ClInclude>
     <ClInclude Include="src\Graphics\SwapChain.h">
