@@ -7,9 +7,9 @@
 #include "CommandQueue.h"
 #include "DescriptorHeap.h"
 #include "Geometry.h"
+#include "ShaderCompiler.h"
 
 #include <cstddef>  // offsetof
-#include <cstdio>   // printf（シェーダーのコンパイルエラーをコンソールに出す）
 #include <stdexcept>
 
 namespace dx12
@@ -456,58 +456,6 @@ void MeshPipeline::CreateShadowRootSignature(ID3D12Device* device)
 
 
 /// <summary>
-/// HLSL ファイルをコンパイルして、GPU 用のバイトコードを得ます。
-/// </summary>
-ComPtr<ID3DBlob> MeshPipeline::CompileShader(const std::wstring& filePath,
-                                             const char* entryPoint,
-                                             const char* target)
-{
-    UINT compileFlags = 0;
-
-#if defined(_DEBUG)
-    // DEBUG            : シェーダーデバッガで行単位のデバッグができる情報を埋め込む
-    // SKIP_OPTIMIZATION: 最適化を行わない。変数が消えないためデバッグしやすい
-    compileFlags |= D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-    // 最高レベルの最適化を行う
-    compileFlags |= D3DCOMPILE_OPTIMIZATION_LEVEL3;
-#endif
-
-    ComPtr<ID3DBlob> shaderBlob;
-    ComPtr<ID3DBlob> errorBlob;
-
-    const HRESULT hr = ::D3DCompileFromFile(
-        filePath.c_str(),
-        nullptr,                               // マクロ定義（#define 相当）。今回は無し
-        D3D_COMPILE_STANDARD_FILE_INCLUDE,     // #include を .hlsl と同じ階層から解決する
-        entryPoint,                            // 入口となる関数名
-        target,                                // シェーダーモデル
-        compileFlags,
-        0,                                     // エフェクト用フラグ（未使用）
-        &shaderBlob,
-        &errorBlob);
-
-    if (FAILED(hr))
-    {
-        // シェーダーの文法エラーはここに出ます。
-        LogError(L"シェーダーのコンパイルに失敗しました: " + filePath);
-
-        if (errorBlob != nullptr)
-        {
-            const char* message = static_cast<const char*>(errorBlob->GetBufferPointer());
-            ::OutputDebugStringA(message);
-            ::OutputDebugStringA("\n");
-            ::printf("%s\n", message); // コンソールにも出す
-        }
-
-        DX_CHECK(hr);
-    }
-
-    return shaderBlob;
-}
-
-
-/// <summary>
 /// HLSL をコンパイルし、パイプラインステートオブジェクトを生成します。
 /// </summary>
 void MeshPipeline::CreatePipelineState(ID3D12Device* device,
@@ -521,8 +469,8 @@ void MeshPipeline::CreatePipelineState(ID3D12Device* device,
     const std::wstring shaderPath = ResolveAssetPath(kShaderRelativePath);
     Log(L"シェーダーを読み込みます: " + shaderPath);
 
-    ComPtr<ID3DBlob> vertexShader = CompileShader(shaderPath, "VSMain", "vs_5_0");
-    ComPtr<ID3DBlob> pixelShader  = CompileShader(shaderPath, "PSMain", "ps_5_0");
+    ComPtr<ID3DBlob> vertexShader = shader::Compile(shaderPath, "VSMain", "vs_5_0");
+    ComPtr<ID3DBlob> pixelShader  = shader::Compile(shaderPath, "PSMain", "ps_5_0");
 
     // (2) 入力レイアウト
     //   「頂点バッファのバイト列を、どう切り分けてシェーダーに渡すか」の定義。
@@ -703,7 +651,7 @@ void MeshPipeline::CreateShadowPipelineState(ID3D12Device* device,
 
     // ★ 頂点シェーダーだけをコンパイルする。ピクセルシェーダーは無し。
     //   色は要らず、深度だけ書ければよいため。
-    ComPtr<ID3DBlob> vertexShader = CompileShader(shaderPath, "VSShadow", "vs_5_0");
+    ComPtr<ID3DBlob> vertexShader = shader::Compile(shaderPath, "VSShadow", "vs_5_0");
 
     D3D12_RASTERIZER_DESC rasterizerDesc = {};
     rasterizerDesc.FillMode              = D3D12_FILL_MODE_SOLID;
@@ -907,6 +855,15 @@ void MeshPipeline::BindMaterial(ID3D12GraphicsCommandList* commandList,
 DirectX::XMFLOAT3 MeshPipeline::LightDirection()
 {
     return { kLightDirection[0], kLightDirection[1], kLightDirection[2] };
+}
+
+
+/// <summary>
+/// 環境光（IBL）の強さを返します。
+/// </summary>
+float MeshPipeline::AmbientIntensity()
+{
+    return kAmbientIntensity;
 }
 
 
