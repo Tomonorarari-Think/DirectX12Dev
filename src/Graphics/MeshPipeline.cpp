@@ -44,6 +44,15 @@ constexpr float kLightColor[3] = { 1.0f, 0.96f, 0.88f };
 constexpr float kAmbientIntensity = 0.25f;
 
 /// <summary>
+/// 光の強さ。
+/// </summary>
+/// <remarks>
+/// シェーダーが拡散反射を pi で割るため、そのままだと全体が 1/3 ほど暗くなります。
+/// 埋め合わせに pi を掛けています。本来は光源の物理量（ルクスなど）を入れる場所です。
+/// </remarks>
+constexpr float kLightIntensity = 3.14159265f;
+
+/// <summary>
 /// フレーム共通の定数バッファを結び付けるルートパラメータの番号。
 /// </summary>
 constexpr uint32_t kFrameConstantsRootParameterIndex = 0;
@@ -67,6 +76,11 @@ constexpr uint32_t kShadowMapRootParameterIndex = 3;
 /// 材質別の定数バッファを結び付けるルートパラメータの番号。
 /// </summary>
 constexpr uint32_t kMaterialConstantsRootParameterIndex = 4;
+
+/// <summary>
+/// 金属らしさ・粗さのテクスチャを結び付けるルートパラメータの番号。
+/// </summary>
+constexpr uint32_t kMetallicRoughnessRootParameterIndex = 5;
 
 /// <summary>
 /// シャドウマップを描くときに深度へ加える下駄（整数バイアス）。
@@ -127,7 +141,7 @@ void MeshPipeline::Initialize(ID3D12Device* device,
 void MeshPipeline::CreateRootSignature(ID3D12Device* device)
 {
     // ルートパラメータ : シェーダーへ何を渡すかの定義。関数の引数リストに相当する。
-    D3D12_ROOT_PARAMETER rootParameters[5] = {};
+    D3D12_ROOT_PARAMETER rootParameters[6] = {};
 
     // 0 番 : フレーム共通の定数バッファ（カメラとライト）
     rootParameters[kFrameConstantsRootParameterIndex].ParameterType =
@@ -198,6 +212,24 @@ void MeshPipeline::CreateRootSignature(ID3D12Device* device)
     rootParameters[kMaterialConstantsRootParameterIndex].Descriptor.ShaderRegister = 2;
     rootParameters[kMaterialConstantsRootParameterIndex].Descriptor.RegisterSpace  = 0;
     rootParameters[kMaterialConstantsRootParameterIndex].ShaderVisibility =
+        D3D12_SHADER_VISIBILITY_PIXEL;
+
+    // 5 番 : 金属らしさ・粗さのテクスチャ（ディスクリプタテーブル）
+    D3D12_DESCRIPTOR_RANGE metallicRoughnessRange = {};
+    metallicRoughnessRange.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    metallicRoughnessRange.NumDescriptors     = 1;
+    metallicRoughnessRange.BaseShaderRegister = 2;   // HLSL の register(t2) に対応
+    metallicRoughnessRange.RegisterSpace      = 0;
+    metallicRoughnessRange.OffsetInDescriptorsFromTableStart =
+        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    rootParameters[kMetallicRoughnessRootParameterIndex].ParameterType =
+        D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParameters[kMetallicRoughnessRootParameterIndex]
+        .DescriptorTable.NumDescriptorRanges = 1;
+    rootParameters[kMetallicRoughnessRootParameterIndex]
+        .DescriptorTable.pDescriptorRanges = &metallicRoughnessRange;
+    rootParameters[kMetallicRoughnessRootParameterIndex].ShaderVisibility =
         D3D12_SHADER_VISIBILITY_PIXEL;
 
     // 静的サンプラー (Static Sampler)
@@ -667,7 +699,11 @@ void MeshPipeline::UpdateFrameConstants(uint32_t frameIndex,
     XMStoreFloat4(&constants.lightDirection, lightDirection);
 
     // w には環境光の強さを同居させている（16 バイトの空きを無駄にしないため）。
-    constants.lightColor = { kLightColor[0], kLightColor[1], kLightColor[2],
+    //   rgb には強さを掛けておく。シェーダー側で拡散反射を pi で割るため、
+    //   その埋め合わせに pi 相当の値を使っている。
+    constants.lightColor = { kLightColor[0] * kLightIntensity,
+                             kLightColor[1] * kLightIntensity,
+                             kLightColor[2] * kLightIntensity,
                              kAmbientIntensity };
 
     constants.cameraPosition = { cameraPosition.x, cameraPosition.y, cameraPosition.z, 1.0f };
@@ -757,13 +793,17 @@ void MeshPipeline::BindShadowPass(ID3D12GraphicsCommandList* commandList,
 /// </summary>
 void MeshPipeline::BindMaterial(ID3D12GraphicsCommandList* commandList,
                                 D3D12_GPU_VIRTUAL_ADDRESS constantAddress,
-                                D3D12_GPU_DESCRIPTOR_HANDLE textureView) const
+                                D3D12_GPU_DESCRIPTOR_HANDLE textureView,
+                                D3D12_GPU_DESCRIPTOR_HANDLE metallicRoughnessView) const
 {
     commandList->SetGraphicsRootConstantBufferView(
         kMaterialConstantsRootParameterIndex, constantAddress);
 
     commandList->SetGraphicsRootDescriptorTable(
         kTextureRootParameterIndex, textureView);
+
+    commandList->SetGraphicsRootDescriptorTable(
+        kMetallicRoughnessRootParameterIndex, metallicRoughnessView);
 }
 
 

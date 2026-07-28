@@ -49,6 +49,9 @@ cbuffer MaterialConstants : register(b2)
     // テクスチャを持たない材質には白 1 ピクセルが割り当てられるので、
     // シェーダー側に「テクスチャの有無」の分岐は要らない。
     float4 g_baseColorFactor;
+
+    // x = 金属らしさ、y = 粗さ。z と w は未使用。
+    float4 g_materialParams;
 };
 
 // t = テクスチャ (SRV)、s = サンプラー。
@@ -59,6 +62,10 @@ SamplerState g_sampler : register(s0);
 // 光源から見た深度を書き込んだテクスチャ。
 Texture2D g_shadowMap : register(t1);
 
+// 金属らしさと粗さのテクスチャ。緑が粗さ、青が金属らしさ（glTF の決まり）。
+// 色ではなく数値なので、C++ 側で sRGB ではない形式として作っている。
+Texture2D g_metallicRoughness : register(t2);
+
 // 比較サンプラー。読んだ値をそのまま返すのではなく、渡した値と比較して
 // 「合格した割合」を返す。周囲 4 テクセルぶんを比較して補間するので、
 // 1 回の読み取りだけで影の境目がなめらかになる。
@@ -67,12 +74,13 @@ SamplerComparisonState g_shadowSampler : register(s1);
 // シャドウマップの一辺のテクセル数。PCF のずらし幅を求めるのに使う。
 static const float kShadowMapSize = 2048.0f;
 
-// 鏡面反射の鋭さ。大きいほどハイライトが小さく硬くなる。
-// 立方体は面が平らなので、ハイライトは点ではなく面全体の明滅として現れる。
-static const float kSpecularPower = 24.0f;
+// 円周率。拡散反射を割るのに使う。
+static const float kPi = 3.14159265f;
 
-// 鏡面反射の強さ。
-static const float kSpecularIntensity = 0.35f;
+// 非金属の垂直入射での反射率。
+// ほとんどの誘電体（プラスチック・木・肌など）が 0.04 前後に収まるため、
+// 定数で済ませるのが一般的。金属では基本色そのものが反射率になる。
+static const float3 kDielectricF0 = float3(0.04f, 0.04f, 0.04f);
 
 // トーンマッピングで「白」とみなす明るさ。
 // これを超える部分だけが圧縮され、それ以下はほとんどそのまま残る。
@@ -177,6 +185,52 @@ float SampleShadow(float3 worldPosition)
     return lit / 9.0f;
 }
 
+//-----------------------------------------------------------------------------
+// マイクロファセット BRDF（クック・トランス）
+//   表面を「向きの揃っていない無数の微小な鏡」の集まりとみなすモデル。
+//   3 つの項の積で表される:
+//     D … 微小な鏡のうち、光を目に返す向きのものがどれだけあるか（分布）
+//     G … 微小な鏡どうしが影を作り合って減る割合（幾何減衰）
+//     F … 見る角度による反射率の変化（フレネル）
+//-----------------------------------------------------------------------------
+
+// D: GGX（トロウブリッジ・ライツ）の法線分布関数。
+//   ハイライトの中心が鋭く、裾が長く伸びる。実測に近いとされ、現在の標準。
+float DistributionGGX(float normalDotHalf, float roughness)
+{
+    // 粗さは 2 乗して使うのが慣例。見た目の変化が直感に合いやすい。
+    float alpha  = roughness * roughness;
+    float alpha2 = alpha * alpha;
+
+    float denominator = normalDotHalf * normalDotHalf * (alpha2 - 1.0f) + 1.0f;
+    return alpha2 / max(kPi * denominator * denominator, 1e-7f);
+}
+
+// G の片側。視線側と光源側で 1 回ずつ使う。
+float GeometrySchlickGGX(float normalDotVector, float roughness)
+{
+    // 直接光の場合の k。環境光（IBL）では別の式になる。
+    float r = roughness + 1.0f;
+    float k = (r * r) / 8.0f;
+
+    return normalDotVector / (normalDotVector * (1.0f - k) + k);
+}
+
+// G: スミスの幾何減衰。粗い面ほど、微小な鏡が互いを隠して暗くなる。
+float GeometrySmith(float normalDotView, float normalDotLight, float roughness)
+{
+    return GeometrySchlickGGX(normalDotView,  roughness)
+         * GeometrySchlickGGX(normalDotLight, roughness);
+}
+
+// F: シュリックの近似によるフレネル項。
+//   浅い角度から見るほど、どんな材質でもよく反射する（水面を思い出すとよい）。
+float3 FresnelSchlick(float cosTheta, float3 f0)
+{
+    return f0 + (1.0f - f0) * pow(saturate(1.0f - cosTheta), 5.0f);
+}
+
+
 // リニアの明るさを、画面に出せる 0〜1 の範囲へ圧縮する。
 //   拡張版ラインハルト。白点より暗い部分はほとんど変えず、
 //   明るい部分だけをなだらかに押し込むので、白飛びが目立たなくなる。
@@ -193,39 +247,60 @@ float4 PSMain(VSOutput input) : SV_TARGET
     float3 normal = normalize(input.worldNormal);
 
     // g_lightDirection は「光が進む向き」なので、面から光源へ向かうベクトルは逆向き。
-    float3 toLight = -g_lightDirection.xyz;
-    float3 toEye   = normalize(g_cameraPosition.xyz - input.worldPosition);
-
-    // 拡散反射（ランバート）: 面が光に正対するほど明るい。
-    //   内積は cos なので、真正面で 1、真横で 0、裏側で負になる。
-    //   saturate で 0〜1 に丸め、裏を向いた面が負で暗くなりすぎるのを防ぐ。
-    float diffuse = saturate(dot(normal, toLight));
-
-    // 鏡面反射（ブリン・フォン）: 光と視線のちょうど中間を向いた面が最も光る。
-    //   反射ベクトルを求めるより計算が軽く、見た目もほとんど変わらない。
+    float3 toLight    = -g_lightDirection.xyz;
+    float3 toEye      = normalize(g_cameraPosition.xyz - input.worldPosition);
     float3 halfVector = normalize(toLight + toEye);
-    float  specular   = pow(saturate(dot(normal, halfVector)), kSpecularPower);
 
-    // 光が当たっていない面にハイライトが乗らないよう、拡散の強さで打ち消す。
-    specular *= diffuse;
-
-    // 遮る物があれば、光が「届かなかった」ことにする。
-    //   ★ 減らすのは直接光（拡散反射と鏡面反射）だけ。
-    //     環境光は周囲からの照り返しなので、影の中でも残る。
-    float shadow = SampleShadow(input.worldPosition);
-
-    diffuse  *= shadow;
-    specular *= shadow;
+    float normalDotLight = saturate(dot(normal, toLight));
+    float normalDotView  = saturate(dot(normal, toEye));
+    float normalDotHalf  = saturate(dot(normal, halfVector));
+    float halfDotView    = saturate(dot(halfVector, toEye));
 
     // 物体そのものの色 ＝ 頂点カラー × 材質の基本色 × テクスチャ。
     float4 baseColor = input.color
                      * g_baseColorFactor
                      * g_texture.Sample(g_sampler, input.uv);
 
-    // 環境光 + 拡散反射 で物体の色を照らし、最後に鏡面反射を足す。
-    float3 ambient = g_lightColor.aaa;
-    float3 lit     = baseColor.rgb * (ambient + g_lightColor.rgb * diffuse)
-                   + g_lightColor.rgb * specular * kSpecularIntensity;
+    // 金属らしさと粗さ。テクスチャの緑が粗さ、青が金属らしさ。
+    //   テクスチャを持たない材質には白が割り当てられるので、掛けても値は変わらない。
+    float4 materialSample = g_metallicRoughness.Sample(g_sampler, input.uv);
+
+    float metallic  = saturate(g_materialParams.x * materialSample.b);
+    float roughness = clamp(g_materialParams.y * materialSample.g, 0.03f, 1.0f);
+
+    // ★ 金属と非金属で、色の意味が入れ替わる。
+    //   非金属 : 基本色は拡散反射の色。反射は色を持たず 0.04 程度
+    //   金属   : 拡散反射が無く、基本色がそのまま反射の色になる
+    float3 f0     = lerp(kDielectricF0, baseColor.rgb, metallic);
+    float3 albedo = baseColor.rgb * (1.0f - metallic);
+
+    // マイクロファセット BRDF の 3 項
+    float  distribution = DistributionGGX(normalDotHalf, roughness);
+    float  geometry     = GeometrySmith(normalDotView, normalDotLight, roughness);
+    float3 fresnel      = FresnelSchlick(halfDotView, f0);
+
+    // 分母の 4 は、立体角の変換から出てくる定数。
+    float3 specular = (distribution * geometry * fresnel)
+                    / max(4.0f * normalDotView * normalDotLight, 1e-4f);
+
+    // エネルギー保存: 反射した割合 (F) の残りだけが内部へ入り、拡散反射になる。
+    //   これがあるおかげで「光っている所ほど下地の色が薄い」という自然な見え方になる。
+    float3 diffuseWeight = (1.0f - fresnel);
+
+    // 遮る物があれば、光が「届かなかった」ことにする。
+    //   ★ 減らすのは直接光だけ。環境光は照り返しなので影の中でも残る。
+    float shadow = SampleShadow(input.worldPosition);
+
+    // 拡散反射を π で割るのが物理的に正しい形。
+    //   そのぶん C++ 側で光の強さに π を掛けて明るさを揃えている。
+    float3 direct = (diffuseWeight * albedo / kPi + specular)
+                  * g_lightColor.rgb * normalDotLight * shadow;
+
+    // 環境光。本来は周囲の映り込み (IBL) で計算するもので、ここでは拡散ぶんだけを近似。
+    //   金属は拡散反射を持たないため、この近似では暗くなる。
+    float3 ambient = albedo * g_lightColor.a;
+
+    float3 lit = direct + ambient;
 
     // ★ ここまでの計算はすべてリニア空間で行っている。
     //   まず明るさを 0〜1 へ押し込み、sRGB への変換はレンダーターゲットに任せる

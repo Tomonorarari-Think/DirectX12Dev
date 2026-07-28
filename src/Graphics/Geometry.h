@@ -73,6 +73,23 @@ struct MaterialData
     /// <summary>基本色テクスチャ。無ければ空。</summary>
     assets::ImageData baseColorTexture;
 
+    /// <summary>金属らしさ。0 が非金属、1 が金属。</summary>
+    /// <remarks>
+    /// 中間の値に物理的な意味はありません。塗装が剥げた金属のように
+    /// 「場所によって違う」ものをテクスチャで表すために存在します。
+    /// </remarks>
+    float metallicFactor = 0.0f;
+
+    /// <summary>表面の粗さ。0 が鏡のよう、1 がざらざら。</summary>
+    float roughnessFactor = 0.6f;
+
+    /// <summary>金属らしさと粗さのテクスチャ。無ければ空。</summary>
+    /// <remarks>
+    /// glTF の決まりで、**緑が粗さ、青が金属らしさ**です。
+    /// 色ではなく数値なので、sRGB として読んではいけません。
+    /// </remarks>
+    assets::ImageData metallicRoughnessTexture;
+
     /// <summary>テクスチャを持っているかどうかを返します。</summary>
     /// <returns>持っていれば `true`。</returns>
     bool HasTexture() const { return !baseColorTexture.pixels.empty(); }
