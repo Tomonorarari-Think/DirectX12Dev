@@ -43,6 +43,7 @@ Unity で `GameObject` にマテリアルを付ければ絵が出ますが、
 | 21 | [IBL：環境マップ](21_IBL_環境マップ.md) | 正距円筒図法、イラディアンス マップ、ミップ列 |
 | 22 | [法線マップ](22_法線マップ.md) | 接線空間、TBN、接線の生成、入力レイアウトの拡張 |
 | 23 | [スカイボックス](23_スカイボックス.md) | SV_VertexID、深度テストの設定、視線の組み立て |
+| 24 | [ミップマップ](24_ミップマップ.md) | エイリアシング、平均の取り方、異方性フィルタ |
 
 ```mermaid
 flowchart LR
@@ -68,10 +69,11 @@ flowchart LR
     T --> U["21 IBL"]
     U --> V["22 法線マップ"]
     V --> W["23 スカイボックス"]
+    W --> X["24 ミップマップ"]
 
     style A fill:#dafbe1,stroke:#0d4f21,color:#1f2328
     style F fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
-    style W fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
+    style X fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
 ```
 
 ## 関連する資料

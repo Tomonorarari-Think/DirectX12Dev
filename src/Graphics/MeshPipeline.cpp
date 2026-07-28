@@ -308,7 +308,9 @@ void MeshPipeline::CreateRootSignature(ID3D12Device* device)
 
     // s0 : 基本色テクスチャ用
     //   Filter : ピクセルとテクセルがぴったり一致しないときの読み方。
-    staticSamplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+    //   ★ 異方性フィルタ。斜めに見た床のように、縦横で縮小率が違う場所で効く。
+    //     ミップだけだと「きつく縮む向き」に合わせてぼかすため、必要以上に眠くなる。
+    staticSamplers[0].Filter = D3D12_FILTER_ANISOTROPIC;
 
     //   AddressU/V/W : UV が 0〜1 の外に出たときの扱い。
     //   床は UV を 1 より大きくしているので、WRAP によって模様が繰り返される。
@@ -317,7 +319,7 @@ void MeshPipeline::CreateRootSignature(ID3D12Device* device)
     staticSamplers[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 
     staticSamplers[0].MipLODBias       = 0.0f;
-    staticSamplers[0].MaxAnisotropy    = 0;
+    staticSamplers[0].MaxAnisotropy    = 8;   // 1 で異方性フィルタ無しと同じ
     staticSamplers[0].ComparisonFunc   = D3D12_COMPARISON_FUNC_NEVER;
     staticSamplers[0].BorderColor      = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
     staticSamplers[0].MinLOD           = 0.0f;
