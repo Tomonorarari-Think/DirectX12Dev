@@ -7,7 +7,10 @@
 //=============================================================================
 #pragma once
 
+#include "../Assets/ImageLoader.h"
+
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace dx12
@@ -53,7 +56,50 @@ struct Vertex
 
 
 /// <summary>
-/// GPU へ載せる前の形状データ（頂点とインデックスの組）。
+/// 材質 1 つぶんの情報。
+/// </summary>
+/// <remarks>
+/// 画像そのものを持たせています。`ImageData` は DirectX を知らない素の構造体なので、
+/// この層から参照しても「DirectX に依存しない」という切り分けは崩れません。
+/// </remarks>
+struct MaterialData
+{
+    /// <summary>材質の名前。ログや調査に使うだけで、描画には影響しません。</summary>
+    std::string name;
+
+    /// <summary>基本色 (r, g, b, a)。テクスチャと掛け合わせます。</summary>
+    float baseColorFactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+    /// <summary>基本色テクスチャ。無ければ空。</summary>
+    assets::ImageData baseColorTexture;
+
+    /// <summary>テクスチャを持っているかどうかを返します。</summary>
+    /// <returns>持っていれば `true`。</returns>
+    bool HasTexture() const { return !baseColorTexture.pixels.empty(); }
+};
+
+
+/// <summary>
+/// 1 つの材質で描ける、インデックスの連続した範囲。
+/// </summary>
+/// <remarks>
+/// 材質が変わるたびに描画を区切る必要があるため、範囲を分けて持ちます。
+/// </remarks>
+struct SubMesh
+{
+    /// <summary>インデックス配列の何番目から始まるか。</summary>
+    uint32_t indexOffset = 0;
+
+    /// <summary>何個ぶんのインデックスを使うか。</summary>
+    uint32_t indexCount = 0;
+
+    /// <summary>使う材質の番号。</summary>
+    uint32_t materialIndex = 0;
+};
+
+
+/// <summary>
+/// GPU へ載せる前の形状データ。
 /// </summary>
 struct MeshData
 {
@@ -62,6 +108,24 @@ struct MeshData
 
     /// <summary>頂点を引く順番。3 個で三角形 1 枚。</summary>
     std::vector<uint16_t> indices;
+
+    /// <summary>材質ごとに区切った描画範囲。</summary>
+    /// <remarks>
+    /// 空の場合、呼び出し側は「材質 0 番で全体を描く」とみなします。
+    /// </remarks>
+    std::vector<SubMesh> subMeshes;
+
+    /// <summary>この形状が使う材質の一覧。</summary>
+    /// <remarks>空の場合は、白 1 色の既定の材質が使われます。</remarks>
+    std::vector<MaterialData> materials;
+
+    /// <summary>
+    /// 材質やサブメッシュが未設定なら、既定のものを 1 つ用意します。
+    /// </summary>
+    /// <remarks>
+    /// 読み込み側がどう作っても、描画側から見た形を揃えるための後始末です。
+    /// </remarks>
+    void EnsureDefaultMaterial();
 };
 
 

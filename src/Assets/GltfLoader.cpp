@@ -5,6 +5,7 @@
 #include "GltfLoader.h"
 
 #include "../Common/GraphicsCommon.h"
+#include "ImageLoader.h"
 #include "Json.h"
 
 #include <DirectXMath.h>
@@ -400,6 +401,176 @@ std::vector<float> ReadAccessorAsFloats(const Document& document,
 }
 
 
+/// <summary>
+/// `images` の 1 枚を展開します。
+/// </summary>
+/// <param name="document">読み込み済みのドキュメント。</param>
+/// <param name="imageIndex">画像の番号。</param>
+/// <param name="baseDirectory">.gltf が置かれているフォルダ。</param>
+/// <returns>RGBA8 に展開した画像。読めなければ空。</returns>
+/// <remarks>
+/// 画像の置き場所は buffers と同じく 3 通りあります。
+/// `bufferView`（ファイル内に埋め込み）、`data:` URI、外部ファイルです。
+/// </remarks>
+assets::ImageData LoadImageAt(const Document& document,
+                              int imageIndex,
+                              const std::wstring& baseDirectory)
+{
+    const json::Value* images = document.root.Member("images");
+    if (images == nullptr || imageIndex < 0)
+    {
+        return {};
+    }
+
+    const json::Value& image = images->At(static_cast<size_t>(imageIndex));
+
+    // (a) ファイル内に埋め込まれている場合。
+    if (const json::Value* viewIndex = image.Member("bufferView"))
+    {
+        const json::Value* bufferViews = document.root.Member("bufferViews");
+        if (bufferViews == nullptr)
+        {
+            return {};
+        }
+
+        const json::Value& view = bufferViews->At(static_cast<size_t>(viewIndex->AsInt(0)));
+
+        const int bufferIndex = view.Member("buffer") ? view.Member("buffer")->AsInt(0) : 0;
+        if (static_cast<size_t>(bufferIndex) >= document.buffers.size())
+        {
+            return {};
+        }
+
+        const std::vector<uint8_t>& bytes = document.buffers[static_cast<size_t>(bufferIndex)];
+
+        const size_t offset = view.Member("byteOffset")
+                                ? static_cast<size_t>(view.Member("byteOffset")->AsInt(0)) : 0;
+        const size_t length = view.Member("byteLength")
+                                ? static_cast<size_t>(view.Member("byteLength")->AsInt(0)) : 0;
+
+        if (offset + length > bytes.size())
+        {
+            return {};
+        }
+
+        // PNG / JPEG のバイト列がそのまま入っている。デコードは WIC に任せる。
+        return assets::DecodeImageBytes(bytes.data() + offset, length);
+    }
+
+    const json::Value* uri = image.Member("uri");
+    if (uri == nullptr)
+    {
+        return {};
+    }
+
+    const std::string& text = uri->AsString();
+
+    // (b) data URI に base64 で書かれている場合。
+    if (text.compare(0, 5, "data:") == 0)
+    {
+        const size_t comma = text.find(',');
+        if (comma == std::string::npos)
+        {
+            return {};
+        }
+
+        const std::vector<uint8_t> decoded = DecodeBase64(text.substr(comma + 1));
+        return assets::DecodeImageBytes(decoded.data(), decoded.size());
+    }
+
+    // (c) 外部ファイル。
+    const std::string decoded = DecodePercentEscapes(text);
+    std::wstring relative(decoded.begin(), decoded.end());
+
+    for (wchar_t& c : relative)
+    {
+        if (c == L'/') { c = L'\\'; }
+    }
+
+    return assets::LoadImageFile(baseDirectory + relative);
+}
+
+
+/// <summary>
+/// `materials` を読み込みます。
+/// </summary>
+/// <param name="document">読み込み済みのドキュメント。</param>
+/// <param name="baseDirectory">.gltf が置かれているフォルダ。</param>
+/// <returns>材質の一覧。</returns>
+/// <remarks>
+/// 読むのは PBR の基本色（`baseColorFactor` と `baseColorTexture`）だけです。
+/// 金属度・粗さ・法線マップなどは読み飛ばします。
+/// </remarks>
+std::vector<MaterialData> LoadMaterials(const Document& document,
+                                        const std::wstring& baseDirectory)
+{
+    std::vector<MaterialData> result;
+
+    const json::Value* materials = document.root.Member("materials");
+    if (materials == nullptr)
+    {
+        return result;
+    }
+
+    const json::Value* textures = document.root.Member("textures");
+
+    for (size_t i = 0; i < materials->Size(); ++i)
+    {
+        const json::Value& source = materials->At(i);
+
+        MaterialData material;
+        if (const json::Value* name = source.Member("name"))
+        {
+            material.name = name->AsString();
+        }
+
+        const json::Value* pbr = source.Member("pbrMetallicRoughness");
+        if (pbr != nullptr)
+        {
+            if (const json::Value* factor = pbr->Member("baseColorFactor"))
+            {
+                for (size_t c = 0; c < 4 && c < factor->Size(); ++c)
+                {
+                    material.baseColorFactor[c] =
+                        static_cast<float>(factor->At(c).AsNumber(1.0));
+                }
+            }
+
+            // baseColorTexture は textures を経由して images に辿り着く。
+            if (const json::Value* baseColorTexture = pbr->Member("baseColorTexture"))
+            {
+                const int textureIndex = baseColorTexture->Member("index")
+                                           ? baseColorTexture->Member("index")->AsInt(-1) : -1;
+
+                if (textures != nullptr && textureIndex >= 0)
+                {
+                    const json::Value& texture =
+                        textures->At(static_cast<size_t>(textureIndex));
+
+                    const int imageIndex = texture.Member("source")
+                                             ? texture.Member("source")->AsInt(-1) : -1;
+
+                    try
+                    {
+                        material.baseColorTexture =
+                            LoadImageAt(document, imageIndex, baseDirectory);
+                    }
+                    catch (const std::exception&)
+                    {
+                        // 画像が読めなくても、基本色だけで描き続けられるようにする。
+                        LogError(L"glTF の画像を展開できませんでした。基本色のみ使います。");
+                    }
+                }
+            }
+        }
+
+        result.push_back(std::move(material));
+    }
+
+    return result;
+}
+
+
 /// <summary>ノードのローカル変換行列を求めます。</summary>
 /// <remarks>
 /// `matrix` が直接書かれている場合と、`translation` / `rotation` / `scale` に
@@ -534,6 +705,16 @@ MeshData LoadGltf(const std::wstring& filePath, const ModelLoadOptions& options)
     }
 
     MeshData mesh;
+    mesh.materials = LoadMaterials(document, DirectoryOf(filePath));
+
+    // 材質を持たないファイルでも描けるよう、白 1 色の材質を末尾に足しておく。
+    const uint32_t defaultMaterialIndex = static_cast<uint32_t>(mesh.materials.size());
+    {
+        MaterialData fallback;
+        fallback.name = "default";
+        mesh.materials.push_back(std::move(fallback));
+    }
+
     uint32_t primitiveCount = 0;
 
     // ノードを辿って、メッシュを持つノードだけ取り出す再帰処理。
@@ -607,6 +788,7 @@ MeshData LoadGltf(const std::wstring& filePath, const ModelLoadOptions& options)
                 }
 
                 const uint16_t vertexBase = static_cast<uint16_t>(mesh.vertices.size());
+                const uint32_t indexBase  = static_cast<uint32_t>(mesh.indices.size());
 
                 if (mesh.vertices.size() + vertexCount > UINT16_MAX)
                 {
@@ -660,9 +842,11 @@ MeshData LoadGltf(const std::wstring& filePath, const ModelLoadOptions& options)
                         vertex.uv[1] = texCoords[v * texCoordComponents + 1];
                     }
 
+                    // 色は材質が持つので、頂点カラーは白にしておく。
+                    //   掛け合わせても変わらないので、材質の色がそのまま出る。
                     for (int channel = 0; channel < 4; ++channel)
                     {
-                        vertex.color[channel] = options.color[channel];
+                        vertex.color[channel] = 1.0f;
                     }
 
                     mesh.vertices.push_back(vertex);
@@ -689,6 +873,19 @@ MeshData LoadGltf(const std::wstring& filePath, const ModelLoadOptions& options)
                         mesh.indices.push_back(static_cast<uint16_t>(vertexBase + v));
                     }
                 }
+
+                // プリミティブ 1 個 = サブメッシュ 1 個。材質はここで決まる。
+                SubMesh subMesh;
+                subMesh.indexOffset = indexBase;
+                subMesh.indexCount  = static_cast<uint32_t>(mesh.indices.size()) - indexBase;
+
+                const json::Value* materialIndex = primitive.Member("material");
+                subMesh.materialIndex =
+                    (materialIndex != nullptr && materialIndex->AsInt(-1) >= 0)
+                        ? static_cast<uint32_t>(materialIndex->AsInt(0))
+                        : defaultMaterialIndex;
+
+                mesh.subMeshes.push_back(subMesh);
 
                 ++primitiveCount;
             }
@@ -738,11 +935,13 @@ MeshData LoadGltf(const std::wstring& filePath, const ModelLoadOptions& options)
     }
 
     Log(std::format(
-        L"glTF を読み込みました（{}形式 / プリミティブ {} 個 / 頂点 {} 個 / 三角形 {} 枚）",
+        L"glTF を読み込みました（{}形式 / プリミティブ {} 個 / 頂点 {} 個 / 三角形 {} 枚 "
+        L"/ 材質 {} 個）",
         isBinaryContainer ? L"GLB バイナリ" : L"JSON テキスト",
         primitiveCount,
         mesh.vertices.size(),
-        mesh.indices.size() / 3));
+        mesh.indices.size() / 3,
+        mesh.materials.size()));
 
     return mesh;
 }

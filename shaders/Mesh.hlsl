@@ -42,6 +42,15 @@ cbuffer ObjectConstants : register(b1)
     float4x4 g_world;
 };
 
+// 材質 1 つごとに変わる値。サブメッシュを描く直前に差し替える。
+cbuffer MaterialConstants : register(b2)
+{
+    // 基本色。テクスチャの色と掛け合わせる。
+    // テクスチャを持たない材質には白 1 ピクセルが割り当てられるので、
+    // シェーダー側に「テクスチャの有無」の分岐は要らない。
+    float4 g_baseColorFactor;
+};
+
 // t = テクスチャ (SRV)、s = サンプラー。
 // Texture2D が「画像データ」、SamplerState が「その読み方」。
 Texture2D    g_texture : register(t0);
@@ -195,8 +204,10 @@ float4 PSMain(VSOutput input) : SV_TARGET
     diffuse  *= shadow;
     specular *= shadow;
 
-    // 物体そのものの色 ＝ 頂点カラー × テクスチャ。
-    float4 baseColor = input.color * g_texture.Sample(g_sampler, input.uv);
+    // 物体そのものの色 ＝ 頂点カラー × 材質の基本色 × テクスチャ。
+    float4 baseColor = input.color
+                     * g_baseColorFactor
+                     * g_texture.Sample(g_sampler, input.uv);
 
     // 環境光 + 拡散反射 で物体の色を照らし、最後に鏡面反射を足す。
     float3 ambient = g_lightColor.aaa;
