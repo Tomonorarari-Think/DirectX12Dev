@@ -30,6 +30,24 @@ assets::ImageData CreateWhitePixel()
     image.pixels = { 255, 255, 255, 255 };
     return image;
 }
+
+/// <summary>
+/// 法線マップを持たない材質のための、「真上を向いた法線」1 ピクセルを作ります。
+/// </summary>
+/// <returns>1 x 1 の (128, 128, 255) の画像。</returns>
+/// <remarks>
+/// 接線空間の法線 (0, 0, 1) を 0〜1 に詰め直すと (0.5, 0.5, 1.0) になります。
+/// これは「面の向きから傾いていない」という意味なので、
+/// 法線マップを持たない材質に割り当てても見た目が変わりません。
+/// </remarks>
+assets::ImageData CreateFlatNormalPixel()
+{
+    assets::ImageData image;
+    image.width  = 1;
+    image.height = 1;
+    image.pixels = { 128, 128, 255, 255 };
+    return image;
+}
 } // namespace
 
 
@@ -70,9 +88,23 @@ void MaterialSet::Initialize(ID3D12Device* device,
     const uint32_t neutralIndex = static_cast<uint32_t>(m_textures.size());
     m_textures.push_back(std::move(neutralMaterialTexture));
 
+    // 法線マップを持たない材質のための、真上を向いた法線 1 ピクセル。
+    //   ★ こちらもベクトルなので sRGB として読んではいけない。
+    auto flatNormalTexture = std::make_unique<Texture2D>();
+    {
+        const assets::ImageData flat = CreateFlatNormalPixel();
+        flatNormalTexture->Initialize(device, commandQueue, descriptorHeap,
+                                      flat.width, flat.height, flat.pixels,
+                                      /* isColorTexture */ false);
+    }
+
+    const uint32_t flatNormalIndex = static_cast<uint32_t>(m_textures.size());
+    m_textures.push_back(std::move(flatNormalTexture));
+
     // (2) 材質ごとにテクスチャを用意する。
     m_textureIndices.reserve(materials.size());
     m_metallicRoughnessIndices.reserve(materials.size());
+    m_normalMapIndices.reserve(materials.size());
 
     uint32_t texturedCount = 0;
 
@@ -116,6 +148,24 @@ void MaterialSet::Initialize(ID3D12Device* device,
                 static_cast<uint32_t>(m_textures.size()));
             m_textures.push_back(std::move(texture));
         }
+
+        if (material.normalTexture.pixels.empty())
+        {
+            m_normalMapIndices.push_back(flatNormalIndex);
+        }
+        else
+        {
+            auto texture = std::make_unique<Texture2D>();
+            // ★ 法線マップはベクトル。色ではないので sRGB にしない。
+            texture->Initialize(device, commandQueue, descriptorHeap,
+                                material.normalTexture.width,
+                                material.normalTexture.height,
+                                material.normalTexture.pixels,
+                                /* isColorTexture */ false);
+
+            m_normalMapIndices.push_back(static_cast<uint32_t>(m_textures.size()));
+            m_textures.push_back(std::move(texture));
+        }
     }
 
     // (3) 基本色を定数バッファへ。読み込み後は書き換わらないので 1 回だけ書く。
@@ -132,7 +182,8 @@ void MaterialSet::Initialize(ID3D12Device* device,
 
         constants.materialParams = { materials[i].metallicFactor,
                                      materials[i].roughnessFactor,
-                                     0.0f, 0.0f };
+                                     materials[i].normalScale,
+                                     0.0f };
 
         m_constants.Update(static_cast<uint32_t>(i), &constants, sizeof(constants));
     }
@@ -170,6 +221,16 @@ D3D12_GPU_DESCRIPTOR_HANDLE MaterialSet::MetallicRoughnessView(
 {
     assert(materialIndex < Count());
     return m_textures[m_metallicRoughnessIndices[materialIndex]]->ShaderResourceView();
+}
+
+
+/// <summary>
+/// 指定した材質の法線マップを返します。
+/// </summary>
+D3D12_GPU_DESCRIPTOR_HANDLE MaterialSet::NormalMapView(uint32_t materialIndex) const
+{
+    assert(materialIndex < Count());
+    return m_textures[m_normalMapIndices[materialIndex]]->ShaderResourceView();
 }
 
 } // namespace dx12

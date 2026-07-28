@@ -154,7 +154,8 @@ std::wstring DirectoryOf(const std::wstring& filePath)
 /// <param name="materials">読み込んだ材質を追加する先。</param>
 /// <param name="indexByName">材質名から番号を引く表。ここへも登録します。</param>
 /// <remarks>
-/// 読むのは `newmtl` / `Kd`（拡散色）/ `map_Kd`（拡散テクスチャ）だけです。
+/// 読むのは `newmtl` / `Kd` / `map_Kd` / `Pm` / `Pr` / `Ns` /
+/// `map_Bump`（法線マップ）だけです。
 /// 鏡面色 `Ks` や透明度 `d` などは読み飛ばします。
 /// </remarks>
 void LoadMaterialLibrary(const std::wstring& filePath,
@@ -230,6 +231,37 @@ void LoadMaterialLibrary(const std::wstring& filePath,
 
             const float normalized = std::sqrt(std::max(shininess, 0.0f) / 1000.0f);
             current->roughnessFactor = 1.0f - std::min(normalized, 1.0f);
+        }
+        else if ((keyword == "map_Bump" || keyword == "bump" || keyword == "norm")
+                 && current != nullptr)
+        {
+            // 法線マップ。表記が 3 通りあるのは、規格が拡張されてきた経緯による。
+            //   map_Bump / bump は本来グレースケールの高さマップを指すが、
+            //   実際には法線マップが置かれていることが多い。norm は PBR 拡張。
+            std::string name;
+            std::getline(stream, name);
+
+            const size_t first = name.find_first_not_of(" \t");
+            if (first == std::string::npos)
+            {
+                continue;
+            }
+            name = name.substr(first);
+
+            std::wstring relative(name.begin(), name.end());
+            for (wchar_t& c : relative)
+            {
+                if (c == L'/') { c = L'\\'; }
+            }
+
+            try
+            {
+                current->normalTexture = LoadImageFile(baseDirectory + relative);
+            }
+            catch (const std::exception&)
+            {
+                LogError(L"mtl の法線マップを読めませんでした: " + relative);
+            }
         }
         else if (keyword == "map_Kd" && current != nullptr)
         {

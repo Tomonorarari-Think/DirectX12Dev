@@ -47,17 +47,31 @@ MeshData LoadModel(const std::wstring& filePath, const ModelLoadOptions& options
 {
     const std::wstring extension = LowerCaseExtension(filePath);
 
+    MeshData mesh;
+
     if (extension == L"obj")
     {
-        return LoadObj(filePath, options);
+        mesh = LoadObj(filePath, options);
     }
-
-    if (extension == L"gltf" || extension == L"glb")
+    else if (extension == L"gltf" || extension == L"glb")
     {
-        return LoadGltf(filePath, options);
+        mesh = LoadGltf(filePath, options);
+    }
+    else
+    {
+        throw std::runtime_error("対応していないモデル形式です（.obj / .gltf / .glb）。");
     }
 
-    throw std::runtime_error("対応していないモデル形式です（.obj / .gltf / .glb）。");
+    // 接線を持っていなければ、位置と UV から計算する。
+    //   OBJ には接線を書く場所が無く、glTF も TANGENT は省略できるため。
+    //   ファイル側が持っているならそちらが正しいので、上書きしない。
+    if (!HasTangents(mesh))
+    {
+        GenerateTangents(mesh);
+        Log(L"接線を計算しました（モデルが持っていなかったため）。");
+    }
+
+    return mesh;
 }
 
 
