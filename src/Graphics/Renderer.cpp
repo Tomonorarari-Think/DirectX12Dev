@@ -115,6 +115,16 @@ constexpr float kSceneRadius = 3.6f;
 constexpr const wchar_t* kFloorTextureRelativePath = L"assets/textures/uv-grid.png";
 
 /// <summary>
+/// 床に貼る法線マップの相対パス。
+/// </summary>
+/// <remarks>
+/// `uv-grid.png` と同じ 8 x 8 のマス目に合わせて作ってあるので、
+/// 目地の溝が模様の線とぴったり重なります。
+/// </remarks>
+constexpr const wchar_t* kFloorNormalMapRelativePath =
+    L"assets/textures/floor-normal.png";
+
+/// <summary>
 /// 画像を読めなかったときに代わりに作る市松模様の、一辺のピクセル数。
 /// </summary>
 constexpr uint32_t kFallbackTextureSize = 256;
@@ -358,6 +368,17 @@ void Renderer::CreateSceneMeshes()
     m_floor.Initialize(device, m_commandQueue, floorData, L"床");
 
     // 床の材質は 1 つだけ。テクスチャは画像ファイルから読む。
+    //   法線マップは無くても描けるので、読めなければそのまま続ける。
+    try
+    {
+        floorData.materials[0].normalTexture =
+            assets::LoadImageFile(ResolveAssetPath(kFloorNormalMapRelativePath));
+    }
+    catch (const std::exception&)
+    {
+        LogError(L"床の法線マップを読めませんでした。凹凸なしで描きます。");
+    }
+
     m_floorMaterials.Initialize(device, m_commandQueue, m_descriptorHeap,
                                 floorData.materials, CreateFloorTexture());
 }
@@ -379,7 +400,8 @@ void Renderer::RecordMeshWithMaterials(ID3D12GraphicsCommandList* commandList,
         m_meshPipeline.BindMaterial(commandList,
                                     materials.ConstantAddress(materialIndex),
                                     materials.TextureView(materialIndex),
-                                    materials.MetallicRoughnessView(materialIndex));
+                                    materials.MetallicRoughnessView(materialIndex),
+                                    materials.NormalMapView(materialIndex));
 
         mesh.RecordDrawCommands(commandList, subMesh.indexOffset, subMesh.indexCount);
     }

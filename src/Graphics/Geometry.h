@@ -52,6 +52,16 @@ struct Vertex
     /// られます。
     /// </remarks>
     float uv[2];
+
+    /// <summary>
+    /// 接線 (x, y, z) と、従接線の向き w。法線マップを世界の向きへ直すのに使います。
+    /// </summary>
+    /// <remarks>
+    /// 接線は「U が増える向き」を面の上でたどったベクトルです。w は +1 か -1 で、
+    /// 従接線を `cross(normal, tangent) * w` として復元するための符号です。
+    /// UV が鏡像になっている面では w が反転します。
+    /// </remarks>
+    float tangent[4];
 };
 
 
@@ -89,6 +99,16 @@ struct MaterialData
     /// 色ではなく数値なので、sRGB として読んではいけません。
     /// </remarks>
     assets::ImageData metallicRoughnessTexture;
+
+    /// <summary>法線マップ。無ければ空。</summary>
+    /// <remarks>
+    /// 接線空間の法線を RGB に詰めた画像です。**色ではなくベクトル**なので、
+    /// sRGB として読んではいけません。
+    /// </remarks>
+    assets::ImageData normalTexture;
+
+    /// <summary>法線マップの効き具合。1.0 が等倍、0.0 で無効。</summary>
+    float normalScale = 1.0f;
 
     /// <summary>テクスチャを持っているかどうかを返します。</summary>
     /// <returns>持っていれば `true`。</returns>
@@ -164,5 +184,30 @@ MeshData CreateCube(float halfExtent);
 /// <param name="uvTiling">UV の繰り返し回数。1 より大きくするとテクスチャが並びます。</param>
 /// <returns>頂点 4 個・インデックス 6 個の形状データ。</returns>
 MeshData CreatePlane(float halfExtent, float height, float uvTiling);
+
+/// <summary>
+/// 頂点の位置と UV から接線を求め、`Vertex::tangent` へ書き込みます。
+/// </summary>
+/// <param name="mesh">接線を持たない形状データ。書き換えられます。</param>
+/// <remarks>
+/// 三角形ごとに「U が増える向き」を求め、頂点を共有する面ぶんを足し合わせて
+/// ならします。法線マップを使うのに必要ですが、モデル側が接線を持っていれば
+/// そちらを優先してください。
+///
+/// UV が退化している（3 頂点が同じ UV を指す）面は計算できないため飛ばします。
+/// 結果が 0 になった頂点には、法線と直交する適当な向きを入れます。
+/// </remarks>
+void GenerateTangents(MeshData& mesh);
+
+/// <summary>
+/// 形状データが接線を持っているかを調べます。
+/// </summary>
+/// <param name="mesh">調べる形状データ。</param>
+/// <returns>1 つでも長さのある接線があれば `true`。</returns>
+/// <remarks>
+/// 読み込み側が接線を書かなければ、`Vertex` は 0 初期化されて長さ 0 のままです。
+/// それを手掛かりに「持っていない」と判定します。
+/// </remarks>
+bool HasTangents(const MeshData& mesh);
 
 } // namespace dx12

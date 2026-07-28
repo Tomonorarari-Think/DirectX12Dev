@@ -601,6 +601,39 @@ std::vector<MaterialData> LoadMaterials(const Document& document,
             }
         }
 
+        // ★ normalTexture は pbrMetallicRoughness の「外側」にある。
+        //   基本色や金属度と並びで書かれていると思って探すと見つからない。
+        if (const json::Value* normalTexture = source.Member("normalTexture"))
+        {
+            const int textureIndex = normalTexture->Member("index")
+                                       ? normalTexture->Member("index")->AsInt(-1) : -1;
+
+            // scale は法線マップの効き具合。省略時は 1.0。
+            if (const json::Value* scale = normalTexture->Member("scale"))
+            {
+                material.normalScale = static_cast<float>(scale->AsNumber(1.0));
+            }
+
+            if (textures != nullptr && textureIndex >= 0)
+            {
+                const json::Value& texture =
+                    textures->At(static_cast<size_t>(textureIndex));
+
+                const int imageIndex = texture.Member("source")
+                                         ? texture.Member("source")->AsInt(-1) : -1;
+
+                try
+                {
+                    material.normalTexture =
+                        LoadImageAt(document, imageIndex, baseDirectory);
+                }
+                catch (const std::exception&)
+                {
+                    LogError(L"glTF の法線マップを展開できませんでした。");
+                }
+            }
+        }
+
         result.push_back(std::move(material));
     }
 
@@ -824,6 +857,16 @@ MeshData LoadGltf(const std::wstring& filePath, const ModelLoadOptions& options)
                                                      texCoordComponents);
                 }
 
+                // 接線。glTF では vec4 で、w が従接線の符号（+1 か -1）。
+                //   持っていないファイルも多いので、その場合は後から計算する。
+                std::vector<float> tangents;
+                int tangentComponents = 0;
+                if (const json::Value* accessor = attributes->Member("TANGENT"))
+                {
+                    tangents = ReadAccessorAsFloats(document, accessor->AsInt(-1),
+                                                    tangentComponents);
+                }
+
                 const uint16_t vertexBase = static_cast<uint16_t>(mesh.vertices.size());
                 const uint32_t indexBase  = static_cast<uint32_t>(mesh.indices.size());
 
@@ -877,6 +920,26 @@ MeshData LoadGltf(const std::wstring& filePath, const ModelLoadOptions& options)
                         //   OBJ のような反転は不要。
                         vertex.uv[0] = texCoords[v * texCoordComponents + 0];
                         vertex.uv[1] = texCoords[v * texCoordComponents + 1];
+                    }
+
+                    if (!tangents.empty() && tangentComponents >= 4)
+                    {
+                        XMVECTOR tangent = XMVectorSet(
+                            tangents[v * tangentComponents + 0],
+                            tangents[v * tangentComponents + 1],
+                            tangents[v * tangentComponents + 2],
+                            0.0f);
+
+                        tangent = XMVector3Normalize(
+                            XMVector3TransformNormal(tangent, normalTransform));
+
+                        vertex.tangent[0] =  XMVectorGetX(tangent);
+                        vertex.tangent[1] =  XMVectorGetY(tangent);
+                        vertex.tangent[2] = -XMVectorGetZ(tangent);
+
+                        // ★ 右手系から左手系へ移すと、従接線の向きも裏返る。
+                        //   Z を反転したぶん、符号も反転させないと法線マップが凹凸逆になる。
+                        vertex.tangent[3] = -tangents[v * tangentComponents + 3];
                     }
 
                     // 色は材質が持つので、頂点カラーは白にしておく。

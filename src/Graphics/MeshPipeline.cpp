@@ -94,6 +94,11 @@ constexpr uint32_t kEnvironmentRootParameterIndex = 6;
 constexpr uint32_t kIrradianceRootParameterIndex = 7;
 
 /// <summary>
+/// 法線マップを結び付けるルートパラメータの番号。
+/// </summary>
+constexpr uint32_t kNormalMapRootParameterIndex = 8;
+
+/// <summary>
 /// シャドウマップを描くときに深度へ加える下駄（整数バイアス）。
 /// </summary>
 /// <remarks>
@@ -152,7 +157,7 @@ void MeshPipeline::Initialize(ID3D12Device* device,
 void MeshPipeline::CreateRootSignature(ID3D12Device* device)
 {
     // ルートパラメータ : シェーダーへ何を渡すかの定義。関数の引数リストに相当する。
-    D3D12_ROOT_PARAMETER rootParameters[8] = {};
+    D3D12_ROOT_PARAMETER rootParameters[9] = {};
 
     // 0 番 : フレーム共通の定数バッファ（カメラとライト）
     rootParameters[kFrameConstantsRootParameterIndex].ParameterType =
@@ -277,6 +282,25 @@ void MeshPipeline::CreateRootSignature(ID3D12Device* device)
     rootParameters[kIrradianceRootParameterIndex]
         .DescriptorTable.pDescriptorRanges = &irradianceRange;
     rootParameters[kIrradianceRootParameterIndex].ShaderVisibility =
+        D3D12_SHADER_VISIBILITY_PIXEL;
+
+    // 8 番 : 法線マップ（ディスクリプタテーブル）
+    //   材質ごとに違うので、BindMaterial で差し替える。
+    D3D12_DESCRIPTOR_RANGE normalMapRange = {};
+    normalMapRange.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    normalMapRange.NumDescriptors     = 1;
+    normalMapRange.BaseShaderRegister = 5;   // register(t5)
+    normalMapRange.RegisterSpace      = 0;
+    normalMapRange.OffsetInDescriptorsFromTableStart =
+        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    rootParameters[kNormalMapRootParameterIndex].ParameterType =
+        D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParameters[kNormalMapRootParameterIndex]
+        .DescriptorTable.NumDescriptorRanges = 1;
+    rootParameters[kNormalMapRootParameterIndex]
+        .DescriptorTable.pDescriptorRanges = &normalMapRange;
+    rootParameters[kNormalMapRootParameterIndex].ShaderVisibility =
         D3D12_SHADER_VISIBILITY_PIXEL;
 
     // 静的サンプラー (Static Sampler)
@@ -539,14 +563,24 @@ void MeshPipeline::CreatePipelineState(ID3D12Device* device,
             D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
             0
         },
+        {
+            "TANGENT",                                   // シェーダー側の : TANGENT に対応
+            0,
+            DXGI_FORMAT_R32G32B32A32_FLOAT,              // float4（w は従接線の向き）
+            0,
+            48,                                          // + uv(8) の後ろ
+            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+            0
+        },
     };
 
     // オフセットは頂点構造体の並びと 1 バイトもずれてはいけない。
     // 手で足した数値が Vertex と食い違っていないことを、ここで機械的に確かめる。
-    static_assert(sizeof(Vertex) == 48, "Vertex のサイズが入力レイアウトの前提と違います");
-    static_assert(offsetof(Vertex, normal) == 12, "NORMAL のオフセットが違います");
-    static_assert(offsetof(Vertex, color)  == 24, "COLOR のオフセットが違います");
-    static_assert(offsetof(Vertex, uv)     == 40, "TEXCOORD のオフセットが違います");
+    static_assert(sizeof(Vertex) == 64, "Vertex のサイズが入力レイアウトの前提と違います");
+    static_assert(offsetof(Vertex, normal)  == 12, "NORMAL のオフセットが違います");
+    static_assert(offsetof(Vertex, color)   == 24, "COLOR のオフセットが違います");
+    static_assert(offsetof(Vertex, uv)      == 40, "TEXCOORD のオフセットが違います");
+    static_assert(offsetof(Vertex, tangent) == 48, "TANGENT のオフセットが違います");
 
     // (3) ラスタライザステート
     //   頂点を「ピクセルの集合」に変換する段の設定。
@@ -850,7 +884,8 @@ void MeshPipeline::BindShadowPass(ID3D12GraphicsCommandList* commandList,
 void MeshPipeline::BindMaterial(ID3D12GraphicsCommandList* commandList,
                                 D3D12_GPU_VIRTUAL_ADDRESS constantAddress,
                                 D3D12_GPU_DESCRIPTOR_HANDLE textureView,
-                                D3D12_GPU_DESCRIPTOR_HANDLE metallicRoughnessView) const
+                                D3D12_GPU_DESCRIPTOR_HANDLE metallicRoughnessView,
+                                D3D12_GPU_DESCRIPTOR_HANDLE normalMapView) const
 {
     commandList->SetGraphicsRootConstantBufferView(
         kMaterialConstantsRootParameterIndex, constantAddress);
@@ -860,6 +895,9 @@ void MeshPipeline::BindMaterial(ID3D12GraphicsCommandList* commandList,
 
     commandList->SetGraphicsRootDescriptorTable(
         kMetallicRoughnessRootParameterIndex, metallicRoughnessView);
+
+    commandList->SetGraphicsRootDescriptorTable(
+        kNormalMapRootParameterIndex, normalMapView);
 }
 
 

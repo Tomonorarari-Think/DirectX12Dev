@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 480" width="860" height="480" role="img" aria-label="接線空間の 3 本の軸。面の上で U が増える向きが接線 T、V が増える向きが従接線 B、面に垂直な向きが法線 N。法線マップに記録された値をこの 3 本で組み直すと、ワールド空間の法線になる">
+  <style>
+    .bg   { fill: #f6f8fa; }
+    .txt  { font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; fill: #1f2328; }
+    .ttl  { font-size: 16px; font-weight: 600; }
+    .cap  { font-size: 14px; font-weight: 600; }
+    .sub  { font-size: 12px; fill: #3d444d; }
+    .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 12px; fill: #1f2328; }
+    .face { fill: #eaeef2; stroke: #6e7781; stroke-width: 1.6; }
+    .tex  { fill: #ffffff; stroke: #1f2328; stroke-width: 1.6; }
+    .grid { stroke: #8c959f; stroke-width: 0.9; }
+    .nrm  { stroke: #0d4f21; stroke-width: 2.6; fill: none; }
+    .tan  { stroke: #9a1420; stroke-width: 2.6; fill: none; }
+    .bit  { stroke: #0a4f9e; stroke-width: 2.6; fill: none; }
+    .bent { stroke: #7a3200; stroke-width: 2.6; fill: none; stroke-dasharray: 6 4; }
+    .link { stroke: #6e7781; stroke-width: 1.6; stroke-dasharray: 5 4; fill: none; }
+  </style>
+
+  <rect class="bg" width="860" height="480" rx="8"/>
+  <text class="txt ttl" x="20" y="30">接線空間 — 法線マップの値を、面の上の 3 本の軸で組み直す</text>
+  <text class="txt sub" x="20" y="50">記録されているのは「面から見てどちらへ傾いているか」。世界のどちらを向いているかは、面ごとに決まる 3 本の軸が決める。</text>
+
+  <defs>
+    <marker id="tn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0d4f21"/>
+    </marker>
+    <marker id="tt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9a1420"/>
+    </marker>
+    <marker id="tb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a4f9e"/>
+    </marker>
+    <marker id="tx" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7a3200"/>
+    </marker>
+    <marker id="tg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#6e7781"/>
+    </marker>
+  </defs>
+
+  <!-- ===== 左 : 法線マップの中身 ===== -->
+  <text class="txt cap" x="20" y="96">法線マップに記録されている値</text>
+
+  <rect class="tex" x="20" y="112" width="200" height="200"/>
+  <line class="grid" x1="20" y1="162" x2="220" y2="162"/>
+  <line class="grid" x1="20" y1="212" x2="220" y2="212"/>
+  <line class="grid" x1="20" y1="262" x2="220" y2="262"/>
+  <line class="grid" x1="70" y1="112" x2="70" y2="312"/>
+  <line class="grid" x1="120" y1="112" x2="120" y2="312"/>
+  <line class="grid" x1="170" y1="112" x2="170" y2="312"/>
+
+  <circle cx="145" cy="187" r="5" fill="#9a1420"/>
+
+  <text class="txt mono" x="20" y="336">(r, g, b) = (0.62, 0.55, 0.56)</text>
+  <text class="txt sub"  x="20" y="356">これを 2 倍して 1 を引くと</text>
+  <text class="txt mono" x="20" y="376">(x, y, z) = (0.24, 0.10, 0.12)</text>
+  <text class="txt sub"  x="20" y="400">意味は「面の上で U 方向へ 0.24、</text>
+  <text class="txt sub"  x="20" y="420">V 方向へ 0.10 傾いている」だけ。</text>
+  <text class="txt sub"  x="20" y="440">世界のどちらを向くかは、まだ決まっていない。</text>
+
+  <!-- 矢印 -->
+  <line class="link" x1="240" y1="212" x2="320" y2="212" marker-end="url(#tg)"/>
+  <text class="txt mono" x="240" y="200">3 本の軸で組む</text>
+
+  <!-- ===== 右 : 面と 3 本の軸 ===== -->
+  <text class="txt cap" x="352" y="96">面ごとに決まる 3 本の軸</text>
+
+  <!-- 面（斜めの平行四辺形） -->
+  <polygon class="face" points="380,330 700,270 820,330 500,390"/>
+
+  <!-- 原点 -->
+  <circle cx="600" cy="330" r="5" fill="#1f2328"/>
+
+  <!-- N（法線） -->
+  <line class="nrm" x1="600" y1="330" x2="600" y2="150" marker-end="url(#tn)"/>
+  <text class="txt mono" x="608" y="152">N（法線）</text>
+  <text class="txt sub"  x="608" y="170">面に垂直</text>
+
+  <!-- T（接線 = U が増える向き） -->
+  <line class="tan" x1="600" y1="330" x2="770" y2="298" marker-end="url(#tt)"/>
+  <text class="txt mono" x="672" y="262">T（接線）</text>
+  <text class="txt sub"  x="672" y="280">U が増える向き</text>
+
+  <!-- B（従接線 = V が増える向き） -->
+  <line class="bit" x1="600" y1="330" x2="484" y2="372" marker-end="url(#tb)"/>
+  <text class="txt mono" x="404" y="392">B（従接線）</text>
+  <text class="txt sub"  x="404" y="410">V が増える向き</text>
+
+  <!-- 傾いた法線 -->
+  <line class="bent" x1="600" y1="330" x2="660" y2="180" marker-end="url(#tx)"/>
+  <text class="txt mono" x="664" y="196">求めたい法線</text>
+
+  <text class="txt sub"  x="352" y="440">B は `cross(N, T) * w` で復元できるので、保存するのは T と符号 w だけでよい。</text>
+  <text class="txt sub"  x="352" y="460">w は UV が鏡像になっている面で -1 になる。間違えると凹凸が裏返る。</text>
+</svg>

@@ -35,9 +35,9 @@ struct MaterialConstants
     DirectX::XMFLOAT4 baseColorFactor;
 
     /// <summary>
-    /// x = 金属らしさ、y = 粗さ。z と w は未使用。
+    /// x = 金属らしさ、y = 粗さ、z = 法線マップの効き具合。w は未使用。
     /// </summary>
-    /// <remarks>16 バイト単位に揃えるため、2 つの値でも `XMFLOAT4` にしています。</remarks>
+    /// <remarks>16 バイト単位に揃えるため、3 つの値でも `XMFLOAT4` にしています。</remarks>
     DirectX::XMFLOAT4 materialParams;
 };
 
@@ -109,6 +109,17 @@ public:
     /// </remarks>
     D3D12_GPU_DESCRIPTOR_HANDLE MetallicRoughnessView(uint32_t materialIndex) const;
 
+    /// <summary>
+    /// 指定した材質の法線マップの GPU ディスクリプタハンドルを返します。
+    /// </summary>
+    /// <param name="materialIndex">材質の番号。</param>
+    /// <returns>`SetGraphicsRootDescriptorTable` に渡すハンドル。</returns>
+    /// <remarks>
+    /// 持たない材質には「真上を向いた法線」1 ピクセルを割り当てます。
+    /// 面の法線をそのまま使うのと同じ結果になるため、分岐が要りません。
+    /// </remarks>
+    D3D12_GPU_DESCRIPTOR_HANDLE NormalMapView(uint32_t materialIndex) const;
+
 private:
     /// <summary>
     /// このモデルが使うテクスチャ。
@@ -123,6 +134,9 @@ private:
 
     /// <summary>材質ごとに、どの金属らしさ・粗さテクスチャを使うかの番号。</summary>
     std::vector<uint32_t> m_metallicRoughnessIndices;
+
+    /// <summary>材質ごとに、どの法線マップを使うかの番号。</summary>
+    std::vector<uint32_t> m_normalMapIndices;
 
     /// <summary>材質ごとの定数（基本色）。材質の数ぶんのスロットを持ちます。</summary>
     /// <remarks>
