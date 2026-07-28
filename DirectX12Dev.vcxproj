@@ -221,6 +221,7 @@
     <ClCompile Include="src\App\Input.cpp" />
     <ClCompile Include="src\App\CameraController.cpp" />
     <ClCompile Include="src\Assets\GltfLoader.cpp" />
+    <ClCompile Include="src\Assets\EnvironmentPrefilter.cpp" />
     <ClCompile Include="src\Assets\ImageLoader.cpp" />
     <ClCompile Include="src\Assets\Json.cpp" />
     <ClCompile Include="src\Assets\ModelLoader.cpp" />
@@ -257,6 +258,7 @@
     <ClInclude Include="src\App\Input.h" />
     <ClInclude Include="src\App\CameraController.h" />
     <ClInclude Include="src\Assets\GltfLoader.h" />
+    <ClInclude Include="src\Assets\EnvironmentPrefilter.h" />
     <ClInclude Include="src\Assets\ImageLoader.h" />
     <ClInclude Include="src\Assets\Json.h" />
     <ClInclude Include="src\Assets\ModelLoader.h" />

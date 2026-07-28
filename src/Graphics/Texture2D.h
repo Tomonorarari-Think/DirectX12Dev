@@ -4,6 +4,7 @@
 //=============================================================================
 #pragma once
 
+#include "../Assets/ImageLoader.h"
 #include "../Common/GraphicsCommon.h"
 
 #include <cstdint>
@@ -84,6 +85,25 @@ public:
                     uint32_t width,
                     uint32_t height,
                     const std::vector<uint8_t>& pixels,
+                    bool isColorTexture = true);
+
+    /// <summary>
+    /// 縮小版を何段も持つテクスチャ（ミップ列）を生成します。
+    /// </summary>
+    /// <param name="device">生成に使う D3D12 デバイス。</param>
+    /// <param name="commandQueue">転送コマンドを実行するキュー。完了まで待機します。</param>
+    /// <param name="descriptorHeap">SRV を登録するシェーダー可視ヒープ。</param>
+    /// <param name="mipChain">鮮明な順に並んだ画像。先頭が原寸です。</param>
+    /// <param name="isColorTexture">見た目の色なら `true`。</param>
+    /// <exception cref="HrException">生成または転送に失敗した場合。</exception>
+    /// <remarks>
+    /// 段ごとに転送先が分かれます（サブリソース）。1 本の中継バッファに
+    /// 全段を詰め、`CopyTextureRegion` を段の数だけ呼びます。
+    /// </remarks>
+    void Initialize(ID3D12Device* device,
+                    CommandQueue& commandQueue,
+                    DescriptorHeap& descriptorHeap,
+                    const std::vector<assets::ImageData>& mipChain,
                     bool isColorTexture = true);
 
     /// <summary>
