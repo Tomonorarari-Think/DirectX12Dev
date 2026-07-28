@@ -50,7 +50,7 @@ cbuffer MaterialConstants : register(b2)
     // シェーダー側に「テクスチャの有無」の分岐は要らない。
     float4 g_baseColorFactor;
 
-    // x = 金属らしさ、y = 粗さ。z と w は未使用。
+    // x = 金属らしさ、y = 粗さ、z = 法線マップの効き具合。w は未使用。
     float4 g_materialParams;
 };
 
@@ -71,6 +71,11 @@ Texture2D g_environment : register(t3);
 
 // 拡散反射用に、あらゆる方向から届く光を積分したもの。
 Texture2D g_irradiance : register(t4);
+
+// 法線マップ。接線空間の法線を RGB に詰めたもの。
+// 色ではなくベクトルなので、C++ 側で sRGB ではない形式として作っている。
+// 持たない材質には (128, 128, 255) の 1 ピクセルが割り当てられる。
+Texture2D g_normalMap : register(t5);
 
 // 環境マップの段数。C++ 側の kEnvironmentMipCount と合わせること。
 static const float kEnvironmentMipCount = 6.0f;
@@ -103,6 +108,7 @@ struct VSInput
     float3 normal   : NORMAL;     // 面の向き。長さ 1
     float4 color    : COLOR;
     float2 uv       : TEXCOORD;   // UV は V が下向きが正
+    float4 tangent  : TANGENT;    // xyz = U が増える向き、w = 従接線の符号
 };
 
 // 頂点シェーダーの出力 ＝ ピクセルシェーダーの入力。
@@ -114,6 +120,7 @@ struct VSOutput
     float3 worldNormal   : NORMAL;
     float4 color         : COLOR;
     float2 uv            : TEXCOORD;
+    float4 worldTangent  : TANGENT;    // xyz は法線と同じくワールド空間へ移す
 };
 
 // 頂点 1 個につき 1 回呼ばれ、頂点の最終的な位置を決める。
@@ -131,6 +138,10 @@ VSOutput VSMain(VSInput input)
     // 法線は「向き」なので平行移動を受けてはいけない。w = 0 にすると
     // 行列の 4 行目（平行移動成分）が掛からず、回転だけが適用される。
     output.worldNormal = mul(float4(input.normal, 0.0f), g_world).xyz;
+
+    // 接線も向きなので w = 0。w 成分（従接線の符号）はそのまま持ち回る。
+    output.worldTangent = float4(mul(float4(input.tangent.xyz, 0.0f), g_world).xyz,
+                                 input.tangent.w);
 
     // 色と UV はラスタライザが頂点間で自動補間してくれる。
     output.color = input.color;
@@ -273,11 +284,43 @@ float3 ToneMap(float3 color)
     return color * (1.0f + color / whiteSquared) / (1.0f + color);
 }
 
+// 法線マップを読み、面の向きを傾けた法線をワールド空間で返す。
+//   uv          … テクスチャ座標
+//   worldNormal … 頂点から補間した法線（正規化済み）
+//   worldTangent… xyz = 接線、w = 従接線の符号
+float3 ApplyNormalMap(float2 uv, float3 worldNormal, float4 worldTangent)
+{
+    // 0〜1 で記録されている値を -1〜1 へ戻す。
+    //   ★ この画像を sRGB として読んではいけない。色ではなく座標だから。
+    float3 tangentNormal = g_normalMap.Sample(g_sampler, uv).rgb * 2.0f - 1.0f;
+
+    // 効き具合。XY だけを弱めると、0 で「傾き無し」になる。
+    tangentNormal.xy *= g_materialParams.z;
+
+    // 補間で接線が法線から傾くので、法線に垂直な成分だけを残す（グラム・シュミット）。
+    float3 tangent = normalize(worldTangent.xyz
+                             - worldNormal * dot(worldNormal, worldTangent.xyz));
+
+    // 従接線は外積で復元できる。w は UV が鏡像になっている面で -1 になる。
+    float3 bitangent = cross(worldNormal, tangent) * worldTangent.w;
+
+    // 接線空間 → ワールド空間。3 本の軸を並べた行列を掛けるのと同じこと。
+    float3 result = tangentNormal.x * tangent
+                  + tangentNormal.y * bitangent
+                  + tangentNormal.z * worldNormal;
+
+    return normalize(result);
+}
+
 // 塗られるピクセル 1 個につき 1 回呼ばれ、そのピクセルの色を決める。
 float4 PSMain(VSOutput input) : SV_TARGET
 {
     // 補間で長さが 1 から崩れるため、使う直前に必ず正規化し直す。
-    float3 normal = normalize(input.worldNormal);
+    float3 geometryNormal = normalize(input.worldNormal);
+
+    // 法線マップで面の向きを傾ける。ここから先はこの法線だけを使う。
+    //   ★ 影の判定には元の位置を使うので、影の形は変わらない。
+    float3 normal = ApplyNormalMap(input.uv, geometryNormal, input.worldTangent);
 
     // g_lightDirection は「光が進む向き」なので、面から光源へ向かうベクトルは逆向き。
     float3 toLight    = -g_lightDirection.xyz;
