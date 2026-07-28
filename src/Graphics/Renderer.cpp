@@ -12,9 +12,14 @@ namespace dx12
 namespace
 {
 /// <summary>
-/// 画面のクリア色（RGBA、各 0.0〜1.0）。
+/// 画面のクリア色（RGBA、各 0.0〜1.0）。**リニア空間の値**です。
 /// </summary>
-constexpr float kClearColor[4] = { 0.10f, 0.15f, 0.30f, 1.0f };
+/// <remarks>
+/// レンダーターゲットが sRGB 形式なので、ここに渡した値は
+/// GPU が sRGB へ変換してから書き込みます。
+/// 見た目は sRGB の (0.10, 0.15, 0.30)、8bit で (26, 38, 76) 相当になります。
+/// </remarks>
+constexpr float kClearColor[4] = { 0.01002f, 0.01960f, 0.07324f, 1.0f };
 
 /// <summary>
 /// 垂直同期 (VSync) を使うかどうか。
@@ -173,7 +178,7 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
     // (7) メッシュ描画用のパイプライン
     //     PSO は描画先の形式（RTV / DSV）を知っている必要があるため両方渡す。
     m_meshPipeline.Initialize(device,
-                              SwapChain::kBackBufferFormat,
+                              SwapChain::kRenderTargetViewFormat,
                               DepthBuffer::kFormat,
                               SwapChain::kBackBufferCount,
                               kObjectCount,

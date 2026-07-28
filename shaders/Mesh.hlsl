@@ -74,6 +74,10 @@ static const float kSpecularPower = 24.0f;
 // 鏡面反射の強さ。
 static const float kSpecularIntensity = 0.35f;
 
+// トーンマッピングで「白」とみなす明るさ。
+// これを超える部分だけが圧縮され、それ以下はほとんどそのまま残る。
+static const float kWhitePoint = 2.2f;
+
 // 頂点シェーダーへの入力。
 // C++ 側の Vertex 構造体と入力レイアウトに、順序・型・セマンティクス名を合わせる。
 struct VSInput
@@ -173,6 +177,15 @@ float SampleShadow(float3 worldPosition)
     return lit / 9.0f;
 }
 
+// リニアの明るさを、画面に出せる 0〜1 の範囲へ圧縮する。
+//   拡張版ラインハルト。白点より暗い部分はほとんど変えず、
+//   明るい部分だけをなだらかに押し込むので、白飛びが目立たなくなる。
+float3 ToneMap(float3 color)
+{
+    const float whiteSquared = kWhitePoint * kWhitePoint;
+    return color * (1.0f + color / whiteSquared) / (1.0f + color);
+}
+
 // 塗られるピクセル 1 個につき 1 回呼ばれ、そのピクセルの色を決める。
 float4 PSMain(VSOutput input) : SV_TARGET
 {
@@ -214,5 +227,8 @@ float4 PSMain(VSOutput input) : SV_TARGET
     float3 lit     = baseColor.rgb * (ambient + g_lightColor.rgb * diffuse)
                    + g_lightColor.rgb * specular * kSpecularIntensity;
 
-    return float4(lit, baseColor.a);
+    // ★ ここまでの計算はすべてリニア空間で行っている。
+    //   まず明るさを 0〜1 へ押し込み、sRGB への変換はレンダーターゲットに任せる
+    //   （RTV が _SRGB 形式なので、GPU が書き込み時に変換してくれる）。
+    return float4(ToneMap(lit), baseColor.a);
 }

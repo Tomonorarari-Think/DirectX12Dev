@@ -29,6 +29,20 @@ public:
     static constexpr DXGI_FORMAT kBackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
     /// <summary>
+    /// バックバッファを描画先として見るときの形式。
+    /// </summary>
+    /// <remarks>
+    /// ★ スワップチェーン本体とは**わざと違う形式**にしています。
+    /// `_SRGB` を付けると、シェーダーが書いたリニアの値を GPU が sRGB へ
+    /// 変換してから格納してくれます。
+    ///
+    /// スワップチェーン本体に `_SRGB` を指定できないのは、フリップモデル
+    /// (`FLIP_DISCARD`) の制約です。RTV 側で指定するのが定石になっています。
+    /// </remarks>
+    static constexpr DXGI_FORMAT kRenderTargetViewFormat =
+        DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+
+    /// <summary>
     /// 既定のコンストラクタ。まだ何も生成されません。
     /// </summary>
     SwapChain() = default;
