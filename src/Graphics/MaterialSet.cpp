@@ -57,8 +57,22 @@ void MaterialSet::Initialize(ID3D12Device* device,
 
     const uint32_t fallbackIndex = 0;
 
+    // 金属らしさ・粗さを持たない材質のための白 1 ピクセル。
+    //   ★ こちらは色ではなく数値なので、sRGB として読んではいけない。
+    auto neutralMaterialTexture = std::make_unique<Texture2D>();
+    {
+        const assets::ImageData white = CreateWhitePixel();
+        neutralMaterialTexture->Initialize(device, commandQueue, descriptorHeap,
+                                           white.width, white.height, white.pixels,
+                                           /* isColorTexture */ false);
+    }
+
+    const uint32_t neutralIndex = static_cast<uint32_t>(m_textures.size());
+    m_textures.push_back(std::move(neutralMaterialTexture));
+
     // (2) 材質ごとにテクスチャを用意する。
     m_textureIndices.reserve(materials.size());
+    m_metallicRoughnessIndices.reserve(materials.size());
 
     uint32_t texturedCount = 0;
 
@@ -67,21 +81,41 @@ void MaterialSet::Initialize(ID3D12Device* device,
         if (!material.HasTexture())
         {
             m_textureIndices.push_back(fallbackIndex);
-            continue;
+        }
+        else
+        {
+            auto texture = std::make_unique<Texture2D>();
+            // 基本色テクスチャは「見た目の色」なので sRGB として読む。
+            texture->Initialize(device, commandQueue, descriptorHeap,
+                                material.baseColorTexture.width,
+                                material.baseColorTexture.height,
+                                material.baseColorTexture.pixels,
+                                /* isColorTexture */ true);
+
+            m_textureIndices.push_back(static_cast<uint32_t>(m_textures.size()));
+            m_textures.push_back(std::move(texture));
+
+            ++texturedCount;
         }
 
-        auto texture = std::make_unique<Texture2D>();
-        // 基本色テクスチャは「見た目の色」なので sRGB として読む。
-        texture->Initialize(device, commandQueue, descriptorHeap,
-                            material.baseColorTexture.width,
-                            material.baseColorTexture.height,
-                            material.baseColorTexture.pixels,
-                            /* isColorTexture */ true);
+        if (material.metallicRoughnessTexture.pixels.empty())
+        {
+            m_metallicRoughnessIndices.push_back(neutralIndex);
+        }
+        else
+        {
+            auto texture = std::make_unique<Texture2D>();
+            // ★ 金属らしさと粗さは数値。色ではないので sRGB にしない。
+            texture->Initialize(device, commandQueue, descriptorHeap,
+                                material.metallicRoughnessTexture.width,
+                                material.metallicRoughnessTexture.height,
+                                material.metallicRoughnessTexture.pixels,
+                                /* isColorTexture */ false);
 
-        m_textureIndices.push_back(static_cast<uint32_t>(m_textures.size()));
-        m_textures.push_back(std::move(texture));
-
-        ++texturedCount;
+            m_metallicRoughnessIndices.push_back(
+                static_cast<uint32_t>(m_textures.size()));
+            m_textures.push_back(std::move(texture));
+        }
     }
 
     // (3) 基本色を定数バッファへ。読み込み後は書き換わらないので 1 回だけ書く。
@@ -95,6 +129,10 @@ void MaterialSet::Initialize(ID3D12Device* device,
                                       materials[i].baseColorFactor[1],
                                       materials[i].baseColorFactor[2],
                                       materials[i].baseColorFactor[3] };
+
+        constants.materialParams = { materials[i].metallicFactor,
+                                     materials[i].roughnessFactor,
+                                     0.0f, 0.0f };
 
         m_constants.Update(static_cast<uint32_t>(i), &constants, sizeof(constants));
     }
@@ -121,6 +159,17 @@ D3D12_GPU_DESCRIPTOR_HANDLE MaterialSet::TextureView(uint32_t materialIndex) con
 {
     assert(materialIndex < Count());
     return m_textures[m_textureIndices[materialIndex]]->ShaderResourceView();
+}
+
+
+/// <summary>
+/// 指定した材質の、金属らしさと粗さのテクスチャを返します。
+/// </summary>
+D3D12_GPU_DESCRIPTOR_HANDLE MaterialSet::MetallicRoughnessView(
+    uint32_t materialIndex) const
+{
+    assert(materialIndex < Count());
+    return m_textures[m_metallicRoughnessIndices[materialIndex]]->ShaderResourceView();
 }
 
 } // namespace dx12

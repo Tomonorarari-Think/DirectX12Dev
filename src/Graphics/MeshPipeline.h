@@ -194,13 +194,15 @@ public:
     /// <param name="commandList">記録先のコマンドリスト。</param>
     /// <param name="constantAddress">材質の定数バッファの GPU アドレス。</param>
     /// <param name="textureView">材質の基本色テクスチャの SRV。</param>
+    /// <param name="metallicRoughnessView">金属らしさと粗さのテクスチャの SRV。</param>
     /// <remarks>
     /// 材質が変わるたびに呼びます。差し替えるのは定数バッファ 1 本と
     /// ディスクリプタテーブル 1 つだけなので、PSO の切り替えより遥かに軽い処理です。
     /// </remarks>
     void BindMaterial(ID3D12GraphicsCommandList* commandList,
                       D3D12_GPU_VIRTUAL_ADDRESS constantAddress,
-                      D3D12_GPU_DESCRIPTOR_HANDLE textureView) const;
+                      D3D12_GPU_DESCRIPTOR_HANDLE textureView,
+                      D3D12_GPU_DESCRIPTOR_HANDLE metallicRoughnessView) const;
 
 private:
     /// <summary>

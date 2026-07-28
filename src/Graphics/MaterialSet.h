@@ -33,6 +33,12 @@ struct MaterialConstants
 {
     /// <summary>基本色。テクスチャの色と掛け合わせます。</summary>
     DirectX::XMFLOAT4 baseColorFactor;
+
+    /// <summary>
+    /// x = 金属らしさ、y = 粗さ。z と w は未使用。
+    /// </summary>
+    /// <remarks>16 バイト単位に揃えるため、2 つの値でも `XMFLOAT4` にしています。</remarks>
+    DirectX::XMFLOAT4 materialParams;
 };
 
 
@@ -86,11 +92,22 @@ public:
     D3D12_GPU_VIRTUAL_ADDRESS ConstantAddress(uint32_t materialIndex) const;
 
     /// <summary>
-    /// 指定した材質のテクスチャの GPU ディスクリプタハンドルを返します。
+    /// 指定した材質の基本色テクスチャの GPU ディスクリプタハンドルを返します。
     /// </summary>
     /// <param name="materialIndex">材質の番号。</param>
     /// <returns>`SetGraphicsRootDescriptorTable` に渡すハンドル。</returns>
     D3D12_GPU_DESCRIPTOR_HANDLE TextureView(uint32_t materialIndex) const;
+
+    /// <summary>
+    /// 指定した材質の、金属らしさと粗さのテクスチャを返します。
+    /// </summary>
+    /// <param name="materialIndex">材質の番号。</param>
+    /// <returns>`SetGraphicsRootDescriptorTable` に渡すハンドル。</returns>
+    /// <remarks>
+    /// 持たない材質には白 1 ピクセルを割り当てます。
+    /// 白を掛けても値が変わらないので、シェーダーに分岐が要りません。
+    /// </remarks>
+    D3D12_GPU_DESCRIPTOR_HANDLE MetallicRoughnessView(uint32_t materialIndex) const;
 
 private:
     /// <summary>
@@ -101,8 +118,11 @@ private:
     /// </remarks>
     std::vector<std::unique_ptr<Texture2D>> m_textures;
 
-    /// <summary>材質ごとに、どのテクスチャを使うかの番号。</summary>
+    /// <summary>材質ごとに、どの基本色テクスチャを使うかの番号。</summary>
     std::vector<uint32_t> m_textureIndices;
+
+    /// <summary>材質ごとに、どの金属らしさ・粗さテクスチャを使うかの番号。</summary>
+    std::vector<uint32_t> m_metallicRoughnessIndices;
 
     /// <summary>材質ごとの定数（基本色）。材質の数ぶんのスロットを持ちます。</summary>
     /// <remarks>

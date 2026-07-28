@@ -212,6 +212,25 @@ void LoadMaterialLibrary(const std::wstring& filePath,
                    >> current->baseColorFactor[1]
                    >> current->baseColorFactor[2];
         }
+        else if (keyword == "Pm" && current != nullptr)
+        {
+            // PBR 拡張。標準の MTL には無いが、広く使われている。
+            stream >> current->metallicFactor;
+        }
+        else if (keyword == "Pr" && current != nullptr)
+        {
+            stream >> current->roughnessFactor;
+        }
+        else if (keyword == "Ns" && current != nullptr)
+        {
+            // 旧来の鏡面指数。Pr が書かれていないファイル向けの近似。
+            //   指数が大きいほど鋭い＝粗くない、という関係を素朴に写す。
+            float shininess = 0.0f;
+            stream >> shininess;
+
+            const float normalized = std::sqrt(std::max(shininess, 0.0f) / 1000.0f);
+            current->roughnessFactor = 1.0f - std::min(normalized, 1.0f);
+        }
         else if (keyword == "map_Kd" && current != nullptr)
         {
             // 行の残り全部がファイル名。空白を含む名前もあり得る。
