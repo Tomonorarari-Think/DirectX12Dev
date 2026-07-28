@@ -53,6 +53,9 @@
     <ClCompile Include="src\Assets\Json.cpp">
       <Filter>src\Assets</Filter>
     </ClCompile>
+    <ClCompile Include="src\Assets\MipGenerator.cpp">
+      <Filter>src\Assets</Filter>
+    </ClCompile>
     <ClCompile Include="src\Assets\ModelLoader.cpp">
       <Filter>src\Assets</Filter>
     </ClCompile>
@@ -138,6 +141,9 @@
       <Filter>src\Assets</Filter>
     </ClInclude>
     <ClInclude Include="src\Assets\Json.h">
+      <Filter>src\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Assets\MipGenerator.h">
       <Filter>src\Assets</Filter>
     </ClInclude>
     <ClInclude Include="src\Assets\ModelLoader.h">

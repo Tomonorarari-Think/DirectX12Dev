@@ -224,6 +224,7 @@
     <ClCompile Include="src\Assets\EnvironmentPrefilter.cpp" />
     <ClCompile Include="src\Assets\ImageLoader.cpp" />
     <ClCompile Include="src\Assets\Json.cpp" />
+    <ClCompile Include="src\Assets\MipGenerator.cpp" />
     <ClCompile Include="src\Assets\ModelLoader.cpp" />
     <ClCompile Include="src\Assets\ObjLoader.cpp" />
     <ClCompile Include="src\App\Camera.cpp" />
@@ -263,6 +264,7 @@
     <ClInclude Include="src\Assets\EnvironmentPrefilter.h" />
     <ClInclude Include="src\Assets\ImageLoader.h" />
     <ClInclude Include="src\Assets\Json.h" />
+    <ClInclude Include="src\Assets\MipGenerator.h" />
     <ClInclude Include="src\Assets\ModelLoader.h" />
     <ClInclude Include="src\Assets\ObjLoader.h" />
     <ClInclude Include="src\App\Camera.h" />
