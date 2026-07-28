@@ -215,6 +215,9 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
                               kObjectCount,
                               ShadowMap::kDepthStencilViewFormat);
 
+    // (7-b) 背景を描くパイプライン
+    m_skyboxPipeline.Initialize(device, SwapChain::kBackBufferCount);
+
     // (8) 環境マップ（映り込みと環境光）
     CreateEnvironment();
 
@@ -426,6 +429,10 @@ void Renderer::UpdateConstants(uint32_t frameIndex)
     m_meshPipeline.UpdateFrameConstants(
         frameIndex, viewProjection, m_camera.Position(), m_shadowMap.LightViewProjection());
 
+    // 背景は「無限に遠い」ものとして描くので、視点の位置は渡さない。
+    //   環境光の強さは物体側と同じ値を使う（食い違うと空だけ浮いて見える）。
+    m_skyboxPipeline.Update(frameIndex, m_camera, MeshPipeline::AmbientIntensity());
+
     // モデル : 2 軸で回しながら、床から浮かせた位置に置く。
     const float angle =
         static_cast<float>(m_frameTimer.TotalSeconds()) * (XM_2PI / kSecondsPerRotation);
@@ -622,6 +629,12 @@ void Renderer::Render()
                         m_irradianceMap.ShaderResourceView());
 
     RecordMeshDrawCommands(frameIndex);
+
+    // (7-b) 背景の描画
+    //   ★ 物体のあとに描く。背景は最も奥なので、先に物体を描いておけば
+    //     隠れるピクセルの計算が深度テストで省かれる（早期 Z）。
+    m_skyboxPipeline.Record(m_commandList.Get(), frameIndex,
+                            m_environmentMap.ShaderResourceView());
 
     // (8) バリア : RENDER_TARGET → PRESENT
     //   描き終わったので、表示できる状態へ戻します。

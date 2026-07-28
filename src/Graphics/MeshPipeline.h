@@ -127,6 +127,14 @@ public:
     /// </remarks>
     static DirectX::XMFLOAT3 LightDirection();
 
+    /// <summary>環境光（IBL）の強さを返します。</summary>
+    /// <returns>環境マップから求めた明るさに掛ける倍率。</returns>
+    /// <remarks>
+    /// 背景を描くときにも同じ値を使います。片方だけ変えると、
+    /// 物体に映り込んだ空と背景の空で明るさが食い違います。
+    /// </remarks>
+    static float AmbientIntensity();
+
     /// <summary>
     /// このフレームの共通定数（カメラとライト）を書き込みます。
     /// </summary>
@@ -264,18 +272,6 @@ private:
     {
         return frameIndex * m_maxObjectCount + objectIndex;
     }
-
-    /// <summary>
-    /// HLSL ファイルをコンパイルして、GPU 用のバイトコードを得ます。
-    /// </summary>
-    /// <param name="filePath">.hlsl ファイルの絶対パス。</param>
-    /// <param name="entryPoint">入口となる関数名（`"VSMain"` など）。</param>
-    /// <param name="target">シェーダーモデル（`"vs_5_0"` など）。</param>
-    /// <returns>コンパイル済みバイトコードを保持する Blob。</returns>
-    /// <exception cref="HrException">コンパイルに失敗した場合。</exception>
-    static ComPtr<ID3DBlob> CompileShader(const std::wstring& filePath,
-                                          const char* entryPoint,
-                                          const char* target);
 
 private:
     /// <summary>

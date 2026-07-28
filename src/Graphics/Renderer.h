@@ -18,6 +18,7 @@
 #include "ShadowMap.h"
 #include "SwapChain.h"
 #include "MeshPipeline.h"
+#include "SkyboxPipeline.h"
 
 #include <array>
 
@@ -205,6 +206,9 @@ private:
     /// メッシュの描き方（PSO・ルートシグネチャ・定数バッファ・テクスチャ）。
     /// </summary>
     MeshPipeline m_meshPipeline;
+
+    /// <summary>背景に環境マップを描くパイプライン。</summary>
+    SkyboxPipeline m_skyboxPipeline;
 
     /// <summary>
     /// 回転させるモデル。ファイルから読み込みます。

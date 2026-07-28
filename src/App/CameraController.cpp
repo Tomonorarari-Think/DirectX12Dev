@@ -43,8 +43,13 @@ constexpr float kMaxDistance = 24.0f;
 constexpr float kPitchLimit = 1.52f;   // 約 87 度
 
 /// <summary>初期状態の値。`Reset` で戻す先。</summary>
+/// <remarks>
+/// 仰角は、画面の上端が地平線より上に来る値にしてあります。
+/// 垂直画角 45 度の半分（22.5 度）より小さくしないと、背景が地面だけになります
+/// （[23 章](../../docs/tutorial/23_スカイボックス.md)）。
+/// </remarks>
 constexpr float kInitialYaw      = 0.0f;
-constexpr float kInitialPitch    = 0.42f;
+constexpr float kInitialPitch    = 0.30f;
 constexpr float kInitialDistance = 5.4f;
 constexpr XMFLOAT3 kInitialTarget = { 0.0f, 0.55f, 0.0f };
 } // namespace
@@ -116,6 +121,15 @@ void CameraController::Update(const Input& input, Camera& camera, float deltaSec
     }
 
     ApplyToCamera(camera);
+}
+
+
+/// <summary>
+/// 既定のコンストラクタ。`Reset()` と同じ初期状態にします。
+/// </summary>
+CameraController::CameraController()
+{
+    Reset();
 }
 
 

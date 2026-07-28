@@ -51,6 +51,22 @@ public:
     /// <remarks>ライティングの鏡面反射は「どこから見ているか」で変わるため必要です。</remarks>
     const DirectX::XMFLOAT3& Position() const { return m_position; }
 
+    /// <summary>注視点のワールド座標を返します。</summary>
+    /// <returns>カメラが向いている先。</returns>
+    const DirectX::XMFLOAT3& Target() const { return m_target; }
+
+    /// <summary>カメラの上方向を返します。</summary>
+    /// <returns>正規化された上方向のベクトル。</returns>
+    const DirectX::XMFLOAT3& Up() const { return m_up; }
+
+    /// <summary>垂直方向の画角を返します。</summary>
+    /// <returns>画角（ラジアン）。</returns>
+    float FieldOfView() const noexcept { return m_fieldOfViewY; }
+
+    /// <summary>画面の縦横比を返します。</summary>
+    /// <returns>幅 ÷ 高さ。</returns>
+    float AspectRatio() const noexcept { return m_aspectRatio; }
+
     /// <summary>ビュー行列（ワールド空間をカメラ基準へ移す行列）を返します。</summary>
     /// <returns>左手座標系のビュー行列。</returns>
     DirectX::XMMATRIX ViewMatrix() const;

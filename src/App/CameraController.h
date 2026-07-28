@@ -24,8 +24,13 @@ class Input;
 class CameraController
 {
 public:
-    /// <summary>既定のコンストラクタ。既定の画角と距離を設定します。</summary>
-    CameraController() = default;
+    /// <summary>既定のコンストラクタ。`Reset()` と同じ初期状態にします。</summary>
+    /// <remarks>
+    /// 初期値をここに書かず `Reset()` に任せているのは、**二重管理を避ける**ためです。
+    /// 以前はヘッダの初期化子と `Reset()` の定数が別々にあり、片方だけ直しても
+    /// 起動直後の見え方が変わらない、という状態になっていました。
+    /// </remarks>
+    CameraController();
 
     /// <summary>
     /// 入力に応じてカメラを更新します。
@@ -52,16 +57,16 @@ private:
 
 private:
     /// <summary>注視点。ここを中心に回ります。</summary>
-    DirectX::XMFLOAT3 m_target = { 0.0f, 0.55f, 0.0f };
+    DirectX::XMFLOAT3 m_target = {};
 
     /// <summary>方位角（水平方向の回転、ラジアン）。</summary>
     float m_yaw = 0.0f;
 
     /// <summary>仰角（上下方向の回転、ラジアン）。正で見下ろします。</summary>
-    float m_pitch = 0.42f;
+    float m_pitch = 0.0f;
 
     /// <summary>注視点までの距離。</summary>
-    float m_distance = 5.4f;
+    float m_distance = 0.0f;
 };
 
 } // namespace dx12
