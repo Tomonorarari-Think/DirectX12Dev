@@ -106,7 +106,13 @@ void SwapChain::CreateRenderTargetViews(ID3D12Device* device)
         DX_CHECK(m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_backBuffers[i])));
 
         // RTV を作成して、ヒープの i 番目に書き込む。
-        device->CreateRenderTargetView(m_backBuffers[i].Get(), nullptr, rtvHandle);
+        //   ★ nullptr（リソースと同じ形式）ではなく、明示的に sRGB の形式を渡す。
+        //     こうすると「書き込むときだけ sRGB へ変換する」見方になる。
+        D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+        rtvDesc.Format        = kRenderTargetViewFormat;
+        rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+
+        device->CreateRenderTargetView(m_backBuffers[i].Get(), &rtvDesc, rtvHandle);
 
         // 次のディスクリプタの位置へ進める
         rtvHandle.ptr += m_rtvDescriptorSize;

@@ -556,6 +556,9 @@ void MeshPipeline::CreatePipelineState(ID3D12Device* device,
 
     // 出力先（レンダーターゲット）の枚数と形式。
     psoDesc.NumRenderTargets = 1;
+    // ★ ここに渡すのは RTV の形式（_SRGB 付き）です。
+    //   スワップチェーン本体の形式を渡すと、PSO の生成は通るのに
+    //   実行時に「形式が合わない」とデバッグレイヤーに怒られます。
     psoDesc.RTVFormats[0]    = renderTargetFormat;
 
     // 深度バッファの形式。DepthBuffer::kFormat と一致していないとエラーになります。
