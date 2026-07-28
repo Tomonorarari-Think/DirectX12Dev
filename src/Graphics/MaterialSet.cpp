@@ -4,6 +4,8 @@
 //=============================================================================
 #include "MaterialSet.h"
 
+#include "../Assets/MipGenerator.h"
+
 #include "CommandQueue.h"
 #include "DescriptorHeap.h"
 
@@ -67,9 +69,10 @@ void MaterialSet::Initialize(ID3D12Device* device,
         fallbackTexture.pixels.empty() ? CreateWhitePixel() : fallbackTexture;
 
     auto fallbackTexture2D = std::make_unique<Texture2D>();
-    fallbackTexture2D->Initialize(device, commandQueue, descriptorHeap,
-                                  fallback.width, fallback.height, fallback.pixels,
-                                  /* isColorTexture */ true);
+    fallbackTexture2D->Initialize(
+        device, commandQueue, descriptorHeap,
+        assets::GenerateMipChain(fallback, assets::MipFilter::Color),
+        /* isColorTexture */ true);
 
     m_textures.push_back(std::move(fallbackTexture2D));
 
@@ -118,11 +121,12 @@ void MaterialSet::Initialize(ID3D12Device* device,
         {
             auto texture = std::make_unique<Texture2D>();
             // 基本色テクスチャは「見た目の色」なので sRGB として読む。
-            texture->Initialize(device, commandQueue, descriptorHeap,
-                                material.baseColorTexture.width,
-                                material.baseColorTexture.height,
-                                material.baseColorTexture.pixels,
-                                /* isColorTexture */ true);
+            //   ★ 平均はリニアで取る必要があるので、縮小の仕方も色用を指定する。
+            texture->Initialize(
+                device, commandQueue, descriptorHeap,
+                assets::GenerateMipChain(material.baseColorTexture,
+                                         assets::MipFilter::Color),
+                /* isColorTexture */ true);
 
             m_textureIndices.push_back(static_cast<uint32_t>(m_textures.size()));
             m_textures.push_back(std::move(texture));
@@ -138,11 +142,12 @@ void MaterialSet::Initialize(ID3D12Device* device,
         {
             auto texture = std::make_unique<Texture2D>();
             // ★ 金属らしさと粗さは数値。色ではないので sRGB にしない。
-            texture->Initialize(device, commandQueue, descriptorHeap,
-                                material.metallicRoughnessTexture.width,
-                                material.metallicRoughnessTexture.height,
-                                material.metallicRoughnessTexture.pixels,
-                                /* isColorTexture */ false);
+            //   縮小もそのまま平均するだけでよい。
+            texture->Initialize(
+                device, commandQueue, descriptorHeap,
+                assets::GenerateMipChain(material.metallicRoughnessTexture,
+                                         assets::MipFilter::Linear),
+                /* isColorTexture */ false);
 
             m_metallicRoughnessIndices.push_back(
                 static_cast<uint32_t>(m_textures.size()));
@@ -157,11 +162,12 @@ void MaterialSet::Initialize(ID3D12Device* device,
         {
             auto texture = std::make_unique<Texture2D>();
             // ★ 法線マップはベクトル。色ではないので sRGB にしない。
-            texture->Initialize(device, commandQueue, descriptorHeap,
-                                material.normalTexture.width,
-                                material.normalTexture.height,
-                                material.normalTexture.pixels,
-                                /* isColorTexture */ false);
+            //   縮小では -1〜1 に戻して平均し、長さを 1 に戻す必要がある。
+            texture->Initialize(
+                device, commandQueue, descriptorHeap,
+                assets::GenerateMipChain(material.normalTexture,
+                                         assets::MipFilter::Normal),
+                /* isColorTexture */ false);
 
             m_normalMapIndices.push_back(static_cast<uint32_t>(m_textures.size()));
             m_textures.push_back(std::move(texture));
