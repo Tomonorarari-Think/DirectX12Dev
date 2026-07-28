@@ -158,13 +158,17 @@ public:
     /// <param name="commandList">記録先の（Reset 済みで開いている）コマンドリスト。</param>
     /// <param name="frameIndex">使用するフレーム番号。</param>
     /// <param name="shadowMapView">シャドウマップの SRV。</param>
+    /// <param name="environmentView">環境マップ（映り込み用）の SRV。</param>
+    /// <param name="irradianceView">拡散反射用に積分済みの環境光の SRV。</param>
     /// <remarks>
     /// テクスチャを結び付けるため、呼び出し側が先に `SetDescriptorHeaps` で
     /// シェーダー可視ヒープを設定しておく必要があります。
     /// </remarks>
     void Bind(ID3D12GraphicsCommandList* commandList,
               uint32_t frameIndex,
-              D3D12_GPU_DESCRIPTOR_HANDLE shadowMapView) const;
+              D3D12_GPU_DESCRIPTOR_HANDLE shadowMapView,
+              D3D12_GPU_DESCRIPTOR_HANDLE environmentView,
+              D3D12_GPU_DESCRIPTOR_HANDLE irradianceView) const;
 
     /// <summary>
     /// シャドウマップを描くための共通設定を記録します。

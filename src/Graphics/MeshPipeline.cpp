@@ -36,12 +36,13 @@ constexpr float kLightDirection[3] = { 0.55f, -0.75f, 0.35f };
 constexpr float kLightColor[3] = { 1.0f, 0.96f, 0.88f };
 
 /// <summary>
-/// 環境光の強さ。光の当たらない面が真っ黒に潰れるのを防ぎます。
+/// 環境光（IBL）の強さ。
 /// </summary>
 /// <remarks>
-/// 本来は周囲からの反射の積み重ねですが、ここでは定数で近似しています。
+/// 21 章より前は「定数で近似した環境光」の値でしたが、いまは環境マップから
+/// 求めた明るさに掛ける倍率です。1.0 が「環境マップのとおり」を意味します。
 /// </remarks>
-constexpr float kAmbientIntensity = 0.25f;
+constexpr float kAmbientIntensity = 1.0f;
 
 /// <summary>
 /// 光の強さ。
@@ -81,6 +82,16 @@ constexpr uint32_t kMaterialConstantsRootParameterIndex = 4;
 /// 金属らしさ・粗さのテクスチャを結び付けるルートパラメータの番号。
 /// </summary>
 constexpr uint32_t kMetallicRoughnessRootParameterIndex = 5;
+
+/// <summary>
+/// 環境マップ（映り込み用）を結び付けるルートパラメータの番号。
+/// </summary>
+constexpr uint32_t kEnvironmentRootParameterIndex = 6;
+
+/// <summary>
+/// 積分済みの環境光を結び付けるルートパラメータの番号。
+/// </summary>
+constexpr uint32_t kIrradianceRootParameterIndex = 7;
 
 /// <summary>
 /// シャドウマップを描くときに深度へ加える下駄（整数バイアス）。
@@ -141,7 +152,7 @@ void MeshPipeline::Initialize(ID3D12Device* device,
 void MeshPipeline::CreateRootSignature(ID3D12Device* device)
 {
     // ルートパラメータ : シェーダーへ何を渡すかの定義。関数の引数リストに相当する。
-    D3D12_ROOT_PARAMETER rootParameters[6] = {};
+    D3D12_ROOT_PARAMETER rootParameters[8] = {};
 
     // 0 番 : フレーム共通の定数バッファ（カメラとライト）
     rootParameters[kFrameConstantsRootParameterIndex].ParameterType =
@@ -230,6 +241,42 @@ void MeshPipeline::CreateRootSignature(ID3D12Device* device)
     rootParameters[kMetallicRoughnessRootParameterIndex]
         .DescriptorTable.pDescriptorRanges = &metallicRoughnessRange;
     rootParameters[kMetallicRoughnessRootParameterIndex].ShaderVisibility =
+        D3D12_SHADER_VISIBILITY_PIXEL;
+
+    // 6 番・7 番 : 環境マップと、積分済みの環境光
+    //   材質ではなくシーン全体で共通なので、Bind で 1 度だけ結び付ける。
+    D3D12_DESCRIPTOR_RANGE environmentRange = {};
+    environmentRange.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    environmentRange.NumDescriptors     = 1;
+    environmentRange.BaseShaderRegister = 3;   // register(t3)
+    environmentRange.RegisterSpace      = 0;
+    environmentRange.OffsetInDescriptorsFromTableStart =
+        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    rootParameters[kEnvironmentRootParameterIndex].ParameterType =
+        D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParameters[kEnvironmentRootParameterIndex]
+        .DescriptorTable.NumDescriptorRanges = 1;
+    rootParameters[kEnvironmentRootParameterIndex]
+        .DescriptorTable.pDescriptorRanges = &environmentRange;
+    rootParameters[kEnvironmentRootParameterIndex].ShaderVisibility =
+        D3D12_SHADER_VISIBILITY_PIXEL;
+
+    D3D12_DESCRIPTOR_RANGE irradianceRange = {};
+    irradianceRange.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    irradianceRange.NumDescriptors     = 1;
+    irradianceRange.BaseShaderRegister = 4;   // register(t4)
+    irradianceRange.RegisterSpace      = 0;
+    irradianceRange.OffsetInDescriptorsFromTableStart =
+        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    rootParameters[kIrradianceRootParameterIndex].ParameterType =
+        D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParameters[kIrradianceRootParameterIndex]
+        .DescriptorTable.NumDescriptorRanges = 1;
+    rootParameters[kIrradianceRootParameterIndex]
+        .DescriptorTable.pDescriptorRanges = &irradianceRange;
+    rootParameters[kIrradianceRootParameterIndex].ShaderVisibility =
         D3D12_SHADER_VISIBILITY_PIXEL;
 
     // 静的サンプラー (Static Sampler)
@@ -746,7 +793,9 @@ void MeshPipeline::UpdateObjectConstants(uint32_t frameIndex,
 /// </summary>
 void MeshPipeline::Bind(ID3D12GraphicsCommandList* commandList,
                         uint32_t frameIndex,
-                        D3D12_GPU_DESCRIPTOR_HANDLE shadowMapView) const
+                        D3D12_GPU_DESCRIPTOR_HANDLE shadowMapView,
+                        D3D12_GPU_DESCRIPTOR_HANDLE environmentView,
+                        D3D12_GPU_DESCRIPTOR_HANDLE irradianceView) const
 {
     // コマンドリストは Reset するたびに「PSO 未設定」の状態に戻ります。
     commandList->SetPipelineState(m_pipelineState.Get());
@@ -762,6 +811,13 @@ void MeshPipeline::Bind(ID3D12GraphicsCommandList* commandList,
     //     シェーダー可視ヒープを設定しておく必要があります（Renderer が行う）。
     commandList->SetGraphicsRootDescriptorTable(
         kShadowMapRootParameterIndex, shadowMapView);
+
+    // 環境マップと積分済みの環境光。シーン全体で共通なのでここで結び付ける。
+    commandList->SetGraphicsRootDescriptorTable(
+        kEnvironmentRootParameterIndex, environmentView);
+
+    commandList->SetGraphicsRootDescriptorTable(
+        kIrradianceRootParameterIndex, irradianceView);
 
     // TRIANGLELIST : 3 頂点ごとに独立した三角形を作る。
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

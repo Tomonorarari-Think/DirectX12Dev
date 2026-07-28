@@ -4,6 +4,8 @@
 //=============================================================================
 #include "Renderer.h"
 
+#include "../Assets/EnvironmentPrefilter.h"
+
 #include <format>
 #include <stdexcept>
 
@@ -29,7 +31,7 @@ constexpr bool kEnableVSync = true;
 /// <summary>
 /// シェーダー可視ディスクリプタヒープに確保する数。
 /// </summary>
-constexpr uint32_t kDescriptorHeapCapacity = 16;
+constexpr uint32_t kDescriptorHeapCapacity = 32;
 
 /// <summary>
 /// シーンに置くオブジェクトの数（モデルと床）。
@@ -118,6 +120,25 @@ constexpr const wchar_t* kFloorTextureRelativePath = L"assets/textures/uv-grid.p
 constexpr uint32_t kFallbackTextureSize = 256;
 
 /// <summary>
+/// 環境マップの画像（プロジェクトルートからの相対パス）。
+/// </summary>
+constexpr const wchar_t* kEnvironmentRelativePath =
+    L"assets/textures/environment.png";
+
+/// <summary>
+/// 環境マップのいちばん鮮明な段の横幅。
+/// </summary>
+constexpr uint32_t kEnvironmentBaseWidth = 256;
+
+/// <summary>
+/// 環境マップの段数。粗さ 1.0 が最後の段に対応します。
+/// </summary>
+/// <remarks>
+/// この値を変えたら `shaders/Mesh.hlsl` の `kEnvironmentMipCount` も合わせてください。
+/// </remarks>
+constexpr uint32_t kEnvironmentMipCount = 6;
+
+/// <summary>
 /// 代用する市松模様 1 マスのピクセル数。
 /// </summary>
 constexpr uint32_t kFallbackTextureCellSize = 32;
@@ -184,16 +205,19 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
                               kObjectCount,
                               ShadowMap::kDepthStencilViewFormat);
 
-    // (8) 描くもの（形状データ）
+    // (8) 環境マップ（映り込みと環境光）
+    CreateEnvironment();
+
+    // (9) 描くもの（形状データ）
     CreateSceneMeshes();
 
-    // (9) 光源から見た深度を書き込む先と、その視点
+    // (10) 光源から見た深度を書き込む先と、その視点
     //     ライトの設定は MeshPipeline が持っているので、そこから受け取る。
     m_shadowMap.SetLight(MeshPipeline::LightDirection(),
                          DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f),
                          kSceneRadius);
 
-    // (10) ビューポート／シザー矩形
+    // (11) ビューポート／シザー矩形
     UpdateViewportAndScissor(width, height);
 
     m_initialized = true;
@@ -229,6 +253,42 @@ void Renderer::CreateCommandObjects()
 
     Log(std::format(L"コマンドアロケータ {} 個とコマンドリストを生成しました。",
                     SwapChain::kBackBufferCount));
+}
+
+
+/// <summary>
+/// 環境マップと、そこから求めた環境光を用意します。
+/// </summary>
+void Renderer::CreateEnvironment()
+{
+    ID3D12Device* device = m_graphicsDevice.Device();
+
+    assets::ImageData source;
+    try
+    {
+        source = assets::LoadImageFile(ResolveAssetPath(kEnvironmentRelativePath));
+    }
+    catch (const std::exception& e)
+    {
+        LogError(L"環境マップを読めなかったため、灰色 1 色で代用します。");
+        ::OutputDebugStringA(e.what());
+        ::OutputDebugStringA("\n");
+
+        source.width  = 4;
+        source.height = 2;
+        source.pixels.assign(4 * 2 * 4, 160);
+    }
+
+    // 粗さの段階ごとにぼかした列を作る。CPU で下ごしらえしておくのが要点。
+    m_environmentMap.Initialize(
+        device, m_commandQueue, m_descriptorHeap,
+        assets::PrefilterEnvironment(source, kEnvironmentBaseWidth, kEnvironmentMipCount));
+
+    // 拡散反射用の積分。結果はなだらかなので小さくてよい。
+    const assets::ImageData irradiance = assets::ComputeIrradiance(source);
+
+    m_irradianceMap.Initialize(device, m_commandQueue, m_descriptorHeap,
+                               irradiance.width, irradiance.height, irradiance.pixels);
 }
 
 
@@ -534,7 +594,10 @@ void Renderer::Render()
 
     // (7) シーン（床と立方体）の描画命令を記録
     //   影のパスでルートシグネチャを切り替えたので、ここで改めて設定し直す。
-    m_meshPipeline.Bind(m_commandList.Get(), frameIndex, m_shadowMap.ShaderResourceView());
+    m_meshPipeline.Bind(m_commandList.Get(), frameIndex,
+                        m_shadowMap.ShaderResourceView(),
+                        m_environmentMap.ShaderResourceView(),
+                        m_irradianceMap.ShaderResourceView());
 
     RecordMeshDrawCommands(frameIndex);
 

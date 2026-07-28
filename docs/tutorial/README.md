@@ -40,6 +40,7 @@ Unity で `GameObject` にマテリアルを付ければ絵が出ますが、
 | 18 | [マテリアル](18_マテリアル.md) | サブメッシュ、glTF の materials、OBJ の .mtl |
 | 19 | [色を正しく扱う：sRGB](19_色を正しく扱う_sRGB.md) | 色空間、リニア空間での計算、トーンマッピング |
 | 20 | [PBR：金属度と粗さ](20_PBR_金属度と粗さ.md) | マイクロファセット BRDF、エネルギー保存 |
+| 21 | [IBL：環境マップ](21_IBL_環境マップ.md) | 正距円筒図法、イラディアンス マップ、ミップ列 |
 
 ```mermaid
 flowchart LR
@@ -62,10 +63,11 @@ flowchart LR
     Q --> R["18 マテリアル"]
     R --> S["19 色空間"]
     S --> T["20 PBR"]
+    T --> U["21 IBL"]
 
     style A fill:#dafbe1,stroke:#0d4f21
     style F fill:#ddf4ff,stroke:#0a4f9e
-    style T fill:#ddf4ff,stroke:#0a4f9e
+    style U fill:#ddf4ff,stroke:#0a4f9e
 ```
 
 ## 関連する資料

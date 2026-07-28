@@ -66,6 +66,15 @@ Texture2D g_shadowMap : register(t1);
 // 色ではなく数値なので、C++ 側で sRGB ではない形式として作っている。
 Texture2D g_metallicRoughness : register(t2);
 
+// 周囲の景色。正距円筒図法で、段が進むほどぼけている。
+Texture2D g_environment : register(t3);
+
+// 拡散反射用に、あらゆる方向から届く光を積分したもの。
+Texture2D g_irradiance : register(t4);
+
+// 環境マップの段数。C++ 側の kEnvironmentMipCount と合わせること。
+static const float kEnvironmentMipCount = 6.0f;
+
 // 比較サンプラー。読んだ値をそのまま返すのではなく、渡した値と比較して
 // 「合格した割合」を返す。周囲 4 テクセルぶんを比較して補間するので、
 // 1 回の読み取りだけで影の境目がなめらかになる。
@@ -231,6 +240,30 @@ float3 FresnelSchlick(float cosTheta, float3 f0)
 }
 
 
+// 方向ベクトルを、正距円筒図法のテクスチャ座標へ変換する。
+//   横は方位角、縦は天頂からの角度。v = 0 が真上（+Y）。
+float2 DirectionToEquirectUv(float3 direction)
+{
+    float u = atan2(direction.z, direction.x) / (2.0f * kPi) + 0.5f;
+    float v = acos(clamp(direction.y, -1.0f, 1.0f)) / kPi;
+    return float2(u, v);
+}
+
+// 環境光の鏡面反射で使う積分の近似（分割和近似の第 2 項）。
+//   本来は事前計算した表を引くところを、多項式で近似したもの。
+//   Karis, "Real Shading in Unreal Engine 4" (2013) による。
+float2 EnvironmentBrdfApprox(float roughness, float normalDotView)
+{
+    const float4 c0 = float4(-1.0f, -0.0275f, -0.572f,  0.022f);
+    const float4 c1 = float4( 1.0f,  0.0425f,  1.040f, -0.040f);
+
+    float4 r = roughness * c0 + c1;
+    float  a = min(r.x * r.x, exp2(-9.28f * normalDotView)) * r.x + r.y;
+
+    return float2(-1.04f, 1.04f) * a + r.zw;
+}
+
+
 // リニアの明るさを、画面に出せる 0〜1 の範囲へ圧縮する。
 //   拡張版ラインハルト。白点より暗い部分はほとんど変えず、
 //   明るい部分だけをなだらかに押し込むので、白飛びが目立たなくなる。
@@ -296,9 +329,30 @@ float4 PSMain(VSOutput input) : SV_TARGET
     float3 direct = (diffuseWeight * albedo / kPi + specular)
                   * g_lightColor.rgb * normalDotLight * shadow;
 
-    // 環境光。本来は周囲の映り込み (IBL) で計算するもので、ここでは拡散ぶんだけを近似。
-    //   金属は拡散反射を持たないため、この近似では暗くなる。
-    float3 ambient = albedo * g_lightColor.a;
+    // ここからが環境光 (IBL)。定数ではなく、周囲の景色から求める。
+
+    // 拡散ぶん : 面の向きで、積分済みの画像を引くだけ。
+    float3 irradiance = g_irradiance.Sample(
+        g_sampler, DirectionToEquirectUv(normal)).rgb;
+
+    float3 diffuseAmbient = irradiance * albedo;
+
+    // 鏡面ぶん : 視線を面で反射させた方向の景色を読む。
+    //   粗い材質ほど後ろの段（ぼけた段）を読むことで、映り込みがぼやける。
+    float3 reflectDirection = reflect(-toEye, normal);
+
+    float3 prefiltered = g_environment.SampleLevel(
+        g_sampler,
+        DirectionToEquirectUv(reflectDirection),
+        roughness * (kEnvironmentMipCount - 1.0f)).rgb;
+
+    // 反射率は視線の角度と粗さで変わる。その積分を近似で求める。
+    float2 environmentBrdf = EnvironmentBrdfApprox(roughness, normalDotView);
+    float3 specularAmbient = prefiltered * (f0 * environmentBrdf.x + environmentBrdf.y);
+
+    // ★ 金属はここでようやく見えるようになる。
+    //   拡散反射を持たないので、映り込みが無ければ真っ黒のままだった。
+    float3 ambient = (diffuseAmbient + specularAmbient) * g_lightColor.a;
 
     float3 lit = direct + ambient;
 
