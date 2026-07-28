@@ -5,6 +5,7 @@
 #pragma once
 
 #include "../App/Camera.h"
+#include "../Assets/ImageLoader.h"
 #include "../Assets/ModelLoader.h"
 #include "../Common/FrameTimer.h"
 #include "../Common/GraphicsCommon.h"
@@ -109,6 +110,15 @@ private:
     /// <param name="width">新しい幅（ピクセル）。</param>
     /// <param name="height">新しい高さ（ピクセル）。</param>
     void UpdateViewportAndScissor(uint32_t width, uint32_t height);
+
+    /// <summary>
+    /// メッシュに貼るテクスチャを用意します。
+    /// </summary>
+    /// <returns>RGBA8 のピクセル列と、その大きさ。</returns>
+    /// <remarks>
+    /// 画像ファイルを読み、失敗したらコードで市松模様を作って代用します。
+    /// </remarks>
+    assets::ImageData CreateBaseTexture();
 
     /// <summary>
     /// シーンに置くメッシュを生成します。

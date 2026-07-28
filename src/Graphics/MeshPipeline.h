@@ -14,6 +14,8 @@
 // DirectXMath : Windows SDK に同梱される数学ライブラリ。
 #include <DirectXMath.h>
 
+#include <vector>
+
 namespace dx12
 {
 class CommandQueue;
@@ -104,6 +106,9 @@ public:
     /// テクスチャ転送に使うキュー。転送の完了まで待機します。
     /// </param>
     /// <param name="descriptorHeap">テクスチャの SRV を登録するシェーダー可視ヒープ。</param>
+    /// <param name="textureWidth">貼り付けるテクスチャの横のピクセル数。</param>
+    /// <param name="textureHeight">貼り付けるテクスチャの縦のピクセル数。</param>
+    /// <param name="texturePixels">RGBA8 のピクセル列。</param>
     /// <exception cref="HrException">いずれかの生成に失敗した場合。</exception>
     /// <exception cref="std::runtime_error">シェーダーファイルが見つからない場合。</exception>
     void Initialize(ID3D12Device* device,
@@ -113,7 +118,10 @@ public:
                     uint32_t maxObjectCount,
                     DXGI_FORMAT shadowMapFormat,
                     CommandQueue& commandQueue,
-                    DescriptorHeap& descriptorHeap);
+                    DescriptorHeap& descriptorHeap,
+                    uint32_t textureWidth,
+                    uint32_t textureHeight,
+                    const std::vector<uint8_t>& texturePixels);
 
     /// <summary>
     /// 平行光源が進む向きを返します。
