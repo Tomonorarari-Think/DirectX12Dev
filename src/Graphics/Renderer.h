@@ -113,6 +113,15 @@ private:
     void UpdateViewportAndScissor(uint32_t width, uint32_t height);
 
     /// <summary>
+    /// 環境マップと、そこから求めた環境光を用意します。
+    /// </summary>
+    /// <exception cref="HrException">リソースの生成または転送に失敗した場合。</exception>
+    /// <remarks>
+    /// 画像が読めなかった場合は、灰色 1 色の環境で代用します。
+    /// </remarks>
+    void CreateEnvironment();
+
+    /// <summary>
     /// 床に貼るテクスチャを用意します。
     /// </summary>
     /// <returns>RGBA8 のピクセル列と、その大きさ。</returns>
@@ -221,6 +230,16 @@ private:
     /// 光源から見た深度。影の判定に使う。
     /// </summary>
     ShadowMap m_shadowMap;
+
+    /// <summary>
+    /// 周囲の景色。粗さの段階ごとにぼかしたミップ列を持つ。
+    /// </summary>
+    Texture2D m_environmentMap;
+
+    /// <summary>
+    /// 拡散反射用に、あらゆる方向から届く光を積分したもの。
+    /// </summary>
+    Texture2D m_irradianceMap;
 
     /// <summary>
     /// 視点と透視投影の設定。

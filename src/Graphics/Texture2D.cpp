@@ -16,6 +16,134 @@ namespace dx12
 {
 
 /// <summary>
+/// 縮小版を何段も持つテクスチャ（ミップ列）を生成します。
+/// </summary>
+void Texture2D::Initialize(ID3D12Device* device,
+                           CommandQueue& commandQueue,
+                           DescriptorHeap& descriptorHeap,
+                           const std::vector<assets::ImageData>& mipChain,
+                           bool isColorTexture)
+{
+    if (mipChain.empty())
+    {
+        throw std::runtime_error("ミップ列が空です。");
+    }
+
+    m_width  = mipChain[0].width;
+    m_height = mipChain[0].height;
+
+    const uint32_t mipCount   = static_cast<uint32_t>(mipChain.size());
+    const DXGI_FORMAT format  = isColorTexture ? kColorFormat : kFormat;
+
+    D3D12_HEAP_PROPERTIES heapProperties = {};
+    heapProperties.Type                 = D3D12_HEAP_TYPE_DEFAULT;
+    heapProperties.CPUPageProperty      = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProperties.CreationNodeMask     = 1;
+    heapProperties.VisibleNodeMask      = 1;
+
+    D3D12_RESOURCE_DESC textureDesc = {};
+    textureDesc.Dimension          = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    textureDesc.Width              = m_width;
+    textureDesc.Height             = m_height;
+    textureDesc.DepthOrArraySize   = 1;
+    textureDesc.MipLevels          = static_cast<UINT16>(mipCount);
+    textureDesc.Format             = format;
+    textureDesc.SampleDesc.Count   = 1;
+    textureDesc.SampleDesc.Quality = 0;
+    textureDesc.Layout             = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    textureDesc.Flags              = D3D12_RESOURCE_FLAG_NONE;
+
+    DX_CHECK(device->CreateCommittedResource(
+        &heapProperties,
+        D3D12_HEAP_FLAG_NONE,
+        &textureDesc,
+        D3D12_RESOURCE_STATE_COPY_DEST,
+        nullptr,
+        IID_PPV_ARGS(&m_texture)));
+
+    // 段ごとの配置を GPU に教えてもらう。1 本の中継バッファに全段が並ぶ。
+    std::vector<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> footprints(mipCount);
+    std::vector<UINT>   numRows(mipCount);
+    std::vector<UINT64> rowSizes(mipCount);
+    UINT64 totalBytes = 0;
+
+    device->GetCopyableFootprints(&textureDesc, 0, mipCount, 0,
+                                  footprints.data(), numRows.data(),
+                                  rowSizes.data(), &totalBytes);
+
+    ComPtr<ID3D12Resource> uploadBuffer = upload::CreateUploadBuffer(device, totalBytes);
+
+    uint8_t* mapped = nullptr;
+    D3D12_RANGE readRange = { 0, 0 };
+    DX_CHECK(uploadBuffer->Map(0, &readRange, reinterpret_cast<void**>(&mapped)));
+
+    for (uint32_t level = 0; level < mipCount; ++level)
+    {
+        const assets::ImageData& image = mipChain[level];
+        const size_t sourceRowPitch = static_cast<size_t>(image.width) * kBytesPerPixel;
+
+        for (UINT row = 0; row < numRows[level]; ++row)
+        {
+            std::memcpy(mapped + footprints[level].Offset
+                               + static_cast<size_t>(row)
+                                 * footprints[level].Footprint.RowPitch,
+                        image.pixels.data() + row * sourceRowPitch,
+                        static_cast<size_t>(rowSizes[level]));
+        }
+    }
+
+    uploadBuffer->Unmap(0, nullptr);
+
+    upload::ExecuteImmediate(device, commandQueue,
+        [&](ID3D12GraphicsCommandList* commandList)
+        {
+            for (uint32_t level = 0; level < mipCount; ++level)
+            {
+                D3D12_TEXTURE_COPY_LOCATION source = {};
+                source.pResource       = uploadBuffer.Get();
+                source.Type            = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+                source.PlacedFootprint = footprints[level];
+
+                D3D12_TEXTURE_COPY_LOCATION destination = {};
+                destination.pResource        = m_texture.Get();
+                destination.Type             = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+                destination.SubresourceIndex = level;
+
+                commandList->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
+            }
+
+            D3D12_RESOURCE_BARRIER barrier = {};
+            barrier.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            barrier.Transition.pResource   = m_texture.Get();
+            barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+            barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+            barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+
+            commandList->ResourceBarrier(1, &barrier);
+        });
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format                        = format;
+    srvDesc.ViewDimension                 = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Shader4ComponentMapping       = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Texture2D.MostDetailedMip     = 0;
+    srvDesc.Texture2D.MipLevels           = mipCount;
+    srvDesc.Texture2D.PlaneSlice          = 0;
+    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+    const uint32_t descriptorIndex = descriptorHeap.Allocate();
+    device->CreateShaderResourceView(m_texture.Get(), &srvDesc,
+                                     descriptorHeap.CpuHandle(descriptorIndex));
+
+    m_srvGpuHandle = descriptorHeap.GpuHandle(descriptorIndex);
+
+    Log(std::format(L"ミップ付きテクスチャを生成しました（{} x {}, {} 段）",
+                    m_width, m_height, mipCount));
+}
+
+
+/// <summary>
 /// ピクセルデータから GPU 上にテクスチャを作り、SRV を登録します。
 /// </summary>
 void Texture2D::Initialize(ID3D12Device* device,
