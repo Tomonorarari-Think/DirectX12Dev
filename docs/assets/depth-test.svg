@@ -6,8 +6,8 @@
     .sec  { font-size: 14px; font-weight: 600; }
     .sub  { font-size: 12px; fill: #3d444d; }
     .scr  { fill: #1b2a4a; stroke: #3d444d; stroke-width: 1.5; }
-    .ok   { fill: #0d4f21; font-size: 13px; font-weight: 600; }
-    .ng   { fill: #9a1420; font-size: 13px; font-weight: 600; }
+    .ok   { fill: #1f2328; font-size: 13px; font-weight: 600; }
+    .ng   { fill: #1f2328; font-size: 13px; font-weight: 600; }
     .tri  { stroke: #1b2a4a; stroke-width: 1; }
   </style>
 

@@ -36,7 +36,7 @@
 
   <!-- 視点までの腕 -->
   <line class="arm" x1="200" y1="250" x2="94" y2="175" marker-end="url(#oc)"/>
-  <text class="txt cap" x="34" y="164" fill="#0a4f9e">カメラ</text>
+  <text class="txt cap" x="34" y="164" fill="#1f2328">カメラ</text>
   <text class="txt sub" text-anchor="end" x="195" y="192">distance</text>
 
   <!-- 仰角 -->

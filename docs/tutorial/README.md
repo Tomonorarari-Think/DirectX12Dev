@@ -65,9 +65,9 @@ flowchart LR
     S --> T["20 PBR"]
     T --> U["21 IBL"]
 
-    style A fill:#dafbe1,stroke:#0d4f21
-    style F fill:#ddf4ff,stroke:#0a4f9e
-    style U fill:#ddf4ff,stroke:#0a4f9e
+    style A fill:#dafbe1,stroke:#0d4f21,color:#1f2328
+    style F fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
+    style U fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
 ```
 
 ## 関連する資料

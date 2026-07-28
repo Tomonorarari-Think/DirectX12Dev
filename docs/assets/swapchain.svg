@@ -30,7 +30,7 @@
 
   <!-- Present -->
   <path class="arrow" d="M 262 148 L 340 148" marker-end="url(#sa)"/>
-  <text class="txt lbl" text-anchor="middle" x="301" y="138" fill="#7a3200">Present()</text>
+  <text class="txt lbl" text-anchor="middle" x="301" y="138" fill="#1f2328">Present()</text>
   <text class="txt sub" text-anchor="middle" x="301" y="170">役割を入れ替え</text>
 
   <!-- フレーム N+1 -->

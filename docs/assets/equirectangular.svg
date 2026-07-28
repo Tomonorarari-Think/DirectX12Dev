@@ -49,22 +49,22 @@
 
   <!-- 方向ベクトル -->
   <line class="dir" x1="180" y1="250" x2="286" y2="196" marker-end="url(#ad)"/>
-  <text class="txt mono" x="292" y="192" fill="#9a1420">direction</text>
+  <text class="txt mono" x="292" y="192" fill="#1f2328">direction</text>
 
   <!-- シータ（天頂角）: +Y 軸から direction までの開き -->
   <path class="the" d="M 180 190 A 60 60 0 0 1 233.5 222.8" marker-end="url(#ag)"/>
-  <text class="txt mono" x="206" y="206" fill="#0d4f21">θ</text>
+  <text class="txt mono" x="206" y="206" fill="#1f2328">θ</text>
 
   <!-- ファイ（方位角）: 水平面上の回り込み -->
   <path class="phi" d="M 298 250 A 118 34 0 0 1 239 279.4" marker-end="url(#ab)"/>
-  <text class="txt mono" x="250" y="298" fill="#0a4f9e">φ</text>
+  <text class="txt mono" x="250" y="298" fill="#1f2328">φ</text>
 
   <text class="txt sub" x="20" y="418">θ（緑）… 真上からの角度。0（真上）から π（真下）まで。</text>
   <text class="txt sub" x="20" y="438">φ（青）… 水平方向の向き。ぐるりと一周する。</text>
 
   <!-- ===== 矢印 ===== -->
   <line class="link" x1="352" y1="250" x2="424" y2="250" marker-end="url(#ad)"/>
-  <text class="txt mono" x="352" y="238" fill="#9a1420">u, v へ</text>
+  <text class="txt mono" x="352" y="238" fill="#1f2328">u, v へ</text>
 
   <!-- ===== 右 : 画像 ===== -->
   <text class="txt cap" x="448" y="92">environment.png（512 x 256）</text>
@@ -96,7 +96,7 @@
 
   <!-- 対応点 -->
   <circle cx="700" cy="160" r="5" fill="#9a1420"/>
-  <text class="txt mono" x="576" y="150" fill="#9a1420">direction が指すテクセル</text>
+  <text class="txt mono" x="576" y="150" fill="#1f2328">direction が指すテクセル</text>
 
   <!-- 極（上下の端の 1 行） -->
   <line x1="449" y1="115" x2="831" y2="115" stroke="#9a1420" stroke-width="4"/>

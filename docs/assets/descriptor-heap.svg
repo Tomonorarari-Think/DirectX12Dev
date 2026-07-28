@@ -46,11 +46,11 @@
   <line class="size" x1="40"  y1="60" x2="220" y2="60"/>
   <line class="size" x1="40"  y1="54" x2="40"  y2="66"/>
   <line class="size" x1="220" y1="54" x2="220" y2="66"/>
-  <text class="txt sub" text-anchor="middle" x="130" y="48" fill="#9a1420">1 個ぶんのサイズ</text>
+  <text class="txt sub" text-anchor="middle" x="130" y="48" fill="#1f2328">1 個ぶんのサイズ</text>
 
   <!-- 右側の注記 -->
   <rect x="430" y="76" width="260" height="86" rx="6" fill="#ffebe9" stroke="#9a1420" stroke-width="1.5"/>
-  <text class="txt cap" x="446" y="100" fill="#9a1420">サイズはハードコード禁止</text>
+  <text class="txt cap" x="446" y="100" fill="#1f2328">サイズはハードコード禁止</text>
   <text class="txt sub" x="446" y="122">1 個のバイト数は GPU の世代・ベンダー</text>
   <text class="txt sub" x="446" y="140">によって異なる（32 だったり 64 だったり）。</text>
   <text class="txt sub" x="446" y="156">GetDescriptorHandleIncrementSize() で取得。</text>

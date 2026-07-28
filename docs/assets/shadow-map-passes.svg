@@ -63,12 +63,12 @@
   <!-- 遮られる点 -->
   <line class="blk" x1="452" y1="130" x2="636" y2="232" marker-end="url(#sb)"/>
   <circle cx="639" cy="234" r="5" fill="#9a1420"/>
-  <text class="txt sub" x="646" y="222" fill="#9a1420">影</text>
+  <text class="txt sub" x="646" y="222" fill="#1f2328">影</text>
 
   <!-- 遮られない点 -->
   <line class="ray" x1="438" y1="131" x2="466" y2="230" marker-end="url(#sa)"/>
   <circle cx="468" cy="234" r="5" fill="#0d4f21"/>
-  <text class="txt sub" x="406" y="222" fill="#0d4f21">日向</text>
+  <text class="txt sub" x="406" y="222" fill="#1f2328">日向</text>
 
   <text class="txt sub" x="406" y="264">記録された距離より遠ければ、間に何かがある ＝ 影。</text>
   <text class="txt sub" x="406" y="286">同じかそれより近ければ、光が届いている。</text>

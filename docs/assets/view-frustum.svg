@@ -27,9 +27,9 @@
   <!-- クリップ面 -->
   <line class="plane" x1="260" y1="130" x2="260" y2="270"/>
   <line class="plane" x1="560" y1="72"  x2="560" y2="328"/>
-  <text class="txt cap" text-anchor="middle" x="260" y="120" fill="#0d4f21">手前のクリップ面</text>
+  <text class="txt cap" text-anchor="middle" x="260" y="120" fill="#1f2328">手前のクリップ面</text>
   <text class="txt sub" text-anchor="middle" x="260" y="290">nearZ = 0.1</text>
-  <text class="txt cap" text-anchor="middle" x="560" y="62" fill="#0d4f21">奥のクリップ面</text>
+  <text class="txt cap" text-anchor="middle" x="560" y="62" fill="#1f2328">奥のクリップ面</text>
   <text class="txt sub" text-anchor="middle" x="560" y="348">farZ = 100.0</text>
 
   <!-- カメラ -->
