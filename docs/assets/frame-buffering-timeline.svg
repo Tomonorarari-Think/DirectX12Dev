@@ -28,11 +28,11 @@
   <rect class="cpu"  x="500" y="84"  width="90" height="26" rx="3"/>
   <rect class="idle" x="590" y="84"  width="130" height="26" rx="3"/>
   <text class="txt sub" text-anchor="middle" x="105" y="102">記録0</text>
-  <text class="txt sub" text-anchor="middle" x="215" y="102" fill="#9a1420">待機（無駄）</text>
+  <text class="txt sub" text-anchor="middle" x="215" y="102" fill="#1f2328">待機（無駄）</text>
   <text class="txt sub" text-anchor="middle" x="325" y="102">記録1</text>
-  <text class="txt sub" text-anchor="middle" x="435" y="102" fill="#9a1420">待機（無駄）</text>
+  <text class="txt sub" text-anchor="middle" x="435" y="102" fill="#1f2328">待機（無駄）</text>
   <text class="txt sub" text-anchor="middle" x="545" y="102">記録2</text>
-  <text class="txt sub" text-anchor="middle" x="655" y="102" fill="#9a1420">待機（無駄）</text>
+  <text class="txt sub" text-anchor="middle" x="655" y="102" fill="#1f2328">待機（無駄）</text>
 
   <rect class="gpu" x="150" y="118" width="130" height="26" rx="3"/>
   <rect class="gpu" x="370" y="118" width="130" height="26" rx="3"/>

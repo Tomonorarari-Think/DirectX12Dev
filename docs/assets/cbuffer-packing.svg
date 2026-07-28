@@ -69,7 +69,7 @@
 
   <!-- 16 バイト境界 -->
   <line class="bnd" x1="418" y1="92" x2="418" y2="216"/>
-  <text class="txt cap" x="424" y="238" fill="#9a1420">16 バイト境界</text>
+  <text class="txt cap" x="424" y="238" fill="#1f2328">16 バイト境界</text>
   <text class="txt sub" x="424" y="258">HLSL はここで区切る。C++ の構造体はここを気にせず詰める。</text>
   <text class="txt sub" x="424" y="278">結果、b 以降が 4 バイトずれて全部おかしくなる。</text>
 
