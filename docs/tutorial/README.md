@@ -80,6 +80,8 @@ flowchart LR
 
 ## 関連する資料
 
+- シェーダーそのものを学びたいとき → [シェーダー習作集](../shader-lab/)（15 本）
+
 - 用語だけ引きたいとき → [DirectX 12 用語集](../misc/DirectX12用語集.md)
 - 動かないとき → [症状別の原因逆引き](../misc/troubleshooting/症状別の原因逆引き.md)
 - クラス構成を知りたいとき → [設計](../design/)
