@@ -7,6 +7,8 @@
 ピクセルシェーダーが知っているのは「いま塗っているのは画面のどこか」だけです。
 そこから何が作れるのかを、1 本ずつ確かめていきます。
 
+![習作の一覧](images/00_index.png)
+
 ---
 
 ## 動かし方
@@ -124,6 +126,22 @@ GPU が**リニア → sRGB の変換**を掛けてしまいます。
 | 補助 | `DividerMask` / `FrameMask` | 説明用の仕切り線と枠 |
 | 色 | `Palette` / `PaletteWarm` | cos 4 本のパレット |
 | 色 | `SrgbToLinear` / `LinearToSrgb` | 色空間の往復 |
+
+---
+
+## 画像を撮り直すには
+
+```powershell
+.	ools\capture-shader-lab.ps1
+```
+
+アプリを起動し、習作を 1 本ずつ切り替えながら撮影して、
+`docs/shader-lab/images/` へ書き出します。一覧シートも作り直します。
+
+Python と Pillow が要ります（`pip install pillow`）。
+
+> **`PrintWindow` は起動直後に不安定です。** 捨てショットで温めてから
+> 撮るようにしてあります。省くと最初の数枚が保存されません。
 
 ---
 
