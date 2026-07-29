@@ -99,6 +99,25 @@ constexpr uint32_t kIrradianceRootParameterIndex = 7;
 constexpr uint32_t kNormalMapRootParameterIndex = 8;
 
 /// <summary>
+/// ディゾルブの燃え際の幅。模様の値でどれだけの範囲を光らせるか。
+/// </summary>
+constexpr float kDissolveEdgeWidth = 0.09f;
+
+/// <summary>
+/// ディゾルブの模様の細かさ。大きいほど細かく崩れます。
+/// </summary>
+constexpr float kDissolveNoiseScale = 6.5f;
+
+/// <summary>
+/// ディゾルブの燃え際の色（リニア）。
+/// </summary>
+/// <remarks>
+/// **1 を超える値**にしてあります。後処理のブルームがしきい値で拾うので、
+/// 燃え際がにじんで光ります。1 以下にすると、ただの明るい線になります。
+/// </remarks>
+constexpr float kDissolveEdgeColor[3] = { 6.2f, 1.6f, 0.35f };
+
+/// <summary>
 /// シャドウマップを描くときに深度へ加える下駄（整数バイアス）。
 /// </summary>
 /// <remarks>
@@ -178,10 +197,12 @@ void MeshPipeline::CreateRootSignature(ID3D12Device* device)
     rootParameters[kObjectConstantsRootParameterIndex].Descriptor.ShaderRegister = 1;
     rootParameters[kObjectConstantsRootParameterIndex].Descriptor.RegisterSpace  = 0;
 
-    // 行列を使うのは頂点シェーダーだけなので VERTEX に絞る。
-    // 可視性は狭いほど GPU の負担が軽くなる。
+    // 可視性は狭いほど GPU の負担が軽くなるので、本来は VERTEX に絞りたい。
+    //   ★ ディゾルブの判定をピクセルシェーダーでも行うため ALL にしている。
+    //     VERTEX のままだと、b1 を読むピクセルシェーダーで PSO の生成に失敗する。
+    //     しかもエラーの内容はデバッグ出力にしか出ないので気付きにくい。
     rootParameters[kObjectConstantsRootParameterIndex].ShaderVisibility =
-        D3D12_SHADER_VISIBILITY_VERTEX;
+        D3D12_SHADER_VISIBILITY_ALL;
 
     // 2 番 : テクスチャ（ディスクリプタテーブル）
     D3D12_DESCRIPTOR_RANGE srvRange = {};
@@ -410,8 +431,10 @@ void MeshPipeline::CreateShadowRootSignature(ID3D12Device* device)
         D3D12_ROOT_PARAMETER_TYPE_CBV;
     rootParameters[kObjectConstantsRootParameterIndex].Descriptor.ShaderRegister = 1;
     rootParameters[kObjectConstantsRootParameterIndex].Descriptor.RegisterSpace  = 0;
+    // ★ ディゾルブの判定をピクセルシェーダーでも行うので、両方から見せる。
+    //   消えた部分が影だけ残るのを防ぐため。
     rootParameters[kObjectConstantsRootParameterIndex].ShaderVisibility =
-        D3D12_SHADER_VISIBILITY_VERTEX;
+        D3D12_SHADER_VISIBILITY_ALL;
 
     D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
     rootSignatureDesc.NumParameters     = _countof(rootParameters);
@@ -423,7 +446,6 @@ void MeshPipeline::CreateShadowRootSignature(ID3D12Device* device)
     //   使わない段を明示的に閉じると、GPU が扱うデータが減って軽くなる。
     rootSignatureDesc.Flags =
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-        D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS |
         D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
         D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
         D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
@@ -651,9 +673,12 @@ void MeshPipeline::CreateShadowPipelineState(ID3D12Device* device,
 {
     const std::wstring shaderPath = ResolveAssetPath(kShaderRelativePath);
 
-    // ★ 頂点シェーダーだけをコンパイルする。ピクセルシェーダーは無し。
-    //   色は要らず、深度だけ書ければよいため。
     ComPtr<ID3DBlob> vertexShader = shader::Compile(shaderPath, "VSShadow", "vs_5_0");
+
+    // ★ 色は要らないが、ピクセルシェーダーは必要になった。
+    //   ディゾルブで消えた部分の影を落とさないために clip するためだけのもの。
+    //   色を書かないので、レンダーターゲットは 0 枚のまま。
+    ComPtr<ID3DBlob> pixelShader = shader::Compile(shaderPath, "PSShadow", "ps_5_0");
 
     D3D12_RASTERIZER_DESC rasterizerDesc = {};
     rasterizerDesc.FillMode              = D3D12_FILL_MODE_SOLID;
@@ -683,6 +708,8 @@ void MeshPipeline::CreateShadowPipelineState(ID3D12Device* device,
     psoDesc.pRootSignature     = m_shadowRootSignature.Get();
     psoDesc.VS.pShaderBytecode = vertexShader->GetBufferPointer();
     psoDesc.VS.BytecodeLength  = vertexShader->GetBufferSize();
+    psoDesc.PS.pShaderBytecode = pixelShader->GetBufferPointer();
+    psoDesc.PS.BytecodeLength  = pixelShader->GetBufferSize();
 
     psoDesc.InputLayout.pInputElementDescs = inputElements;
     psoDesc.InputLayout.NumElements        = inputElementCount;
@@ -749,7 +776,8 @@ void MeshPipeline::UpdateFrameConstants(uint32_t frameIndex,
 void MeshPipeline::UpdateObjectConstants(uint32_t frameIndex,
                                          uint32_t objectIndex,
                                          const DirectX::XMMATRIX& world,
-                                         const DirectX::XMMATRIX& viewProjection)
+                                         const DirectX::XMMATRIX& viewProjection,
+                                         float dissolveAmount)
 {
     using namespace DirectX;
 
@@ -766,6 +794,14 @@ void MeshPipeline::UpdateObjectConstants(uint32_t frameIndex,
 
     // ワールド行列も単体で渡す。法線をワールド空間へ移すのに必要なため。
     XMStoreFloat4x4(&constants.world, XMMatrixTranspose(world));
+
+    constants.dissolveParams = { dissolveAmount, kDissolveEdgeWidth,
+                                 kDissolveNoiseScale, 0.0f };
+
+    // ★ 1 を超える明るさにしておく。後処理のブルームが拾って燃え際が光る
+    //   （[25 章](../../docs/tutorial/25_ポストプロセス.md)）。
+    constants.dissolveEdgeColor = { kDissolveEdgeColor[0], kDissolveEdgeColor[1],
+                                    kDissolveEdgeColor[2], 0.0f };
 
     m_objectConstantBuffer.Update(
         ObjectSlot(frameIndex, objectIndex), &constants, sizeof(constants));

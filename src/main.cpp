@@ -133,6 +133,12 @@ int main()
                 renderer.ToggleShaderLab();
             }
 
+            // F : ディゾルブ（溶けて消える表現）の入り切り
+            if (input.WasKeyPressed('F'))
+            {
+                renderer.ToggleDissolve();
+            }
+
             if (renderer.IsShaderLabEnabled())
             {
                 if (input.WasKeyPressed(VK_RIGHT)) { renderer.AdvanceShaderLab(+1); }

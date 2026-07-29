@@ -40,6 +40,13 @@ cbuffer ObjectConstants : register(b1)
 
     // ワールド行列。法線をワールド空間へ移すために単体でも必要。
     float4x4 g_world;
+
+    // x = ディゾルブの進み具合（0 で無傷、1 で消滅）、
+    // y = 燃え際の幅、z = 模様の細かさ、w = 未使用。
+    float4 g_dissolveParams;
+
+    // 燃え際の色。1 を超える明るさにしてあるので、後処理のブルームが拾う。
+    float4 g_dissolveEdgeColor;
 };
 
 // 材質 1 つごとに変わる値。サブメッシュを描く直前に差し替える。
@@ -119,6 +126,53 @@ struct VSOutput
     float4 worldTangent  : TANGENT;    // xyz は法線と同じくワールド空間へ移す
 };
 
+//-----------------------------------------------------------------------------
+// ディゾルブ（溶けて消える表現）
+//-----------------------------------------------------------------------------
+
+// 座標から 0〜1 の決まった乱数を作る（3 次元版）。
+//   桁が溢れない書き方を使う。詳しくは docs/shader-lab/15_ハッシュの精度.md。
+float DissolveHash(float3 p)
+{
+    p = frac(p * 0.1031f);
+    p += dot(p, p.yzx + 33.33f);
+    return frac((p.x + p.y) * p.z);
+}
+
+// 3 次元の値ノイズ。格子の 8 隅に乱数を置き、なめらかに補間する。
+float DissolveNoise(float3 p)
+{
+    float3 cell  = floor(p);
+    float3 local = frac(p);
+
+    // 両端で傾きが 0 になる曲線。直線で補間すると格子が見える。
+    float3 w = local * local * (3.0f - 2.0f * local);
+
+    float n000 = DissolveHash(cell + float3(0, 0, 0));
+    float n100 = DissolveHash(cell + float3(1, 0, 0));
+    float n010 = DissolveHash(cell + float3(0, 1, 0));
+    float n110 = DissolveHash(cell + float3(1, 1, 0));
+    float n001 = DissolveHash(cell + float3(0, 0, 1));
+    float n101 = DissolveHash(cell + float3(1, 0, 1));
+    float n011 = DissolveHash(cell + float3(0, 1, 1));
+    float n111 = DissolveHash(cell + float3(1, 1, 1));
+
+    float x00 = lerp(n000, n100, w.x);
+    float x10 = lerp(n010, n110, w.x);
+    float x01 = lerp(n001, n101, w.x);
+    float x11 = lerp(n011, n111, w.x);
+
+    return lerp(lerp(x00, x10, w.y), lerp(x01, x11, w.y), w.z);
+}
+
+// 大小 2 段のノイズを重ねる。大きな塊が崩れ、縁が細かくちぎれる。
+float DissolvePattern(float3 worldPosition, float scale)
+{
+    float value = DissolveNoise(worldPosition * scale) * 0.65f
+                + DissolveNoise(worldPosition * scale * 2.7f) * 0.35f;
+    return value;
+}
+
 // 頂点 1 個につき 1 回呼ばれ、頂点の最終的な位置を決める。
 VSOutput VSMain(VSInput input)
 {
@@ -150,10 +204,37 @@ VSOutput VSMain(VSInput input)
 // シャドウマップを描くパス
 //   色は要らないので頂点シェーダーだけ。深度が書き込まれれば目的は達する。
 //-----------------------------------------------------------------------------
-float4 VSShadow(VSInput input) : SV_POSITION
+struct ShadowVSOutput
 {
+    float4 position      : SV_POSITION;
+    float3 worldPosition : POSITION;
+};
+
+ShadowVSOutput VSShadow(VSInput input)
+{
+    ShadowVSOutput output;
+
+    float4 world = mul(float4(input.position, 1.0f), g_world);
+
     // カメラの代わりに光源から見た行列を掛ける。それ以外は通常の描画と同じ。
-    return mul(mul(float4(input.position, 1.0f), g_world), g_lightViewProjection);
+    output.position      = mul(world, g_lightViewProjection);
+    output.worldPosition = world.xyz;
+
+    return output;
+}
+
+// 影のパス用のピクセルシェーダー。
+//   ★ ディゾルブで消えた部分は、影も落としてはいけない。
+//     色は要らないので、clip するためだけに置いている。
+//     ディゾルブしないときは呼ばれても何もしないので、負荷はほぼ無い。
+void PSShadow(ShadowVSOutput input)
+{
+    if (g_dissolveParams.x > 0.0f)
+    {
+        float edge = g_dissolveParams.y;
+        float threshold = g_dissolveParams.x * (1.0f + edge) - edge;
+        clip(DissolvePattern(input.worldPosition, g_dissolveParams.z) - threshold);
+    }
 }
 
 // この点が影の中にあるかを 0（完全な影）〜1（当たっている）で返す。
@@ -302,6 +383,24 @@ float3 ApplyNormalMap(float2 uv, float3 worldNormal, float4 worldTangent)
 // 塗られるピクセル 1 個につき 1 回呼ばれ、そのピクセルの色を決める。
 float4 PSMain(VSOutput input) : SV_TARGET
 {
+    // --- ディゾルブ : 描くかどうかをいちばん最初に決める --------------------
+    //   ★ 捨てるピクセルは、以降の計算をまったくしない。
+    //     clip は「以降を打ち切る」命令なので、重い処理の前に置くほど得。
+    float dissolveAmount = g_dissolveParams.x;
+    float dissolveEdge   = g_dissolveParams.y;
+    float dissolveNoise  = DissolvePattern(input.worldPosition, g_dissolveParams.z);
+
+    if (dissolveAmount > 0.0f)
+    {
+        // 進み具合を 0〜1 の外側まで少し広げる。
+        //   そうしないと、0 でも 1 でも「ちょうど半分消えた」状態から始まる。
+        float threshold = dissolveAmount * (1.0f + dissolveEdge) - dissolveEdge;
+
+        // ★ 模様の値がしきい値より小さいピクセルを捨てる。
+        //   clip の引数が負なら、そのピクセルは書き込まれない。
+        clip(dissolveNoise - threshold);
+    }
+
     // 補間で長さが 1 から崩れるため、使う直前に必ず正規化し直す。
     float3 geometryNormal = normalize(input.worldNormal);
 
@@ -389,6 +488,21 @@ float4 PSMain(VSOutput input) : SV_TARGET
     // ★ ここまでの計算はすべてリニア空間で行っている。
     //   まず明るさを 0〜1 へ押し込み、sRGB への変換はレンダーターゲットに任せる
     //   （RTV が _SRGB 形式なので、GPU が書き込み時に変換してくれる）。
+    // --- ディゾルブの燃え際 -------------------------------------------------
+    //   捨てられずに残ったピクセルのうち、しきい値に近いものを光らせる。
+    if (dissolveAmount > 0.0f)
+    {
+        float threshold = dissolveAmount * (1.0f + dissolveEdge) - dissolveEdge;
+
+        // しきい値ちょうどで 1、離れるほど 0
+        float edge = 1.0f - saturate((dissolveNoise - threshold) / dissolveEdge);
+
+        // 縁を鋭くする。そのまま使うと、広い範囲がぼんやり明るくなる。
+        edge = pow(edge, 2.2f);
+
+        lit += g_dissolveEdgeColor.rgb * edge;
+    }
+
     // ★ ここでは圧縮しない。1.0 を超えたまま中間バッファへ書き、
     //   露出・ブルーム・トーンマッピングは後処理でまとめて行う
     //   （[25 章](../docs/tutorial/25_ポストプロセス.md)）。
