@@ -20,6 +20,7 @@
 #include "MeshPipeline.h"
 #include "SkyboxPipeline.h"
 #include "PostProcessPipeline.h"
+#include "ShaderLabPipeline.h"
 #include "RenderTexture.h"
 
 #include <array>
@@ -87,6 +88,34 @@ public:
     /// <returns>カメラへの参照。外から位置や注視点を変えられます。</returns>
     /// <remarks>`CameraController` が操作するために公開しています。</remarks>
     Camera& SceneCamera() noexcept { return m_camera; }
+
+    /// <summary>習作モードの入り切りを切り替えます。</summary>
+    void ToggleShaderLab();
+
+    /// <summary>習作モードかどうかを返します。</summary>
+    /// <returns>習作モードなら `true`。</returns>
+    bool IsShaderLabEnabled() const noexcept { return m_shaderLabEnabled; }
+
+    /// <summary>表示する習作を前後に動かします。</summary>
+    /// <param name="delta">+1 で次、-1 で前。</param>
+    void AdvanceShaderLab(int delta);
+
+    /// <summary>表示する習作を番号で選びます。</summary>
+    /// <param name="index">0 から始まる番号。</param>
+    void SelectShaderLab(int index);
+
+    /// <summary>
+    /// 習作へ渡すマウスの位置を設定します。
+    /// </summary>
+    /// <param name="x">X 座標（ピクセル）。</param>
+    /// <param name="y">Y 座標（ピクセル）。</param>
+    /// <param name="down">左ボタンが押されていれば `true`。</param>
+    void SetShaderLabMouse(float x, float y, bool down) noexcept
+    {
+        m_shaderLabMouseX = x;
+        m_shaderLabMouseY = y;
+        m_shaderLabMouseDown = down;
+    }
 
     /// <summary>
     /// 直前のフレームにかかった秒数を取得します。
@@ -221,6 +250,25 @@ private:
 
     /// <summary>後処理（露出・ブルーム・トーンマップ・ビネット）。</summary>
     PostProcessPipeline m_postProcess;
+
+    /// <summary>習作シェーダーを全画面に描くパイプライン。</summary>
+    ShaderLabPipeline m_shaderLab;
+
+    /// <summary>習作へ渡すマウスの X 座標。</summary>
+    float m_shaderLabMouseX = 0.0f;
+
+    /// <summary>習作へ渡すマウスの Y 座標。</summary>
+    float m_shaderLabMouseY = 0.0f;
+
+    /// <summary>習作へ渡すマウスの左ボタンの状態。</summary>
+    bool m_shaderLabMouseDown = false;
+
+    /// <summary>習作モードかどうか。</summary>
+    /// <remarks>
+    /// 有効なあいだは 3D シーンをまったく描かず、習作 1 本だけを描きます。
+    /// 影も後処理も通しません。
+    /// </remarks>
+    bool m_shaderLabEnabled = false;
 
     /// <summary>
     /// 回転させるモデル。ファイルから読み込みます。

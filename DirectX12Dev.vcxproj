@@ -248,6 +248,7 @@
     <ClCompile Include="src\Graphics\Mesh.cpp" />
     <ClCompile Include="src\Graphics\MaterialSet.cpp" />
     <ClCompile Include="src\Graphics\MeshPipeline.cpp" />
+    <ClCompile Include="src\Graphics\ShaderLabPipeline.cpp" />
     <ClCompile Include="src\Graphics\ShadowMap.cpp" />
   </ItemGroup>
 
@@ -291,6 +292,7 @@
     <ClInclude Include="src\Graphics\Mesh.h" />
     <ClInclude Include="src\Graphics\MaterialSet.h" />
     <ClInclude Include="src\Graphics\MeshPipeline.h" />
+    <ClInclude Include="src\Graphics\ShaderLabPipeline.h" />
     <ClInclude Include="src\Graphics\ShadowMap.h" />
   </ItemGroup>
 

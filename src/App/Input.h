@@ -101,6 +101,14 @@ public:
 
     /// <summary>このフレームでのマウスの横移動量（ピクセル）。</summary>
     /// <returns>右向きが正。</returns>
+    /// <summary>マウスの X 座標（クライアント領域のピクセル）を返します。</summary>
+    /// <returns>最後に受け取った位置。</returns>
+    float MouseX() const noexcept { return static_cast<float>(m_lastMouseX); }
+
+    /// <summary>マウスの Y 座標（クライアント領域のピクセル）を返します。</summary>
+    /// <returns>最後に受け取った位置。</returns>
+    float MouseY() const noexcept { return static_cast<float>(m_lastMouseY); }
+
     float MouseDeltaX() const noexcept { return m_mouseDeltaX; }
 
     /// <summary>このフレームでのマウスの縦移動量（ピクセル）。</summary>

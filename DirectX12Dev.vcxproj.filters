@@ -119,6 +119,9 @@
     <ClCompile Include="src\Graphics\Mesh.cpp">
       <Filter>src\Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="src\Graphics\ShaderLabPipeline.cpp">
+      <Filter>src\Graphics</Filter>
+    </ClCompile>
     <ClCompile Include="src\Graphics\ShadowMap.cpp">
       <Filter>src\Graphics</Filter>
     </ClCompile>
@@ -216,6 +219,9 @@
       <Filter>src\Graphics</Filter>
     </ClInclude>
     <ClInclude Include="src\Graphics\Mesh.h">
+      <Filter>src\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Graphics\ShaderLabPipeline.h">
       <Filter>src\Graphics</Filter>
     </ClInclude>
     <ClInclude Include="src\Graphics\ShadowMap.h">
