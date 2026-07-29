@@ -20,7 +20,7 @@
 |------|------|
 | `L` | 習作モードの入り切り |
 | `→` / `←` | 次の習作 / 前の習作 |
-| `1`〜`9`, `0` | 1〜10 番目を直接選ぶ |
+| `1`〜`9`, `0` | 1〜10 番目を直接選ぶ（11 番以降は矢印キーで）|
 | `ESC` | 終了 |
 
 習作モードのあいだは 3D シーンをまったく描きません。影も後処理も通しません。
@@ -46,6 +46,14 @@
 | 13 | [トルシェタイル](13_トルシェタイル.md) | 2 種類を並べるだけで迷路 | [13_truchet.hlsl](../../shaders/lab/13_truchet.hlsl) |
 | 14 | [画面効果](14_画面効果.md) | 走査線・色収差・歪み・粒子 | [14_effects.hlsl](../../shaders/lab/14_effects.hlsl) |
 | 15 | [ハッシュの精度](15_ハッシュの精度.md) | 有名な書き方が壊れる場面 | [15_hash.hlsl](../../shaders/lab/15_hash.hlsl) |
+| 16 | [万華鏡](16_万華鏡.md) | 角度を折り返して鏡を作る | [16_kaleidoscope.hlsl](../../shaders/lab/16_kaleidoscope.hlsl) |
+| 17 | [炎](17_炎.md) | 上へ流れるノイズと色温度 | [17_fire.hlsl](../../shaders/lab/17_fire.hlsl) |
+| 18 | [星空と星雲](18_星空.md) | 部品の組み合わせで絵にする | [18_starfield.hlsl](../../shaders/lab/18_starfield.hlsl) |
+| 19 | [メタボール](19_メタボール.md) | 場を足してからしきい値で切る | [19_metaball.hlsl](../../shaders/lab/19_metaball.hlsl) |
+| 20 | [ベジエ曲線](20_ベジエ曲線.md) | 曲線までの距離を解析的に解く | [20_bezier.hlsl](../../shaders/lab/20_bezier.hlsl) |
+| 21 | [グリッチ](21_グリッチ.md) | 時間を階段状にして壊す | [21_glitch.hlsl](../../shaders/lab/21_glitch.hlsl) |
+| 22 | [マンデルバルブ](22_マンデルバルブ.md) | 3D フラクタルと距離推定 | [22_mandelbulb.hlsl](../../shaders/lab/22_mandelbulb.hlsl) |
+| 23 | [レンズフレア](23_レンズフレア.md) | 光源の反対側に並べる | [23_lensflare.hlsl](../../shaders/lab/23_lensflare.hlsl) |
 
 ---
 
@@ -121,14 +129,14 @@ GPU が**リニア → sRGB の変換**を掛けてしまいます。
 
 ## 習作を 1 本足すには
 
-1. `shaders/lab/16_なにか.hlsl` を作り、`PSMain` を書く
+1. `shaders/lab/24_なにか.hlsl` を作り、`PSMain` を書く
 2. `src/Graphics/ShaderLabPipeline.cpp` の `kShaderFiles` に 1 行足す
 3. ビルドし直す
 
 ```cpp
 constexpr ShaderEntry kShaderFiles[] = {
     ...
-    { L"16_なにか.hlsl",      L"16 なにか" },
+    { L"24_なにか.hlsl",      L"24 なにか" },
 };
 ```
 
