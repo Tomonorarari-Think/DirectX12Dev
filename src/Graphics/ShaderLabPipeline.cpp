@@ -60,6 +60,10 @@ constexpr ShaderEntry kShaderFiles[] = {
     { L"21_glitch.hlsl",      L"21 グリッチ" },
     { L"22_mandelbulb.hlsl",  L"22 マンデルバルブ" },
     { L"23_lensflare.hlsl",   L"23 レンズフレア" },
+    { L"24_thinfilm.hlsl",    L"24 薄膜干渉（シャボン玉）" },
+    { L"25_lightning.hlsl",   L"25 稲妻" },
+    { L"26_woodmarble.hlsl",  L"26 木目と大理石" },
+    { L"27_caustics.hlsl",    L"27 コースティクス" },
 };
 } // namespace
 
