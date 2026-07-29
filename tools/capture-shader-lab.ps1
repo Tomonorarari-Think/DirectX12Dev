@@ -53,7 +53,8 @@ $names = @(
     '07_domainwarp', '08_palette', '09_plasma', '10_water', '11_raymarch',
     '12_mandelbrot', '13_truchet', '14_effects', '15_hash', '16_kaleidoscope',
     '17_fire', '18_starfield', '19_metaball', '20_bezier', '21_glitch',
-    '22_mandelbulb', '23_lensflare'
+    '22_mandelbulb', '23_lensflare', '24_thinfilm', '25_lightning',
+    '26_woodmarble', '27_caustics'
 )
 
 Add-Type @"

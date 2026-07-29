@@ -56,6 +56,10 @@
 | 21 | [グリッチ](21_グリッチ.md) | 時間を階段状にして壊す | [21_glitch.hlsl](../../shaders/lab/21_glitch.hlsl) |
 | 22 | [マンデルバルブ](22_マンデルバルブ.md) | 3D フラクタルと距離推定 | [22_mandelbulb.hlsl](../../shaders/lab/22_mandelbulb.hlsl) |
 | 23 | [レンズフレア](23_レンズフレア.md) | 光源の反対側に並べる | [23_lensflare.hlsl](../../shaders/lab/23_lensflare.hlsl) |
+| 24 | [薄膜干渉](24_薄膜干渉.md) | シャボン玉の虹色は色素ではない | [24_thinfilm.hlsl](../../shaders/lab/24_thinfilm.hlsl) |
+| 25 | [稲妻](25_稲妻.md) | 線をノイズで折り曲げる | [25_lightning.hlsl](../../shaders/lab/25_lightning.hlsl) |
+| 26 | [木目と大理石](26_木目と大理石.md) | sin の中にノイズを入れる | [26_woodmarble.hlsl](../../shaders/lab/26_woodmarble.hlsl) |
+| 27 | [コースティクス](27_コースティクス.md) | 面積の伸び縮みが明るさ | [27_caustics.hlsl](../../shaders/lab/27_caustics.hlsl) |
 
 ---
 
