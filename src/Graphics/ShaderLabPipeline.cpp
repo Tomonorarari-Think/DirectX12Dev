@@ -52,6 +52,14 @@ constexpr ShaderEntry kShaderFiles[] = {
     { L"13_truchet.hlsl",     L"13 トルシェタイル" },
     { L"14_effects.hlsl",     L"14 画面効果（走査線・色収差）" },
     { L"15_hash.hlsl",        L"15 ハッシュの精度" },
+    { L"16_kaleidoscope.hlsl", L"16 万華鏡" },
+    { L"17_fire.hlsl",        L"17 炎" },
+    { L"18_starfield.hlsl",   L"18 星空と星雲" },
+    { L"19_metaball.hlsl",    L"19 メタボール" },
+    { L"20_bezier.hlsl",      L"20 ベジエ曲線" },
+    { L"21_glitch.hlsl",      L"21 グリッチ" },
+    { L"22_mandelbulb.hlsl",  L"22 マンデルバルブ" },
+    { L"23_lensflare.hlsl",   L"23 レンズフレア" },
 };
 } // namespace
 
