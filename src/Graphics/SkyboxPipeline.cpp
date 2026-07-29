@@ -7,7 +7,7 @@
 #include "ShaderCompiler.h"
 
 #include <cmath>
-#include "SwapChain.h"
+#include "RenderTexture.h"
 #include "DepthBuffer.h"
 
 namespace dx12
@@ -171,7 +171,9 @@ void SkyboxPipeline::Initialize(ID3D12Device* device, uint32_t frameCount)
     psoDesc.SampleMask        = UINT_MAX;
     psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     psoDesc.NumRenderTargets  = 1;
-    psoDesc.RTVFormats[0]     = SwapChain::kRenderTargetViewFormat;
+    // ★ 書き込み先は画面ではなく中間バッファ（HDR）。
+    //   PSO の形式が実際の描画先と違うと、実行時にエラーになる。
+    psoDesc.RTVFormats[0]     = RenderTexture::kFormat;
     psoDesc.DSVFormat         = DepthBuffer::kFormat;
     psoDesc.SampleDesc.Count  = 1;
 
