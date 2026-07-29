@@ -65,6 +65,19 @@ struct ObjectConstants
 
     /// <summary>ワールド行列。法線と頂点をワールド空間へ移すために使います。</summary>
     DirectX::XMFLOAT4X4 world;
+
+    /// <summary>
+    /// x = ディゾルブの進み具合（0 で無傷、1 で消滅）、
+    /// y = 燃え際の幅、z = 模様の細かさ、w = 未使用。
+    /// </summary>
+    /// <remarks>
+    /// オブジェクトごとに違う値を入れられるよう、材質ではなくこちらに置いています。
+    /// 同じ材質の物を別々のタイミングで消したいことがあるためです。
+    /// </remarks>
+    DirectX::XMFLOAT4 dissolveParams;
+
+    /// <summary>燃え際の色。1 を超える明るさにするとブルームで光ります。</summary>
+    DirectX::XMFLOAT4 dissolveEdgeColor;
 };
 
 
@@ -154,11 +167,15 @@ public:
     /// <param name="objectIndex">オブジェクトの番号。0 から始まる連番。</param>
     /// <param name="world">そのオブジェクトのワールド行列。</param>
     /// <param name="viewProjection">カメラのビュー行列 × 射影行列。</param>
+    /// <param name="dissolveAmount">
+    /// ディゾルブの進み具合。0 で無傷、1 で完全に消えます。
+    /// </param>
     /// <exception cref="std::out_of_range">`maxObjectCount` を超えた場合。</exception>
     void UpdateObjectConstants(uint32_t frameIndex,
                                uint32_t objectIndex,
                                const DirectX::XMMATRIX& world,
-                               const DirectX::XMMATRIX& viewProjection);
+                               const DirectX::XMMATRIX& viewProjection,
+                               float dissolveAmount = 0.0f);
 
     /// <summary>
     /// 描画の共通設定（PSO・ルートシグネチャ・フレーム定数・テクスチャ）を記録します。

@@ -4,6 +4,8 @@
 //=============================================================================
 #include "Renderer.h"
 
+#include <cmath>
+
 #include "../Assets/EnvironmentPrefilter.h"
 
 #include <format>
@@ -69,6 +71,22 @@ constexpr float kModelGroundLevel = 0.0f;
 /// モデルが 1 回転するのにかかる秒数。
 /// </summary>
 constexpr float kSecondsPerRotation = 8.0f;
+
+/// <summary>
+/// ディゾルブが 1 往復するのにかける秒数。
+/// </summary>
+constexpr float kSecondsPerDissolveCycle = 6.0f;
+
+
+/// <summary>
+/// 小数部だけを取り出します（HLSL の `frac` と同じ）。
+/// </summary>
+/// <param name="value">元の値。</param>
+/// <returns>0 以上 1 未満の小数部。</returns>
+float frac(float value)
+{
+    return value - std::floor(value);
+}
 
 /// <summary>
 /// モデルの読み込みに失敗したときに代わりに使う立方体の、一辺の半分の長さ。
@@ -455,8 +473,17 @@ void Renderer::UpdateConstants(uint32_t frameIndex)
                               * XMMatrixRotationX(angle * 0.45f)
                               * XMMatrixTranslation(0.0f, kModelCenterHeight, 0.0f);
 
+    // ディゾルブ : 消える → 戻る、を繰り返す。
+    //   0〜1 を往復させたいので、三角波にする。
+    //   端でしばらく止めるため、smoothstep で緩急を付ける。
+    const float cycle = frac(static_cast<float>(m_frameTimer.TotalSeconds())
+                             / kSecondsPerDissolveCycle);
+    const float pingPong = 1.0f - std::abs(cycle * 2.0f - 1.0f);
+    const float dissolve = pingPong * pingPong * (3.0f - 2.0f * pingPong);
+
     m_meshPipeline.UpdateObjectConstants(
-        frameIndex, kModelObjectIndex, modelWorld, viewProjection);
+        frameIndex, kModelObjectIndex, modelWorld, viewProjection,
+        m_dissolveEnabled ? dissolve : 0.0f);
 
     // 床 : 動かさないのでワールド行列は単位行列。
     m_meshPipeline.UpdateObjectConstants(
@@ -764,6 +791,17 @@ void Renderer::ToggleShaderLab()
     {
         Log(L"習作モードを抜けました。");
     }
+}
+
+
+/// <summary>
+/// ディゾルブの入り切りを切り替えます。
+/// </summary>
+void Renderer::ToggleDissolve()
+{
+    m_dissolveEnabled = !m_dissolveEnabled;
+    Log(m_dissolveEnabled ? L"ディゾルブを有効にしました。"
+                          : L"ディゾルブを無効にしました。");
 }
 
 

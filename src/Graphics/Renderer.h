@@ -92,6 +92,13 @@ public:
     /// <summary>習作モードの入り切りを切り替えます。</summary>
     void ToggleShaderLab();
 
+    /// <summary>ディゾルブ（溶けて消える表現）の入り切りを切り替えます。</summary>
+    void ToggleDissolve();
+
+    /// <summary>ディゾルブが有効かを返します。</summary>
+    /// <returns>有効なら `true`。</returns>
+    bool IsDissolveEnabled() const noexcept { return m_dissolveEnabled; }
+
     /// <summary>習作モードかどうかを返します。</summary>
     /// <returns>習作モードなら `true`。</returns>
     bool IsShaderLabEnabled() const noexcept { return m_shaderLabEnabled; }
@@ -262,6 +269,9 @@ private:
 
     /// <summary>習作へ渡すマウスの左ボタンの状態。</summary>
     bool m_shaderLabMouseDown = false;
+
+    /// <summary>ディゾルブを動かすかどうか。</summary>
+    bool m_dissolveEnabled = true;
 
     /// <summary>習作モードかどうか。</summary>
     /// <remarks>
