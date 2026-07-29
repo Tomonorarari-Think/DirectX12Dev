@@ -126,8 +126,35 @@ int main()
                 break;
             }
 
-            // 溜まった入力をもとにカメラを動かす。
-            cameraController.Update(input, renderer.SceneCamera(), renderer.DeltaSeconds());
+            // --- 習作モードの操作 -----------------------------------------
+            //   L で入り切り、左右キーで前後、数字キーで直接選ぶ。
+            if (input.WasKeyPressed('L'))
+            {
+                renderer.ToggleShaderLab();
+            }
+
+            if (renderer.IsShaderLabEnabled())
+            {
+                if (input.WasKeyPressed(VK_RIGHT)) { renderer.AdvanceShaderLab(+1); }
+                if (input.WasKeyPressed(VK_LEFT))  { renderer.AdvanceShaderLab(-1); }
+
+                // 1〜9 と 0（= 10 番目）
+                for (int i = 0; i < 9; ++i)
+                {
+                    if (input.WasKeyPressed('1' + i)) { renderer.SelectShaderLab(i); }
+                }
+                if (input.WasKeyPressed('0')) { renderer.SelectShaderLab(9); }
+
+                renderer.SetShaderLabMouse(
+                    input.MouseX(), input.MouseY(),
+                    input.IsMouseButtonDown(dx12::MouseButton::Left));
+            }
+            else
+            {
+                // 溜まった入力をもとにカメラを動かす。
+                cameraController.Update(input, renderer.SceneCamera(),
+                                        renderer.DeltaSeconds());
+            }
 
             renderer.Render();
         }

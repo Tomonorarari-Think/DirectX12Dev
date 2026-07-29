@@ -227,6 +227,11 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
     m_postProcess.Initialize(device, m_descriptorHeap, width, height,
                              SwapChain::kBackBufferCount);
 
+    // (7-d) 習作シェーダー
+    //   ★ こちらは後処理を通さず画面へ直接描くので、書き込み先の形式が違う。
+    m_shaderLab.Initialize(device, SwapChain::kRenderTargetViewFormat,
+                           SwapChain::kBackBufferCount);
+
     // (8) 環境マップ（映り込みと環境光）
     CreateEnvironment();
 
@@ -606,6 +611,37 @@ void Renderer::Render()
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
+    // (4-b) 習作モードなら、3D シーンを描かずに習作 1 本だけを描く
+    if (m_shaderLabEnabled)
+    {
+        m_shaderLab.Update(frameIndex,
+                           static_cast<float>(m_frameTimer.TotalSeconds()),
+                           static_cast<float>(m_frameTimer.DeltaSeconds()),
+                           m_swapChain.Width(), m_swapChain.Height(),
+                           m_shaderLabMouseX, m_shaderLabMouseY,
+                           m_shaderLabMouseDown);
+
+        const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle =
+            m_swapChain.CurrentRenderTargetView();
+
+        // 深度は使わない。画面を絵で塗り潰すだけ。
+        m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+
+        m_shaderLab.Record(m_commandList.Get(), frameIndex);
+
+        RecordResourceBarrier(
+            m_commandList.Get(),
+            backBuffer,
+            D3D12_RESOURCE_STATE_RENDER_TARGET,
+            D3D12_RESOURCE_STATE_PRESENT);
+
+        DX_CHECK(m_commandList->Close());
+        m_commandQueue.ExecuteCommandList(m_commandList.Get());
+        m_swapChain.Present();
+        m_frameFenceValues[frameIndex] = m_commandQueue.Signal();
+        return;
+    }
+
     // (5) 描画先を「中間バッファ」に切り替える
     //   ★ 画面へ直接描かない。1.0 を超える明るさを残したまま
     //     後処理へ渡すためです（[25 章](../../docs/tutorial/25_ポストプロセス.md)）。
@@ -708,6 +744,44 @@ void Renderer::WaitForGpu()
     // ★ 全フレームのフェンス値をこの値で埋める
     //   これを忘れると、古い（既に完了済みの）値が配列に残り続けます。
     m_frameFenceValues.fill(fenceValue);
+}
+
+
+/// <summary>
+/// 習作モードの入り切りを切り替えます。
+/// </summary>
+void Renderer::ToggleShaderLab()
+{
+    m_shaderLabEnabled = !m_shaderLabEnabled;
+
+    if (m_shaderLabEnabled)
+    {
+        Log(std::format(L"習作モードに入りました（{} / {} : {}）",
+                        m_shaderLab.CurrentIndex() + 1, m_shaderLab.Count(),
+                        m_shaderLab.CurrentName()));
+    }
+    else
+    {
+        Log(L"習作モードを抜けました。");
+    }
+}
+
+
+/// <summary>
+/// 表示する習作を前後に動かします。
+/// </summary>
+void Renderer::AdvanceShaderLab(int delta)
+{
+    m_shaderLab.Advance(delta);
+}
+
+
+/// <summary>
+/// 表示する習作を番号で選びます。
+/// </summary>
+void Renderer::SelectShaderLab(int index)
+{
+    m_shaderLab.Select(index);
 }
 
 } // namespace dx12
