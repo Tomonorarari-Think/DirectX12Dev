@@ -5,6 +5,7 @@
 //   頂点バッファを使わず、頂点 ID から画面いっぱいの三角形を作る。
 //   詳しい解説は docs/tutorial/23_スカイボックス.md を参照。
 //=============================================================================
+#include "FullScreen.hlsli"
 
 cbuffer SkyboxConstants : register(b0)
 {
@@ -24,37 +25,9 @@ SamplerState g_sampler     : register(s0);
 // 円周率。
 static const float kPi = 3.14159265f;
 
-// トーンマッピングで「白」とみなす明るさ。Mesh.hlsl と同じ値にすること。
-static const float kWhitePoint = 2.2f;
-
-struct VSOutput
+FullScreenVSOutput VSMain(uint vertexId : SV_VertexID)
 {
-    float4 position : SV_POSITION;
-
-    // 画面上の位置を -1〜1 で表したもの。左下が (-1, -1)、右上が (1, 1)。
-    // ピクセルシェーダーで視線の向きを組み立てるのに使う。
-    float2 screenPosition : TEXCOORD;
-};
-
-// 頂点バッファを使わず、頂点 ID だけで画面を覆う三角形を作る。
-//   3 頂点で画面全体を覆えるので、四角形（2 三角形）より無駄が少ない。
-//
-//     id = 0 → (-1, -1)   id = 1 → (-1,  3)   id = 2 → ( 3, -1)
-//
-//   はみ出した部分はラスタライザが切り落とす。
-VSOutput VSMain(uint vertexId : SV_VertexID)
-{
-    VSOutput output;
-
-    float2 corner = float2((vertexId == 2) ? 3.0f : -1.0f,
-                           (vertexId == 1) ? 3.0f : -1.0f);
-
-    // ★ z = w = 1 にすると、透視除算のあと深度が 1.0（一番奥）になる。
-    //   深度テストを LESS_EQUAL にしておけば、何も描かれていない所だけが通る。
-    output.position       = float4(corner, 1.0f, 1.0f);
-    output.screenPosition = corner;
-
-    return output;
+    return FullScreenVS(vertexId);
 }
 
 // 方向ベクトルを、正距円筒図法のテクスチャ座標へ変換する。
@@ -66,15 +39,7 @@ float2 DirectionToEquirectUv(float3 direction)
     return float2(u, v);
 }
 
-// リニアの明るさを、画面に出せる 0〜1 の範囲へ圧縮する。
-//   Mesh.hlsl と同じ式を使わないと、物体と背景で明るさの扱いが食い違う。
-float3 ToneMap(float3 color)
-{
-    float3 numerator = color * (1.0f + color / (kWhitePoint * kWhitePoint));
-    return numerator / (1.0f + color);
-}
-
-float4 PSMain(VSOutput input) : SV_TARGET
+float4 PSMain(FullScreenVSOutput input) : SV_TARGET
 {
     // 画面の位置から視線の向きを組み立てる。
     //   画面の端は、前方から「画角の半分」だけ傾いた向きになる。
@@ -90,6 +55,7 @@ float4 PSMain(VSOutput input) : SV_TARGET
     float3 color = g_environment.SampleLevel(
         g_sampler, DirectionToEquirectUv(direction), 0.0f).rgb;
 
-    // 物体の環境光と同じ倍率を掛けてから、同じ式で圧縮する。
-    return float4(ToneMap(color * g_skyboxParams.z), 1.0f);
+    // 物体の環境光と同じ倍率を掛ける。
+    //   ★ 圧縮（トーンマッピング）はここではしない。後処理でまとめて行う。
+    return float4(color * g_skyboxParams.z, 1.0f);
 }

@@ -208,8 +208,9 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
 
     // (7) メッシュ描画用のパイプライン
     //     PSO は描画先の形式（RTV / DSV）を知っている必要があるため両方渡す。
+    //   ★ 書き込み先は画面ではなく中間バッファ（HDR）になった。
     m_meshPipeline.Initialize(device,
-                              SwapChain::kRenderTargetViewFormat,
+                              RenderTexture::kFormat,
                               DepthBuffer::kFormat,
                               SwapChain::kBackBufferCount,
                               kObjectCount,
@@ -217,6 +218,14 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
 
     // (7-b) 背景を描くパイプライン
     m_skyboxPipeline.Initialize(device, SwapChain::kBackBufferCount);
+
+    // (7-c) シーンを描き込む中間バッファと、その後処理
+    //   ★ クリア色は中間バッファ側で使う。ここは HDR なので sRGB 変換は無い。
+    m_sceneTexture.Initialize(device, m_descriptorHeap, width, height,
+                              L"シーン（HDR）", kClearColor);
+
+    m_postProcess.Initialize(device, m_descriptorHeap, width, height,
+                             SwapChain::kBackBufferCount);
 
     // (8) 環境マップ（映り込みと環境光）
     CreateEnvironment();
@@ -582,7 +591,7 @@ void Renderer::Render()
 
     ID3D12Resource* backBuffer = m_swapChain.CurrentBackBuffer();
 
-    // ここから第 2 パス : いつも通り画面へ描く
+    // ここから第 2 パス : シーンを中間バッファへ描く
     // (3) バリア : PRESENT → RENDER_TARGET
     //   スワップチェーンから取得したバックバッファは、
     //   Present 直後は「表示用 (PRESENT)」の状態になっています。
@@ -597,21 +606,15 @@ void Renderer::Render()
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
-    // (5) レンダーターゲット（描画先）の設定
-    const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_swapChain.CurrentRenderTargetView();
+    // (5) 描画先を「中間バッファ」に切り替える
+    //   ★ 画面へ直接描かない。1.0 を超える明るさを残したまま
+    //     後処理へ渡すためです（[25 章](../../docs/tutorial/25_ポストプロセス.md)）。
     const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_depthBuffer.DepthStencilView();
 
-    m_commandList->OMSetRenderTargets(
-        1,             // レンダーターゲットの数
-        &rtvHandle,    // RTV ディスクリプタの配列
-        FALSE,         // TRUE にすると「連続した複数の RTV」として扱う
-        &dsvHandle);   // 深度ステンシルビュー（nullptr にすると深度テストは働かない）
+    // バリア・描画先の設定・クリアまでを RenderTexture が行う。
+    m_sceneTexture.BeginRender(m_commandList.Get(), &dsvHandle);
 
-    // (6) 画面のクリア
-    //   前フレームの絵が残っていると困るので、毎フレーム塗り潰します。
-    m_commandList->ClearRenderTargetView(rtvHandle, kClearColor, 0, nullptr);
-
-    // (6-b) 深度バッファのクリア
+    // (6) 深度バッファのクリア
     //   ★ 色のクリアと同じくらい重要です。忘れると前フレームの深度が残り、
     //     2 フレーム目以降で「何も描かれない」「ちらつく」といった症状になります。
     m_commandList->ClearDepthStencilView(
@@ -635,6 +638,16 @@ void Renderer::Render()
     //     隠れるピクセルの計算が深度テストで省かれる（早期 Z）。
     m_skyboxPipeline.Record(m_commandList.Get(), frameIndex,
                             m_environmentMap.ShaderResourceView());
+
+    // (7-c) 中間バッファを読める状態へ戻す
+    m_sceneTexture.EndRender(m_commandList.Get());
+
+    // (7-d) 後処理して画面へ
+    //   露出 → ブルーム合成 → トーンマッピング → ビネット、をまとめて行う。
+    m_postProcess.Record(m_commandList.Get(), frameIndex,
+                         m_sceneTexture,
+                         m_swapChain.CurrentRenderTargetView(),
+                         m_viewport, m_scissorRect);
 
     // (8) バリア : RENDER_TARGET → PRESENT
     //   描き終わったので、表示できる状態へ戻します。

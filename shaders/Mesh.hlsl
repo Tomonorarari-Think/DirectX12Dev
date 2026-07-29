@@ -96,10 +96,6 @@ static const float kPi = 3.14159265f;
 // 定数で済ませるのが一般的。金属では基本色そのものが反射率になる。
 static const float3 kDielectricF0 = float3(0.04f, 0.04f, 0.04f);
 
-// トーンマッピングで「白」とみなす明るさ。
-// これを超える部分だけが圧縮され、それ以下はほとんどそのまま残る。
-static const float kWhitePoint = 2.2f;
-
 // 頂点シェーダーへの入力。
 // C++ 側の Vertex 構造体と入力レイアウトに、順序・型・セマンティクス名を合わせる。
 struct VSInput
@@ -275,15 +271,6 @@ float2 EnvironmentBrdfApprox(float roughness, float normalDotView)
 }
 
 
-// リニアの明るさを、画面に出せる 0〜1 の範囲へ圧縮する。
-//   拡張版ラインハルト。白点より暗い部分はほとんど変えず、
-//   明るい部分だけをなだらかに押し込むので、白飛びが目立たなくなる。
-float3 ToneMap(float3 color)
-{
-    const float whiteSquared = kWhitePoint * kWhitePoint;
-    return color * (1.0f + color / whiteSquared) / (1.0f + color);
-}
-
 // 法線マップを読み、面の向きを傾けた法線をワールド空間で返す。
 //   uv          … テクスチャ座標
 //   worldNormal … 頂点から補間した法線（正規化済み）
@@ -402,5 +389,8 @@ float4 PSMain(VSOutput input) : SV_TARGET
     // ★ ここまでの計算はすべてリニア空間で行っている。
     //   まず明るさを 0〜1 へ押し込み、sRGB への変換はレンダーターゲットに任せる
     //   （RTV が _SRGB 形式なので、GPU が書き込み時に変換してくれる）。
-    return float4(ToneMap(lit), baseColor.a);
+    // ★ ここでは圧縮しない。1.0 を超えたまま中間バッファへ書き、
+    //   露出・ブルーム・トーンマッピングは後処理でまとめて行う
+    //   （[25 章](../docs/tutorial/25_ポストプロセス.md)）。
+    return float4(lit, baseColor.a);
 }

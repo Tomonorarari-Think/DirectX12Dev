@@ -19,6 +19,8 @@
 #include "SwapChain.h"
 #include "MeshPipeline.h"
 #include "SkyboxPipeline.h"
+#include "PostProcessPipeline.h"
+#include "RenderTexture.h"
 
 #include <array>
 
@@ -209,6 +211,16 @@ private:
 
     /// <summary>背景に環境マップを描くパイプライン。</summary>
     SkyboxPipeline m_skyboxPipeline;
+
+    /// <summary>シーンを描き込む中間バッファ（HDR）。</summary>
+    /// <remarks>
+    /// 画面へ直接描かず、いったんここへ描いてから後処理を通します。
+    /// 1.0 を超える明るさを保ったまま次の処理へ渡すためです。
+    /// </remarks>
+    RenderTexture m_sceneTexture;
+
+    /// <summary>後処理（露出・ブルーム・トーンマップ・ビネット）。</summary>
+    PostProcessPipeline m_postProcess;
 
     /// <summary>
     /// 回転させるモデル。ファイルから読み込みます。

@@ -239,6 +239,8 @@
     <ClCompile Include="src\Graphics\UploadHelper.cpp" />
     <ClCompile Include="src\Graphics\GraphicsDevice.cpp" />
     <ClCompile Include="src\Graphics\Renderer.cpp" />
+    <ClCompile Include="src\Graphics\PostProcessPipeline.cpp" />
+    <ClCompile Include="src\Graphics\RenderTexture.cpp" />
     <ClCompile Include="src\Graphics\ShaderCompiler.cpp" />
     <ClCompile Include="src\Graphics\SkyboxPipeline.cpp" />
     <ClCompile Include="src\Graphics\SwapChain.cpp" />
@@ -280,6 +282,8 @@
     <ClInclude Include="src\Graphics\UploadHelper.h" />
     <ClInclude Include="src\Graphics\GraphicsDevice.h" />
     <ClInclude Include="src\Graphics\Renderer.h" />
+    <ClInclude Include="src\Graphics\PostProcessPipeline.h" />
+    <ClInclude Include="src\Graphics\RenderTexture.h" />
     <ClInclude Include="src\Graphics\ShaderCompiler.h" />
     <ClInclude Include="src\Graphics\SkyboxPipeline.h" />
     <ClInclude Include="src\Graphics\SwapChain.h" />
