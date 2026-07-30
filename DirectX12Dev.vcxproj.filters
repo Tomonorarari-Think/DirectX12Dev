@@ -89,6 +89,9 @@
     <ClCompile Include="src\Graphics\Texture2D.cpp">
       <Filter>src\Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="src\Graphics\VfxPipeline.cpp">
+      <Filter>src\Graphics</Filter>
+    </ClCompile>
     <ClCompile Include="src\Graphics\UploadHelper.cpp">
       <Filter>src\Graphics</Filter>
     </ClCompile>
@@ -189,6 +192,9 @@
       <Filter>src\Graphics</Filter>
     </ClInclude>
     <ClInclude Include="src\Graphics\Texture2D.h">
+      <Filter>src\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Graphics\VfxPipeline.h">
       <Filter>src\Graphics</Filter>
     </ClInclude>
     <ClInclude Include="src\Graphics\UploadHelper.h">

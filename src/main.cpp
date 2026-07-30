@@ -139,6 +139,18 @@ int main()
                 renderer.ToggleDissolve();
             }
 
+            // V : 半透明（VFX）の入り切り
+            if (input.WasKeyPressed('V'))
+            {
+                renderer.ToggleVfx();
+            }
+
+            // B : 半透明の並べ替えの入り切り（対照実験用）
+            if (input.WasKeyPressed('B'))
+            {
+                renderer.ToggleVfxSort();
+            }
+
             if (renderer.IsShaderLabEnabled())
             {
                 if (input.WasKeyPressed(VK_RIGHT)) { renderer.AdvanceShaderLab(+1); }
