@@ -29,9 +29,18 @@ cbuffer VfxConstants : register(b0)
     float4 g_cameraRight;
     float4 g_cameraUp;
 
+    // x = 射影行列の _33、y = 同 _43。深度値を距離へ戻すのに使う。
+    // z = 消し始める距離（メートル）、w = 0 なら機能を切る。
+    float4 g_depthParams;
+
     // 板の一覧。
     VfxParticle g_particles[64];
 };
+
+// 不透明な物を描き終えた時点の深度バッファ。
+//   ★ いま描いている深度バッファそのものを読む。
+//     そのため書き込みを禁じたビュー（READ_ONLY_DEPTH）で描く必要がある。
+Texture2D<float> g_sceneDepth : register(t0);
 
 struct VSOutput
 {
@@ -40,6 +49,15 @@ struct VSOutput
     float4 color    : COLOR;
     float  softness : TEXCOORD1;
 };
+
+
+/// 深度バッファの値（0〜1）を、カメラからの距離へ戻す。
+///   射影行列は z_ndc = _33 + _43 / z_view という形をしているので、
+///   これを z_view について解くだけ。
+float ViewDepth(float ndcDepth)
+{
+    return g_depthParams.y / (ndcDepth - g_depthParams.x);
+}
 
 // 板 1 枚は三角形 2 枚 ＝ 頂点 6 個。
 //   頂点バッファを持たず、ID から四隅を作る。
@@ -90,6 +108,24 @@ float4 PSMain(VSOutput input) : SV_TARGET
 
     // 縁を鋭くする。そのままだと、どれも同じぼんやりした丸になる。
     alpha = pow(alpha, lerp(1.0f, 2.4f, input.softness));
+
+    // --- ソフトパーティクル --------------------------------------------------
+    //   板と、その後ろにある物との「距離」で薄める。
+    //   これをしないと、板が床を突き抜けた線がくっきり出る。
+    if (g_depthParams.w > 0.5f)
+    {
+        // SV_POSITION.xy はピクセル座標なので、そのまま添字に使える。
+        //   Load はサンプラーを使わず、1 テクセルを整数座標で読む。
+        float sceneNdcDepth = g_sceneDepth.Load(int3((int2)input.position.xy, 0));
+
+        float sceneDistance    = ViewDepth(sceneNdcDepth);
+        float particleDistance = ViewDepth(input.position.z);
+
+        // 後ろの物に近いほど 0 に近づく。
+        float fade = saturate((sceneDistance - particleDistance) / g_depthParams.z);
+
+        alpha *= fade;
+    }
 
     // ★ 色にアルファを掛けてから出す（乗算済みアルファ）。
     //   こうしておくと、アルファ合成と加算合成を

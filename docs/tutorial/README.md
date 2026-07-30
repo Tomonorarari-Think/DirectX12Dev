@@ -47,6 +47,7 @@ Unity で `GameObject` にマテリアルを付ければ絵が出ますが、
 | 25 | [ポストプロセス](25_ポストプロセス.md) | 中間バッファ、HDR、ブルーム、ビネット |
 | 26 | [ディゾルブ](26_ディゾルブ.md) | `clip`、3 次元ノイズ、燃え際、影のパス |
 | 27 | [半透明とブレンディング](27_半透明とブレンディング.md) | アルファ・加算、深度書き込み、描く順、ビルボード |
+| 28 | [ソフトパーティクル](28_ソフトパーティクル.md) | TYPELESS 深度、読み取り専用 DSV、深度の線形化 |
 
 ```mermaid
 flowchart LR
@@ -76,10 +77,11 @@ flowchart LR
     X --> Y["25 ポストプロセス"]
     Y --> Z["26 ディゾルブ"]
     Z --> AA["27 半透明"]
+    AA --> AB["28 ソフトパーティクル"]
 
     style A fill:#dafbe1,stroke:#0d4f21,color:#1f2328
     style F fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
-    style AA fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
+    style AB fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
 ```
 
 ## 関連する資料

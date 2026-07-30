@@ -4,21 +4,35 @@
 //=============================================================================
 #include "DepthBuffer.h"
 
+#include "DescriptorHeap.h"
+
 #include <format>
 
 namespace dx12
 {
+namespace
+{
+/// <summary>書き込み可能な DSV のヒープ内番号。</summary>
+constexpr uint32_t kWritableDsvIndex = 0;
+
+/// <summary>書き込みを禁じた DSV のヒープ内番号。</summary>
+constexpr uint32_t kReadOnlyDsvIndex = 1;
+} // namespace
+
 
 /// <summary>
 /// DSV ディスクリプタヒープと深度バッファ本体を生成します。
 /// </summary>
-void DepthBuffer::Initialize(ID3D12Device* device, uint32_t width, uint32_t height)
+void DepthBuffer::Initialize(ID3D12Device* device, DescriptorHeap& descriptorHeap,
+                             uint32_t width, uint32_t height)
 {
     // (1) DSV 用ディスクリプタヒープの生成
     //   ディスクリプタヒープは「種類ごと」に用意する決まりです。
+    //   ★ 2 個作ります。同じリソースに対して「書き込む DSV」と
+    //     「読むだけの DSV」の 2 通りの見方を用意するためです。
     D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
     dsvHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-    dsvHeapDesc.NumDescriptors = 1;
+    dsvHeapDesc.NumDescriptors = 2;
 
     // DSV は「描画先」の指定であってシェーダーが読むものではないため NONE。
     dsvHeapDesc.Flags    = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
@@ -26,10 +40,34 @@ void DepthBuffer::Initialize(ID3D12Device* device, uint32_t width, uint32_t heig
 
     DX_CHECK(device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
 
-    // (2) 深度バッファ本体と DSV
+    m_dsvDescriptorSize =
+        device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+
+    // (2) SRV の置き場所を確保しておく
+    //   リサイズでリソースを作り直しても、番号は変わりません。
+    m_descriptorHeap          = &descriptorHeap;
+    m_shaderResourceViewIndex = descriptorHeap.Allocate();
+    m_shaderResourceView      = descriptorHeap.GpuHandle(m_shaderResourceViewIndex);
+
+    // (3) 深度バッファ本体と各ビュー
     CreateResourceAndView(device, width, height);
 
-    Log(std::format(L"深度バッファを生成しました ({} x {}, D32_FLOAT)", width, height));
+    Log(std::format(L"深度バッファを生成しました ({} x {}, R32_TYPELESS)",
+                    width, height));
+}
+
+
+/// <summary>
+/// 書き込みを禁じた深度ステンシルビューの位置を取得します。
+/// </summary>
+D3D12_CPU_DESCRIPTOR_HANDLE DepthBuffer::ReadOnlyDepthStencilView() const
+{
+    D3D12_CPU_DESCRIPTOR_HANDLE handle =
+        m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
+
+    handle.ptr += static_cast<SIZE_T>(kReadOnlyDsvIndex) * m_dsvDescriptorSize;
+
+    return handle;
 }
 
 
@@ -59,7 +97,9 @@ void DepthBuffer::CreateResourceAndView(ID3D12Device* device, uint32_t width, ui
     resourceDesc.Height             = height;
     resourceDesc.DepthOrArraySize   = 1;
     resourceDesc.MipLevels          = 1;
-    resourceDesc.Format             = kFormat;
+    // ★ 型を決めない形式で作る。DSV では D32_FLOAT、SRV では R32_FLOAT と
+    //   別の解釈を与えるためです。D32_FLOAT で作ると SRV を作れません。
+    resourceDesc.Format             = kResourceFormat;
     resourceDesc.SampleDesc.Count   = 1;   // MSAA 無し（バックバッファと合わせる）
     resourceDesc.SampleDesc.Quality = 0;
 
@@ -76,8 +116,9 @@ void DepthBuffer::CreateResourceAndView(ID3D12Device* device, uint32_t width, ui
     clearValue.DepthStencil.Stencil = 0;
 
     // 初期状態 : DEPTH_WRITE
-    //   深度バッファは常に「書き込み可能な深度バッファ」として使い続けるため、
-    //   この状態のまま変更しません。つまりリソースバリアが不要です。
+    //   ★ ソフトパーティクルを描くあいだだけ
+    //     `DEPTH_READ | PIXEL_SHADER_RESOURCE` へ移し、描き終えたら戻します。
+    //     それ以外の場面ではこの状態のままです。
     DX_CHECK(device->CreateCommittedResource(
         &heapProperties,
         D3D12_HEAP_FLAG_NONE,
@@ -89,19 +130,41 @@ void DepthBuffer::CreateResourceAndView(ID3D12Device* device, uint32_t width, ui
     // 深度ステンシルビュー (DSV) の作成
     //   RTV と同じく「このリソースを深度バッファとして見る」ための説明書です。
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-    dsvDesc.Format        = kFormat;
-    dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-
-    // Flags に READ_ONLY_DEPTH を指定すると「深度テストはするが書き込まない」
-    // ビューになります。今回は書き込むので NONE。
-    dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
-
+    dsvDesc.Format             = kFormat;
+    dsvDesc.ViewDimension      = D3D12_DSV_DIMENSION_TEXTURE2D;
+    dsvDesc.Flags              = D3D12_DSV_FLAG_NONE;
     dsvDesc.Texture2D.MipSlice = 0;
 
-    device->CreateDepthStencilView(
-        m_depthBuffer.Get(),
-        &dsvDesc,
-        m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+    const D3D12_CPU_DESCRIPTOR_HANDLE dsvStart =
+        m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
+
+    D3D12_CPU_DESCRIPTOR_HANDLE writable = dsvStart;
+    writable.ptr += static_cast<SIZE_T>(kWritableDsvIndex) * m_dsvDescriptorSize;
+
+    device->CreateDepthStencilView(m_depthBuffer.Get(), &dsvDesc, writable);
+
+    // ★ READ_ONLY_DEPTH を立てた 2 個目の DSV。
+    //   「深度テストはするが書き込まない」ビューです。
+    //   これがあると、同じ深度バッファを深度テストとテクスチャ読みに
+    //   同時に使えます（[28 章](../../docs/tutorial/28_ソフトパーティクル.md)）。
+    dsvDesc.Flags = D3D12_DSV_FLAG_READ_ONLY_DEPTH;
+
+    D3D12_CPU_DESCRIPTOR_HANDLE readOnly = dsvStart;
+    readOnly.ptr += static_cast<SIZE_T>(kReadOnlyDsvIndex) * m_dsvDescriptorSize;
+
+    device->CreateDepthStencilView(m_depthBuffer.Get(), &dsvDesc, readOnly);
+
+    // シェーダーリソースビュー (SRV) の作成
+    //   同じリソースを「1 チャンネルの浮動小数テクスチャ」として読みます。
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format                  = kShaderResourceViewFormat;
+    srvDesc.ViewDimension           = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Texture2D.MipLevels     = 1;
+
+    device->CreateShaderResourceView(
+        m_depthBuffer.Get(), &srvDesc,
+        m_descriptorHeap->CpuHandle(m_shaderResourceViewIndex));
 }
 
 
