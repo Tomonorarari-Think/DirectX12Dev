@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" width="720" height="300"
+     role="img" aria-label="爆発を構成する 5 つの層の時間割。閃光・火球・衝撃波・破片・煙の順に、明るい層ほど早く始まり早く終わる">
+  <rect x="0" y="0" width="720" height="300" fill="#f6f8fa"/>
+
+  <text x="24" y="34" font-family="Meiryo, sans-serif" font-size="17" fill="#1f2328">
+    爆発の層 — 明るいものほど早く、短い
+  </text>
+
+  <!-- 目盛り -->
+  <g stroke="#8c959f" stroke-width="1">
+    <line x1="150" y1="62" x2="150" y2="258"/>
+    <line x1="245" y1="62" x2="245" y2="258" stroke-dasharray="3 4"/>
+    <line x1="340" y1="62" x2="340" y2="258" stroke-dasharray="3 4"/>
+    <line x1="435" y1="62" x2="435" y2="258" stroke-dasharray="3 4"/>
+    <line x1="530" y1="62" x2="530" y2="258" stroke-dasharray="3 4"/>
+    <line x1="625" y1="62" x2="625" y2="258" stroke-dasharray="3 4"/>
+  </g>
+  <g font-family="Meiryo, sans-serif" font-size="12" fill="#3d444d" text-anchor="middle">
+    <text x="150" y="56">0.0 秒</text>
+    <text x="245" y="56">0.5</text>
+    <text x="340" y="56">1.0</text>
+    <text x="435" y="56">1.5</text>
+    <text x="530" y="56">2.0</text>
+    <text x="625" y="56">2.4</text>
+  </g>
+
+  <!-- 帯 : x = 150 + 秒 * 190 -->
+  <g stroke="#1f2328" stroke-width="1">
+    <rect x="150" y="72"  width="23"  height="24" rx="4" fill="#fff1e5"/>
+    <rect x="150" y="108" width="171" height="24" rx="4" fill="#ffd8b5"/>
+    <rect x="159" y="144" width="124" height="24" rx="4" fill="#d8f0ff"/>
+    <rect x="159" y="180" width="285" height="24" rx="4" fill="#ffe9a8"/>
+    <rect x="207" y="216" width="418" height="24" rx="4" fill="#e2e4e8"/>
+  </g>
+
+  <g font-family="Meiryo, sans-serif" font-size="13" fill="#1f2328" text-anchor="end">
+    <text x="138" y="89">1 閃光</text>
+    <text x="138" y="125">2 火球</text>
+    <text x="138" y="161">3 衝撃波</text>
+    <text x="138" y="197">4 破片</text>
+    <text x="138" y="233">5 煙</text>
+  </g>
+
+  <g font-family="Meiryo, sans-serif" font-size="12" fill="#3d444d">
+    <text x="182" y="89">一瞬だけ。起きたと気づかせる</text>
+    <text x="330" y="125">主役。広がりながら冷める</text>
+    <text x="292" y="161">規模を見せる</text>
+    <text x="453" y="197">方向と勢い</text>
+    <text x="634" y="233">余韻</text>
+  </g>
+
+  <text x="24" y="284" font-family="Meiryo, sans-serif" font-size="12" fill="#3d444d">
+    周期は 2.4 秒。層の順序を入れ替えると、爆発ではなく「膨らむ何か」になる。
+  </text>
+</svg>
