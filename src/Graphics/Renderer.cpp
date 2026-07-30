@@ -4,6 +4,7 @@
 //=============================================================================
 #include "Renderer.h"
 
+#include <algorithm>
 #include <cmath>
 
 #include "../Assets/EnvironmentPrefilter.h"
@@ -76,6 +77,12 @@ constexpr float kSecondsPerRotation = 8.0f;
 /// ディゾルブが 1 往復するのにかける秒数。
 /// </summary>
 constexpr float kSecondsPerDissolveCycle = 6.0f;
+
+/// <summary>加算合成で描く光の数。</summary>
+constexpr uint32_t kOrbCount = 10;
+
+/// <summary>アルファ合成で描く煙の数。</summary>
+constexpr uint32_t kSmokeCount = 14;
 
 
 /// <summary>
@@ -245,7 +252,13 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
     m_postProcess.Initialize(device, m_descriptorHeap, width, height,
                              SwapChain::kBackBufferCount);
 
-    // (7-d) 習作シェーダー
+    // (7-d) 半透明（VFX）
+    //   ★ 中間バッファへ描くので、書き込み先の形式は HDR。
+    //     加算合成した光が 1 を超えると、そのままブルームが拾う。
+    m_vfxPipeline.Initialize(device, RenderTexture::kFormat, DepthBuffer::kFormat,
+                             SwapChain::kBackBufferCount);
+
+    // (7-e) 習作シェーダー
     //   ★ こちらは後処理を通さず画面へ直接描くので、書き込み先の形式が違う。
     m_shaderLab.Initialize(device, SwapChain::kRenderTargetViewFormat,
                            SwapChain::kBackBufferCount);
@@ -492,6 +505,147 @@ void Renderer::UpdateConstants(uint32_t frameIndex)
 
 
 /// <summary>
+/// 半透明の板を組み立て、描く命令を記録します。
+/// </summary>
+void Renderer::RecordVfxDrawCommands(uint32_t frameIndex)
+{
+    using namespace DirectX;
+
+    const float time = static_cast<float>(m_frameTimer.TotalSeconds());
+
+    // --- カメラの右と上。板をカメラへ向けるのに使う ------------------------
+    const XMVECTOR eye     = XMLoadFloat3(&m_camera.Position());
+    const XMVECTOR target  = XMLoadFloat3(&m_camera.Target());
+    const XMVECTOR worldUp = XMLoadFloat3(&m_camera.Up());
+
+    const XMVECTOR forward = XMVector3Normalize(XMVectorSubtract(target, eye));
+    const XMVECTOR right   = XMVector3Normalize(XMVector3Cross(worldUp, forward));
+    const XMVECTOR up      = XMVector3Cross(forward, right);
+
+    XMFLOAT3 cameraRight;
+    XMFLOAT3 cameraUp;
+    XMStoreFloat3(&cameraRight, right);
+    XMStoreFloat3(&cameraUp, up);
+
+    // --- (1) 加算合成の板 : モデルのまわりを回る光 -------------------------
+    m_additiveParticles.clear();
+
+    for (uint32_t i = 0; i < kOrbCount; ++i)
+    {
+        const float phase = static_cast<float>(i) / kOrbCount * XM_2PI;
+        const float angle = time * 0.55f + phase;
+        const float radius = 1.15f + 0.22f * std::sin(time * 0.9f + phase * 2.0f);
+
+        VfxParticle particle = {};
+        particle.positionSize = {
+            std::cos(angle) * radius,
+            kModelCenterHeight + 0.55f * std::sin(time * 1.3f + phase),
+            std::sin(angle) * radius,
+            0.17f + 0.05f * std::sin(time * 2.1f + phase)
+        };
+
+        // ★ 1 を超える明るさにする。加算合成なので、そのまま足されて
+        //   ブルームがにじませる。
+        const float hue = static_cast<float>(i) / kOrbCount;
+        particle.color = { 1.5f + 1.1f * hue, 0.65f + 0.25f * hue,
+                           0.22f + 1.2f * hue, 1.0f };
+        particle.params = { 1.0f, angle * 0.7f, 0.0f, 0.0f };
+
+        m_additiveParticles.push_back(particle);
+    }
+
+    // --- (2) アルファ合成の板 : ゆっくり漂う煙 -----------------------------
+    m_alphaParticles.clear();
+
+    for (uint32_t i = 0; i < kSmokeCount; ++i)
+    {
+        const float fi = static_cast<float>(i);
+        const float drift = time * 0.16f + fi * 0.83f;
+
+        VfxParticle particle = {};
+        particle.positionSize = {
+            std::cos(drift * 0.7f + fi) * (0.9f + 0.5f * std::sin(fi * 2.3f)),
+            0.30f + std::fmod(drift, 2.2f),
+            std::sin(drift * 0.5f + fi * 1.7f) * (0.9f + 0.5f * std::cos(fi * 1.9f)),
+            0.42f + 0.22f * std::sin(fi * 3.1f)
+        };
+
+        // 上へ行くほど薄くなる
+        const float height = (particle.positionSize.y - 0.30f) / 2.2f;
+        particle.color = { 0.55f, 0.58f, 0.66f, 0.30f * (1.0f - height) };
+        particle.params = { 1.0f, fi * 1.31f + time * 0.15f, 0.0f, 0.0f };
+
+        m_alphaParticles.push_back(particle);
+    }
+
+    // --- (3) アルファ合成は「奥から手前へ」並べ替える ----------------------
+    //   ★ アルファ合成は掛け算の順序が結果を変えるので、順番が意味を持つ。
+    //     加算合成は足し算なので、順番を変えても結果は同じ。
+    if (m_vfxSortEnabled)
+    {
+        XMFLOAT3 eyePosition = m_camera.Position();
+
+        std::sort(m_alphaParticles.begin(), m_alphaParticles.end(),
+                  [&eyePosition](const VfxParticle& a, const VfxParticle& b)
+                  {
+                      const float da = (a.positionSize.x - eyePosition.x) *
+                                       (a.positionSize.x - eyePosition.x)
+                                     + (a.positionSize.y - eyePosition.y) *
+                                       (a.positionSize.y - eyePosition.y)
+                                     + (a.positionSize.z - eyePosition.z) *
+                                       (a.positionSize.z - eyePosition.z);
+
+                      const float db = (b.positionSize.x - eyePosition.x) *
+                                       (b.positionSize.x - eyePosition.x)
+                                     + (b.positionSize.y - eyePosition.y) *
+                                       (b.positionSize.y - eyePosition.y)
+                                     + (b.positionSize.z - eyePosition.z) *
+                                       (b.positionSize.z - eyePosition.z);
+
+                      return da > db;   // 遠い順
+                  });
+    }
+
+    const XMMATRIX viewProjection = m_camera.ViewProjectionMatrix();
+
+    m_vfxPipeline.Update(frameIndex, 0, viewProjection, cameraRight, cameraUp,
+                         m_alphaParticles);
+    m_vfxPipeline.Update(frameIndex, 1, viewProjection, cameraRight, cameraUp,
+                         m_additiveParticles);
+
+    // ★ 煙（アルファ）が先、光（加算）があと。
+    //   加算は順番を選ばないので、最後に描くのがいちばん素直。
+    m_vfxPipeline.Record(m_commandList.Get(), frameIndex, 0, BlendMode::Alpha,
+                         static_cast<uint32_t>(m_alphaParticles.size()));
+
+    m_vfxPipeline.Record(m_commandList.Get(), frameIndex, 1, BlendMode::Additive,
+                         static_cast<uint32_t>(m_additiveParticles.size()));
+}
+
+
+/// <summary>
+/// 半透明（VFX）の入り切りを切り替えます。
+/// </summary>
+void Renderer::ToggleVfx()
+{
+    m_vfxEnabled = !m_vfxEnabled;
+    Log(m_vfxEnabled ? L"半透明（VFX）を有効にしました。"
+                     : L"半透明（VFX）を無効にしました。");
+}
+
+
+/// <summary>
+/// 半透明の並べ替えの入り切りを切り替えます。
+/// </summary>
+void Renderer::ToggleVfxSort()
+{
+    m_vfxSortEnabled = !m_vfxSortEnabled;
+    Log(m_vfxSortEnabled ? L"半透明を奥から並べ替えます。"
+                         : L"半透明の並べ替えをやめました（対照実験）。");
+}
+
+
+/// <summary>
 /// シーンの全メッシュを描く命令をコマンドリストに記録します。
 /// </summary>
 void Renderer::RecordMeshDrawCommands(uint32_t frameIndex)
@@ -701,6 +855,14 @@ void Renderer::Render()
     //     隠れるピクセルの計算が深度テストで省かれる（早期 Z）。
     m_skyboxPipeline.Record(m_commandList.Get(), frameIndex,
                             m_environmentMap.ShaderResourceView());
+
+    // (7-b-2) 半透明の描画
+    //   ★ 不透明な物と背景をすべて描いたあとに描く。
+    //     半透明は深度を書かないので、先に描くと後ろの物に上書きされる。
+    if (m_vfxEnabled)
+    {
+        RecordVfxDrawCommands(frameIndex);
+    }
 
     // (7-c) 中間バッファを読める状態へ戻す
     m_sceneTexture.EndRender(m_commandList.Get());
