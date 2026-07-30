@@ -68,6 +68,9 @@ void PrintControls()
     dx12::Log(L"  V                 半透明（VFX）");
     dx12::Log(L"  B                 半透明の並べ替え（対照実験）");
     dx12::Log(L"  N                 ソフトパーティクル（対照実験）");
+    dx12::Log(L"  G                 GPU パーティクル");
+    dx12::Log(L"  H                 GPU パーティクルの数（1024 → 16384）");
+    dx12::Log(L"  T                 垂直同期（速度計測用）");
     dx12::Log(L"  P                 動きを止める・再開する");
     dx12::Log(L"  ESC               終了");
 }
@@ -161,6 +164,24 @@ int main()
             if (input.WasKeyPressed('N'))
             {
                 renderer.ToggleSoftParticles();
+            }
+
+            // G : GPU パーティクルの入り切り
+            if (input.WasKeyPressed('G'))
+            {
+                renderer.ToggleGpuParticles();
+            }
+
+            // H : GPU パーティクルの数を切り替える（対照実験用）
+            if (input.WasKeyPressed('H'))
+            {
+                renderer.CycleGpuParticleCount();
+            }
+
+            // T : 垂直同期の入り切り（速度計測用）
+            if (input.WasKeyPressed('T'))
+            {
+                renderer.ToggleVSync();
             }
 
             // P : 動きを止める・再開する（対照実験用）
