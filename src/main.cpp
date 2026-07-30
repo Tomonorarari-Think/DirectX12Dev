@@ -63,6 +63,12 @@ void PrintControls()
     dx12::Log(L"  ホイール          寄る・引く");
     dx12::Log(L"  W / S / A / D     視点を回す（キー操作）");
     dx12::Log(L"  R                 初期位置へ戻す");
+    dx12::Log(L"  L                 習作モード（← → で切り替え）");
+    dx12::Log(L"  F                 ディゾルブ");
+    dx12::Log(L"  V                 半透明（VFX）");
+    dx12::Log(L"  B                 半透明の並べ替え（対照実験）");
+    dx12::Log(L"  N                 ソフトパーティクル（対照実験）");
+    dx12::Log(L"  P                 動きを止める・再開する");
     dx12::Log(L"  ESC               終了");
 }
 } // namespace
@@ -149,6 +155,18 @@ int main()
             if (input.WasKeyPressed('B'))
             {
                 renderer.ToggleVfxSort();
+            }
+
+            // N : ソフトパーティクルの入り切り（対照実験用）
+            if (input.WasKeyPressed('N'))
+            {
+                renderer.ToggleSoftParticles();
+            }
+
+            // P : 動きを止める・再開する（対照実験用）
+            if (input.WasKeyPressed('P'))
+            {
+                renderer.ToggleTimePause();
             }
 
             if (renderer.IsShaderLabEnabled())

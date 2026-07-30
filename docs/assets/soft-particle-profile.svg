@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 340" width="720" height="340"
+     role="img" aria-label="板が床と交わる 1 列ぶんの明るさ。ソフトパーティクルを切ると 1 ピクセルで 59 の段差ができ、有効にすると同じ場所がなめらかな傾きになる">
+  <rect x="0" y="0" width="720" height="340" fill="#f6f8fa"/>
+  <text x="24" y="34" font-family="Meiryo, sans-serif" font-size="17" fill="#1f2328">
+    板が床と交わる 1 列（x = 806）の明るさ
+  </text>
+
+  <g stroke="#8c959f" stroke-width="1">
+    <line x1="92.0" y1="62.0" x2="92.0" y2="272.0"/>
+    <line x1="92.0" y1="272.0" x2="652.0" y2="272.0"/>
+  </g>
+  <g font-family="Meiryo, sans-serif" font-size="12" fill="#3d444d" text-anchor="end">
+    <text x="84.0" y="66.0">160</text>
+    <text x="84.0" y="150.0">120</text>
+    <text x="84.0" y="234.0">80</text>
+  </g>
+  <g stroke="#d1d9e0" stroke-width="1" stroke-dasharray="3 4">
+    <line x1="92.0" y1="146.0" x2="652.0" y2="146.0"/>
+    <line x1="92.0" y1="230.0" x2="652.0" y2="230.0"/>
+  </g>
+
+  <path d="M92.0 91.4 L110.7 89.3 L129.3 89.3 L148.0 89.3 L166.7 91.4 L185.3 89.3 L204.0 89.3 L222.7 91.4 L241.3 91.4 L260.0 91.4 L278.7 93.5 L297.3 93.5 L316.0 93.5 L334.7 95.6 L353.3 99.8 L372.0 106.1 L390.7 108.2 L409.3 232.1 L428.0 209.0 L446.7 190.1 L465.3 179.6 L484.0 179.6 L502.7 181.7 L521.3 211.1 L540.0 194.3 L558.7 190.1 L577.3 188.0 L596.0 185.9 L614.7 181.7 L633.3 177.5 L652.0 179.6" fill="none" stroke="#bc4c00" stroke-width="2.5"/>
+  <path d="M92.0 114.5 L110.7 114.5 L129.3 118.7 L148.0 125.0 L166.7 129.2 L185.3 135.5 L204.0 137.6 L222.7 146.0 L241.3 150.2 L260.0 154.4 L278.7 162.8 L297.3 169.1 L316.0 175.4 L334.7 181.7 L353.3 198.5 L372.0 219.5 L390.7 232.1 L409.3 232.1 L428.0 209.0 L446.7 190.1 L465.3 179.6 L484.0 179.6 L502.7 181.7 L521.3 211.1 L540.0 194.3 L558.7 190.1 L577.3 188.0 L596.0 185.9 L614.7 181.7 L633.3 177.5 L652.0 179.6" fill="none" stroke="#0a4f9e" stroke-width="2.5"/>
+
+  <g font-family="Meiryo, sans-serif" font-size="13" fill="#1f2328">
+    <text x="660.0" y="95.4">切</text>
+    <text x="660.0" y="118.5">入</text>
+  </g>
+
+  <text x="92.0" y="296.0" font-family="Meiryo, sans-serif" font-size="12" fill="#3d444d">
+    y = 388（板の中ほど）
+  </text>
+  <text x="652.0" y="296.0" font-family="Meiryo, sans-serif" font-size="12"
+        fill="#3d444d" text-anchor="end">y = 418（床だけ）</text>
+
+  <text x="24" y="328.0" font-family="Meiryo, sans-serif" font-size="13" fill="#1f2328">
+    切 : y = 404 → 405 で 138 → 90。1 ピクセルで 48 下がる（最大は 59）。
+  </text>
+  <text x="24" y="348.0" font-family="Meiryo, sans-serif" font-size="13" fill="#1f2328">
+    入 : 同じ場所の 1 ピクセルの差は 0。15 ピクセルかけて下がる。
+  </text>
+</svg>

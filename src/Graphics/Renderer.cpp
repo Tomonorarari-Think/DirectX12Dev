@@ -84,6 +84,18 @@ constexpr uint32_t kOrbCount = 10;
 /// <summary>アルファ合成で描く煙の数。</summary>
 constexpr uint32_t kSmokeCount = 14;
 
+/// <summary>床すれすれに置く霧の数。ソフトパーティクルの効き目を見るためのもの。</summary>
+constexpr uint32_t kFogCount = 8;
+
+/// <summary>
+/// ソフトパーティクルで消し始める距離（メートル）。
+/// </summary>
+/// <remarks>
+/// 大きいほど広い範囲がぼやけます。板の大きさと同じくらいが目安で、
+/// 大きすぎると板全体が薄くなり、小さすぎると効果が見えません。
+/// </remarks>
+constexpr float kSoftParticleFadeDistance = 0.55f;
+
 
 /// <summary>
 /// 小数部だけを取り出します（HLSL の `frac` と同じ）。
@@ -215,17 +227,19 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
         width,
         height);
 
-    // (4) 深度バッファと DSV
-    //     レンダーターゲットと同じ解像度でなければならない
-    m_depthBuffer.Initialize(device, width, height);
-
-    // (5) コマンドアロケータとコマンドリスト
+    // (4) コマンドアロケータとコマンドリスト
     CreateCommandObjects();
 
-    // (6) シェーダー可視ディスクリプタヒープ
+    // (5) シェーダー可視ディスクリプタヒープ
     //     テクスチャとシャドウマップの SRV を置く場所。
     //     数が増えても 1 本のヒープを共有するため、少し余裕を持たせておく。
     m_descriptorHeap.Initialize(device, kDescriptorHeapCapacity);
+
+    // (6) 深度バッファと DSV
+    //     レンダーターゲットと同じ解像度でなければならない。
+    //   ★ ソフトパーティクルが深度をテクスチャとして読むので、
+    //     SRV を置くヒープを先に用意しておく必要がある。
+    m_depthBuffer.Initialize(device, m_descriptorHeap, width, height);
 
     // (6-b) シャドウマップ
     //     パイプラインが影用 PSO を作るのに深度形式を要るので、先に作る。
@@ -480,7 +494,7 @@ void Renderer::UpdateConstants(uint32_t frameIndex)
 
     // モデル : 2 軸で回しながら、床から浮かせた位置に置く。
     const float angle =
-        static_cast<float>(m_frameTimer.TotalSeconds()) * (XM_2PI / kSecondsPerRotation);
+        static_cast<float>(m_animationTime) * (XM_2PI / kSecondsPerRotation);
 
     const XMMATRIX modelWorld = XMMatrixRotationY(angle)
                               * XMMatrixRotationX(angle * 0.45f)
@@ -489,7 +503,7 @@ void Renderer::UpdateConstants(uint32_t frameIndex)
     // ディゾルブ : 消える → 戻る、を繰り返す。
     //   0〜1 を往復させたいので、三角波にする。
     //   端でしばらく止めるため、smoothstep で緩急を付ける。
-    const float cycle = frac(static_cast<float>(m_frameTimer.TotalSeconds())
+    const float cycle = frac(static_cast<float>(m_animationTime)
                              / kSecondsPerDissolveCycle);
     const float pingPong = 1.0f - std::abs(cycle * 2.0f - 1.0f);
     const float dissolve = pingPong * pingPong * (3.0f - 2.0f * pingPong);
@@ -511,7 +525,7 @@ void Renderer::RecordVfxDrawCommands(uint32_t frameIndex)
 {
     using namespace DirectX;
 
-    const float time = static_cast<float>(m_frameTimer.TotalSeconds());
+    const float time = static_cast<float>(m_animationTime);
 
     // --- カメラの右と上。板をカメラへ向けるのに使う ------------------------
     const XMVECTOR eye     = XMLoadFloat3(&m_camera.Position());
@@ -578,6 +592,31 @@ void Renderer::RecordVfxDrawCommands(uint32_t frameIndex)
         m_alphaParticles.push_back(particle);
     }
 
+    // --- (2-b) 地表の霧 : 床を突き抜ける板 ---------------------------------
+    //   ★ ソフトパーティクルが効いているかは、これで見ます。
+    //     板は必ずカメラを向くので、床すれすれに置くと必ず床を貫きます。
+    //     深度で薄めないと、そこに直線の切り口が出ます。
+    for (uint32_t i = 0; i < kFogCount; ++i)
+    {
+        const float fi    = static_cast<float>(i);
+        const float angle = fi / kFogCount * XM_2PI + time * 0.05f;
+
+        const float radius = 1.55f + 0.35f * std::sin(fi * 1.7f);
+
+        VfxParticle particle = {};
+        particle.positionSize = {
+            std::cos(angle) * radius,
+            0.16f + 0.05f * std::sin(time * 0.4f + fi),
+            std::sin(angle) * radius,
+            0.80f
+        };
+
+        particle.color  = { 0.72f, 0.76f, 0.86f, 0.42f };
+        particle.params = { 0.85f, fi * 0.77f, 0.0f, 0.0f };
+
+        m_alphaParticles.push_back(particle);
+    }
+
     // --- (3) アルファ合成は「奥から手前へ」並べ替える ----------------------
     //   ★ アルファ合成は掛け算の順序が結果を変えるので、順番が意味を持つ。
     //     加算合成は足し算なので、順番を変えても結果は同じ。
@@ -607,19 +646,51 @@ void Renderer::RecordVfxDrawCommands(uint32_t frameIndex)
     }
 
     const XMMATRIX viewProjection = m_camera.ViewProjectionMatrix();
+    const XMMATRIX projection     = m_camera.ProjectionMatrix();
+
+    const float fadeDistance = m_softParticlesEnabled ? kSoftParticleFadeDistance
+                                                      : 0.0f;
 
     m_vfxPipeline.Update(frameIndex, 0, viewProjection, cameraRight, cameraUp,
-                         m_alphaParticles);
+                         projection, fadeDistance, m_alphaParticles);
     m_vfxPipeline.Update(frameIndex, 1, viewProjection, cameraRight, cameraUp,
-                         m_additiveParticles);
+                         projection, fadeDistance, m_additiveParticles);
+
+    // --- 深度バッファを「読める状態」へ移す --------------------------------
+    //   ★ 書き込み可のままシェーダーから読むことはできない。
+    //     DEPTH_READ と PIXEL_SHADER_RESOURCE を同時に立てて、
+    //     描画先には書き込みを禁じた DSV を設定する。
+    RecordResourceBarrier(
+        m_commandList.Get(),
+        m_depthBuffer.Resource(),
+        D3D12_RESOURCE_STATE_DEPTH_WRITE,
+        D3D12_RESOURCE_STATE_DEPTH_READ |
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+    const D3D12_CPU_DESCRIPTOR_HANDLE renderTargetView =
+        m_sceneTexture.RenderTargetView();
+    const D3D12_CPU_DESCRIPTOR_HANDLE readOnlyDsv =
+        m_depthBuffer.ReadOnlyDepthStencilView();
+
+    m_commandList->OMSetRenderTargets(1, &renderTargetView, FALSE, &readOnlyDsv);
 
     // ★ 煙（アルファ）が先、光（加算）があと。
     //   加算は順番を選ばないので、最後に描くのがいちばん素直。
     m_vfxPipeline.Record(m_commandList.Get(), frameIndex, 0, BlendMode::Alpha,
+                         m_depthBuffer.ShaderResourceView(),
                          static_cast<uint32_t>(m_alphaParticles.size()));
 
     m_vfxPipeline.Record(m_commandList.Get(), frameIndex, 1, BlendMode::Additive,
+                         m_depthBuffer.ShaderResourceView(),
                          static_cast<uint32_t>(m_additiveParticles.size()));
+
+    // 次のフレームのために書き込み可へ戻す。
+    RecordResourceBarrier(
+        m_commandList.Get(),
+        m_depthBuffer.Resource(),
+        D3D12_RESOURCE_STATE_DEPTH_READ |
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+        D3D12_RESOURCE_STATE_DEPTH_WRITE);
 }
 
 
@@ -642,6 +713,29 @@ void Renderer::ToggleVfxSort()
     m_vfxSortEnabled = !m_vfxSortEnabled;
     Log(m_vfxSortEnabled ? L"半透明を奥から並べ替えます。"
                          : L"半透明の並べ替えをやめました（対照実験）。");
+}
+
+
+/// <summary>
+/// ソフトパーティクルの入り切りを切り替えます。
+/// </summary>
+void Renderer::ToggleSoftParticles()
+{
+    m_softParticlesEnabled = !m_softParticlesEnabled;
+    Log(m_softParticlesEnabled
+            ? L"ソフトパーティクルを有効にしました。"
+            : L"ソフトパーティクルを無効にしました（対照実験）。");
+}
+
+
+/// <summary>
+/// 動きを止める・再開するを切り替えます。
+/// </summary>
+void Renderer::ToggleTimePause()
+{
+    m_timePaused = !m_timePaused;
+    Log(m_timePaused ? std::format(L"動きを止めました（t = {:.2f} 秒）。", m_animationTime)
+                     : L"動きを再開しました。");
 }
 
 
@@ -747,6 +841,14 @@ void Renderer::Render()
     // フレーム時間を計測する（1 秒ごとに FPS がログに出ます）
     m_frameTimer.Tick();
 
+    // ★ 動きに使う時計は、フレーム時間とは別に持つ。
+    //   止められるようにしておくと、対照実験で「まったく同じ瞬間」を
+    //   2 通りの設定で撮り比べられる。
+    if (!m_timePaused)
+    {
+        m_animationTime += m_frameTimer.DeltaSeconds();
+    }
+
     // (0) このフレームで使う「ノート（アロケータ）」が空くのを待つ
     //   バックバッファが 2 枚なので、フレーム番号は 0, 1, 0, 1 … と循環します。
     const uint32_t frameIndex = m_swapChain.CurrentBackBufferIndex();
@@ -796,7 +898,7 @@ void Renderer::Render()
     if (m_shaderLabEnabled)
     {
         m_shaderLab.Update(frameIndex,
-                           static_cast<float>(m_frameTimer.TotalSeconds()),
+                           static_cast<float>(m_animationTime),
                            static_cast<float>(m_frameTimer.DeltaSeconds()),
                            m_swapChain.Width(), m_swapChain.Height(),
                            m_shaderLabMouseX, m_shaderLabMouseY,

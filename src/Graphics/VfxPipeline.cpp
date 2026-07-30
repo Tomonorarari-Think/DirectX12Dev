@@ -35,6 +35,11 @@ struct VfxConstants
     /// <summary>カメラの上方向。w は未使用。</summary>
     XMFLOAT4 cameraUp;
 
+    /// <summary>
+    /// x = 射影行列の _33、y = 同 _43、z = 消し始める距離、w = 有効フラグ。
+    /// </summary>
+    XMFLOAT4 depthParams;
+
     /// <summary>板の一覧。</summary>
     VfxParticle particles[VfxPipeline::kMaxParticles];
 };
@@ -95,15 +100,32 @@ void VfxPipeline::Initialize(ID3D12Device* device,
                              uint32_t frameCount)
 {
     // --- (1) ルートシグネチャ -------------------------------------------------
-    //   使うのは定数バッファ 1 本だけ。テクスチャも頂点バッファも使わない。
-    D3D12_ROOT_PARAMETER rootParameter = {};
-    rootParameter.ParameterType             = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    rootParameter.Descriptor.ShaderRegister = 0;
-    rootParameter.ShaderVisibility          = D3D12_SHADER_VISIBILITY_ALL;
+    //   定数バッファ 1 本と、深度バッファを読むためのテーブル 1 個。
+    D3D12_DESCRIPTOR_RANGE depthRange = {};
+    depthRange.RangeType                         = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    depthRange.NumDescriptors                    = 1;
+    depthRange.BaseShaderRegister                = 0;   // t0
+    depthRange.RegisterSpace                     = 0;
+    depthRange.OffsetInDescriptorsFromTableStart = 0;
 
+    D3D12_ROOT_PARAMETER rootParameters[2] = {};
+
+    rootParameters[0].ParameterType             = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameters[0].Descriptor.ShaderRegister = 0;
+    rootParameters[0].ShaderVisibility          = D3D12_SHADER_VISIBILITY_ALL;
+
+    rootParameters[1].ParameterType =
+        D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParameters[1].DescriptorTable.NumDescriptorRanges = 1;
+    rootParameters[1].DescriptorTable.pDescriptorRanges   = &depthRange;
+
+    // ★ 深度を読むのはピクセルシェーダーだけ。
+    rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+    // サンプラーは要らない。深度は `Load` で 1 テクセルずつ整数座標で読む。
     D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
-    rootSignatureDesc.NumParameters = 1;
-    rootSignatureDesc.pParameters   = &rootParameter;
+    rootSignatureDesc.NumParameters = _countof(rootParameters);
+    rootSignatureDesc.pParameters   = rootParameters;
     rootSignatureDesc.Flags =
         D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
         D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
@@ -151,6 +173,7 @@ void VfxPipeline::Initialize(ID3D12Device* device,
 
     // ★ 深度は「書かない」。ここが半透明でいちばん大事な設定。
     //   書いてしまうと、あとから描く半透明が「奥にある」と判定されて消える。
+    //   ソフトパーティクルで深度バッファを読むためにも、書かないことが必須。
     depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
     depthStencilDesc.StencilEnable  = FALSE;
 
@@ -194,6 +217,8 @@ void VfxPipeline::Update(uint32_t frameIndex,
                          const DirectX::XMMATRIX& viewProjection,
                          const DirectX::XMFLOAT3& cameraRight,
                          const DirectX::XMFLOAT3& cameraUp,
+                         const DirectX::XMMATRIX& projection,
+                         float softFadeDistance,
                          const std::vector<VfxParticle>& particles)
 {
     VfxConstants constants = {};
@@ -202,6 +227,18 @@ void VfxPipeline::Update(uint32_t frameIndex,
 
     constants.cameraRight = { cameraRight.x, cameraRight.y, cameraRight.z, 0.0f };
     constants.cameraUp    = { cameraUp.x, cameraUp.y, cameraUp.z, 0.0f };
+
+    // 深度値を距離へ戻すのに要るのは、射影行列の 2 要素だけ。
+    //   z_ndc = _33 + _43 / z_view という関係になっている。
+    XMFLOAT4X4 projectionMatrix;
+    XMStoreFloat4x4(&projectionMatrix, projection);
+
+    constants.depthParams = {
+        projectionMatrix._33,
+        projectionMatrix._43,
+        (softFadeDistance > 0.0f) ? softFadeDistance : 1.0f,
+        (softFadeDistance > 0.0f) ? 1.0f : 0.0f
+    };
 
     const size_t count = (particles.size() < kMaxParticles) ? particles.size()
                                                             : kMaxParticles;
@@ -224,6 +261,7 @@ void VfxPipeline::Record(ID3D12GraphicsCommandList* commandList,
                          uint32_t frameIndex,
                          uint32_t slot,
                          BlendMode mode,
+                         D3D12_GPU_DESCRIPTOR_HANDLE sceneDepth,
                          uint32_t count) const
 {
     if (count == 0)
@@ -238,6 +276,8 @@ void VfxPipeline::Record(ID3D12GraphicsCommandList* commandList,
 
     commandList->SetGraphicsRootConstantBufferView(
         0, m_constantBuffer.GpuAddress(frameIndex * kSlotCount + slot));
+
+    commandList->SetGraphicsRootDescriptorTable(1, sceneDepth);
 
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->IASetVertexBuffers(0, 0, nullptr);
