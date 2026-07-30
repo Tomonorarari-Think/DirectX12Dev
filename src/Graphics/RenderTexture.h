@@ -86,6 +86,17 @@ public:
     /// <returns>`SetGraphicsRootDescriptorTable` に渡すハンドル。</returns>
     D3D12_GPU_DESCRIPTOR_HANDLE ShaderResourceView() const { return m_srvGpuHandle; }
 
+    /// <summary>描画先として指定するための RTV を返します。</summary>
+    /// <returns>専用ヒープ内の CPU ディスクリプタハンドル。</returns>
+    /// <remarks>
+    /// `BeginRender` のあとで描画先を付け替えたいときに使います
+    /// （深度ビューだけを差し替える場合など）。
+    /// </remarks>
+    D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetView() const
+    {
+        return m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
+    }
+
     /// <summary>幅を返します。</summary>
     /// <returns>ピクセル単位の幅。</returns>
     uint32_t Width() const noexcept { return m_width; }

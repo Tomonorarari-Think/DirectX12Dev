@@ -91,12 +91,18 @@ public:
     /// <param name="viewProjection">ビュー行列 × 射影行列。</param>
     /// <param name="cameraRight">カメラの右方向（ワールド空間）。</param>
     /// <param name="cameraUp">カメラの上方向（ワールド空間）。</param>
+    /// <param name="projection">射影行列。深度値を距離へ戻すのに使います。</param>
+    /// <param name="softFadeDistance">
+    /// 後ろの物からこの距離まで近づくと消えます。0 以下でソフト化を切ります。
+    /// </param>
     /// <param name="particles">描く板。`kMaxParticles` まで。</param>
     void Update(uint32_t frameIndex,
                 uint32_t slot,
                 const DirectX::XMMATRIX& viewProjection,
                 const DirectX::XMFLOAT3& cameraRight,
                 const DirectX::XMFLOAT3& cameraUp,
+                const DirectX::XMMATRIX& projection,
+                float softFadeDistance,
                 const std::vector<VfxParticle>& particles);
 
     /// <summary>
@@ -106,15 +112,20 @@ public:
     /// <param name="frameIndex">使う定数のフレーム番号。</param>
     /// <param name="slot">`Update` で使ったスロット。</param>
     /// <param name="mode">合成の仕方。</param>
+    /// <param name="sceneDepth">深度バッファの SRV。</param>
     /// <param name="count">描く板の数。</param>
     /// <remarks>
     /// **不透明な物をすべて描いたあとに呼びます。**
     /// 半透明は深度を書かないので、先に描くと後ろの物に上書きされます。
+    ///
+    /// 呼び出し時、深度バッファは `DEPTH_READ | PIXEL_SHADER_RESOURCE` の状態で、
+    /// 描画先には**書き込みを禁じた DSV** を設定しておく必要があります。
     /// </remarks>
     void Record(ID3D12GraphicsCommandList* commandList,
                 uint32_t frameIndex,
                 uint32_t slot,
                 BlendMode mode,
+                D3D12_GPU_DESCRIPTOR_HANDLE sceneDepth,
                 uint32_t count) const;
 
     /// <summary>1 フレームで使うスロット数。</summary>

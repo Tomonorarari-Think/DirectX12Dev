@@ -103,6 +103,18 @@ public:
     /// <remarks>並べ替えないとどうなるかを確かめるための切り替えです。</remarks>
     void ToggleVfxSort();
 
+    /// <summary>ソフトパーティクルの入り切りを切り替えます。</summary>
+    /// <remarks>切ると、板が床を貫いた線がはっきり出ます（対照実験用）。</remarks>
+    void ToggleSoftParticles();
+
+    /// <summary>動きを止める・再開するを切り替えます。</summary>
+    /// <remarks>
+    /// **対照実験のための機能です。** 時間を止めておくと、設定を切り替えても
+    /// まったく同じ瞬間の絵を撮り比べられます。止めないと、比べた差の中に
+    /// 「時間が進んだぶんの違い」が混ざります。
+    /// </remarks>
+    void ToggleTimePause();
+
     /// <summary>ディゾルブが有効かを返します。</summary>
     /// <returns>有効なら `true`。</returns>
     bool IsDissolveEnabled() const noexcept { return m_dissolveEnabled; }
@@ -294,6 +306,15 @@ private:
     /// <summary>アルファ合成の板を奥から並べ替えるかどうか。</summary>
     /// <remarks>対照実験のために切り替えられるようにしています。</remarks>
     bool m_vfxSortEnabled = true;
+
+    /// <summary>ソフトパーティクル（深度で薄める）を使うかどうか。</summary>
+    bool m_softParticlesEnabled = true;
+
+    /// <summary>動きに使う時計（秒）。止められる点がフレーム時間と違います。</summary>
+    double m_animationTime = 0.0;
+
+    /// <summary>動きを止めているかどうか。</summary>
+    bool m_timePaused = false;
 
     /// <summary>習作へ渡すマウスの X 座標。</summary>
     float m_shaderLabMouseX = 0.0f;
