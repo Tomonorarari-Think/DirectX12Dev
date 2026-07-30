@@ -21,6 +21,7 @@
 #include "SkyboxPipeline.h"
 #include "PostProcessPipeline.h"
 #include "ShaderLabPipeline.h"
+#include "GpuParticleSystem.h"
 #include "VfxPipeline.h"
 #include "RenderTexture.h"
 
@@ -106,6 +107,20 @@ public:
     /// <summary>ソフトパーティクルの入り切りを切り替えます。</summary>
     /// <remarks>切ると、板が床を貫いた線がはっきり出ます（対照実験用）。</remarks>
     void ToggleSoftParticles();
+
+    /// <summary>GPU パーティクルの入り切りを切り替えます。</summary>
+    void ToggleGpuParticles();
+
+    /// <summary>GPU パーティクルの数を 1024 → 4096 → 16384 と切り替えます。</summary>
+    /// <remarks>数を変えても CPU の仕事が増えないことを確かめるための機能です。</remarks>
+    void CycleGpuParticleCount();
+
+    /// <summary>垂直同期の入り切りを切り替えます。</summary>
+    /// <remarks>
+    /// **速度を測るための機能です。** 垂直同期が有効なうちは、
+    /// 描画がどれだけ速くても表示の間隔で頭打ちになり、差が見えません。
+    /// </remarks>
+    void ToggleVSync();
 
     /// <summary>動きを止める・再開するを切り替えます。</summary>
     /// <remarks>
@@ -309,6 +324,18 @@ private:
 
     /// <summary>ソフトパーティクル（深度で薄める）を使うかどうか。</summary>
     bool m_softParticlesEnabled = true;
+
+    /// <summary>GPU 上で動かすパーティクル。</summary>
+    GpuParticleSystem m_gpuParticles;
+
+    /// <summary>GPU パーティクルを描くかどうか。</summary>
+    bool m_gpuParticlesEnabled = true;
+
+    /// <summary>いま動かしている GPU パーティクルの数。</summary>
+    uint32_t m_gpuParticleCount = 1024;
+
+    /// <summary>垂直同期を使うかどうか。`T` キーで切り替えます。</summary>
+    bool m_vsyncEnabled = true;
 
     /// <summary>動きに使う時計（秒）。止められる点がフレーム時間と違います。</summary>
     double m_animationTime = 0.0;
