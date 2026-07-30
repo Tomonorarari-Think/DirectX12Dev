@@ -21,6 +21,7 @@
 #include "SkyboxPipeline.h"
 #include "PostProcessPipeline.h"
 #include "ShaderLabPipeline.h"
+#include "VfxPipeline.h"
 #include "RenderTexture.h"
 
 #include <array>
@@ -94,6 +95,13 @@ public:
 
     /// <summary>ディゾルブ（溶けて消える表現）の入り切りを切り替えます。</summary>
     void ToggleDissolve();
+
+    /// <summary>半透明（VFX）の入り切りを切り替えます。</summary>
+    void ToggleVfx();
+
+    /// <summary>半透明の並べ替えの入り切りを切り替えます。</summary>
+    /// <remarks>並べ替えないとどうなるかを確かめるための切り替えです。</remarks>
+    void ToggleVfxSort();
 
     /// <summary>ディゾルブが有効かを返します。</summary>
     /// <returns>有効なら `true`。</returns>
@@ -202,6 +210,16 @@ private:
     void RecordMeshDrawCommands(uint32_t frameIndex);
 
     /// <summary>
+    /// 半透明の板を組み立て、描く命令を記録します。
+    /// </summary>
+    /// <param name="frameIndex">使用するフレーム番号。</param>
+    /// <remarks>
+    /// 不透明な物と背景をすべて描いたあとに呼びます。
+    /// アルファ合成の板は、視点から遠い順に並べ替えてから描きます。
+    /// </remarks>
+    void RecordVfxDrawCommands(uint32_t frameIndex);
+
+    /// <summary>
     /// 光源から見た深度をシャドウマップへ描きます。
     /// </summary>
     /// <param name="frameIndex">使用するフレーム番号。</param>
@@ -261,6 +279,22 @@ private:
     /// <summary>習作シェーダーを全画面に描くパイプライン。</summary>
     ShaderLabPipeline m_shaderLab;
 
+    /// <summary>半透明のビルボードを描くパイプライン。</summary>
+    VfxPipeline m_vfxPipeline;
+
+    /// <summary>加算合成で描く板（光）。</summary>
+    std::vector<VfxParticle> m_additiveParticles;
+
+    /// <summary>アルファ合成で描く板（煙）。</summary>
+    std::vector<VfxParticle> m_alphaParticles;
+
+    /// <summary>半透明を描くかどうか。</summary>
+    bool m_vfxEnabled = true;
+
+    /// <summary>アルファ合成の板を奥から並べ替えるかどうか。</summary>
+    /// <remarks>対照実験のために切り替えられるようにしています。</remarks>
+    bool m_vfxSortEnabled = true;
+
     /// <summary>習作へ渡すマウスの X 座標。</summary>
     float m_shaderLabMouseX = 0.0f;
 
@@ -271,7 +305,11 @@ private:
     bool m_shaderLabMouseDown = false;
 
     /// <summary>ディゾルブを動かすかどうか。</summary>
-    bool m_dissolveEnabled = true;
+    /// <remarks>
+    /// 既定では切ってあります。常に溶けているとモデルの見た目が確かめにくく、
+    /// 半透明の VFX とも重なって何が起きているか分かりにくいためです。
+    /// </remarks>
+    bool m_dissolveEnabled = false;
 
     /// <summary>習作モードかどうか。</summary>
     /// <remarks>

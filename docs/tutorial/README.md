@@ -46,6 +46,7 @@ Unity で `GameObject` にマテリアルを付ければ絵が出ますが、
 | 24 | [ミップマップ](24_ミップマップ.md) | エイリアシング、平均の取り方、異方性フィルタ |
 | 25 | [ポストプロセス](25_ポストプロセス.md) | 中間バッファ、HDR、ブルーム、ビネット |
 | 26 | [ディゾルブ](26_ディゾルブ.md) | `clip`、3 次元ノイズ、燃え際、影のパス |
+| 27 | [半透明とブレンディング](27_半透明とブレンディング.md) | アルファ・加算、深度書き込み、描く順、ビルボード |
 
 ```mermaid
 flowchart LR
@@ -74,10 +75,11 @@ flowchart LR
     W --> X["24 ミップマップ"]
     X --> Y["25 ポストプロセス"]
     Y --> Z["26 ディゾルブ"]
+    Z --> AA["27 半透明"]
 
     style A fill:#dafbe1,stroke:#0d4f21,color:#1f2328
     style F fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
-    style Z fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
+    style AA fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
 ```
 
 ## 関連する資料
