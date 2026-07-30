@@ -27,11 +27,6 @@ namespace
 constexpr float kClearColor[4] = { 0.01002f, 0.01960f, 0.07324f, 1.0f };
 
 /// <summary>
-/// 垂直同期 (VSync) を使うかどうか。
-/// </summary>
-constexpr bool kEnableVSync = true;
-
-/// <summary>
 /// シェーダー可視ディスクリプタヒープに確保する数。
 /// </summary>
 constexpr uint32_t kDescriptorHeapCapacity = 32;
@@ -271,6 +266,11 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
     //     加算合成した光が 1 を超えると、そのままブルームが拾う。
     m_vfxPipeline.Initialize(device, RenderTexture::kFormat, DepthBuffer::kFormat,
                              SwapChain::kBackBufferCount);
+
+    // (7-d-2) GPU パーティクル
+    //   ★ 更新はコンピュートシェーダー。CPU は数を渡すだけ。
+    m_gpuParticles.Initialize(device, m_descriptorHeap, RenderTexture::kFormat,
+                              DepthBuffer::kFormat, SwapChain::kBackBufferCount);
 
     // (7-e) 習作シェーダー
     //   ★ こちらは後処理を通さず画面へ直接描くので、書き込み先の形式が違う。
@@ -541,80 +541,99 @@ void Renderer::RecordVfxDrawCommands(uint32_t frameIndex)
     XMStoreFloat3(&cameraRight, right);
     XMStoreFloat3(&cameraUp, up);
 
-    // --- (1) 加算合成の板 : モデルのまわりを回る光 -------------------------
+    // --- (0) GPU パーティクルの定数 ----------------------------------------
+    //   位置は GPU が持っているので、CPU が渡すのは「湧き出し口」だけ。
+    const XMMATRIX viewProjectionMatrix = m_camera.ViewProjectionMatrix();
+    const XMMATRIX projectionMatrix     = m_camera.ProjectionMatrix();
+
+    const float fadeDistance = m_softParticlesEnabled ? kSoftParticleFadeDistance
+                                                      : 0.0f;
+
+    m_gpuParticles.Update(frameIndex,
+                          static_cast<float>(m_timePaused ? 0.0
+                                                          : m_frameTimer.DeltaSeconds()),
+                          time,
+                          XMFLOAT3(0.0f, 0.05f, 0.0f),
+                          viewProjectionMatrix, cameraRight, cameraUp,
+                          projectionMatrix, fadeDistance,
+                          m_gpuParticleCount);
+
     m_additiveParticles.clear();
-
-    for (uint32_t i = 0; i < kOrbCount; ++i)
-    {
-        const float phase = static_cast<float>(i) / kOrbCount * XM_2PI;
-        const float angle = time * 0.55f + phase;
-        const float radius = 1.15f + 0.22f * std::sin(time * 0.9f + phase * 2.0f);
-
-        VfxParticle particle = {};
-        particle.positionSize = {
-            std::cos(angle) * radius,
-            kModelCenterHeight + 0.55f * std::sin(time * 1.3f + phase),
-            std::sin(angle) * radius,
-            0.17f + 0.05f * std::sin(time * 2.1f + phase)
-        };
-
-        // ★ 1 を超える明るさにする。加算合成なので、そのまま足されて
-        //   ブルームがにじませる。
-        const float hue = static_cast<float>(i) / kOrbCount;
-        particle.color = { 1.5f + 1.1f * hue, 0.65f + 0.25f * hue,
-                           0.22f + 1.2f * hue, 1.0f };
-        particle.params = { 1.0f, angle * 0.7f, 0.0f, 0.0f };
-
-        m_additiveParticles.push_back(particle);
-    }
-
-    // --- (2) アルファ合成の板 : ゆっくり漂う煙 -----------------------------
     m_alphaParticles.clear();
 
-    for (uint32_t i = 0; i < kSmokeCount; ++i)
+    // --- (1) 加算合成の板 : モデルのまわりを回る光 -------------------------
+    if (m_vfxEnabled)
     {
-        const float fi = static_cast<float>(i);
-        const float drift = time * 0.16f + fi * 0.83f;
+        for (uint32_t i = 0; i < kOrbCount; ++i)
+        {
+            const float phase = static_cast<float>(i) / kOrbCount * XM_2PI;
+            const float angle = time * 0.55f + phase;
+            const float radius = 1.15f + 0.22f * std::sin(time * 0.9f + phase * 2.0f);
 
-        VfxParticle particle = {};
-        particle.positionSize = {
-            std::cos(drift * 0.7f + fi) * (0.9f + 0.5f * std::sin(fi * 2.3f)),
-            0.30f + std::fmod(drift, 2.2f),
-            std::sin(drift * 0.5f + fi * 1.7f) * (0.9f + 0.5f * std::cos(fi * 1.9f)),
-            0.42f + 0.22f * std::sin(fi * 3.1f)
-        };
+            VfxParticle particle = {};
+            particle.positionSize = {
+                std::cos(angle) * radius,
+                kModelCenterHeight + 0.55f * std::sin(time * 1.3f + phase),
+                std::sin(angle) * radius,
+                0.17f + 0.05f * std::sin(time * 2.1f + phase)
+            };
 
-        // 上へ行くほど薄くなる
-        const float height = (particle.positionSize.y - 0.30f) / 2.2f;
-        particle.color = { 0.55f, 0.58f, 0.66f, 0.30f * (1.0f - height) };
-        particle.params = { 1.0f, fi * 1.31f + time * 0.15f, 0.0f, 0.0f };
+            // ★ 1 を超える明るさにする。加算合成なので、そのまま足されて
+            //   ブルームがにじませる。
+            const float hue = static_cast<float>(i) / kOrbCount;
+            particle.color = { 1.5f + 1.1f * hue, 0.65f + 0.25f * hue,
+                               0.22f + 1.2f * hue, 1.0f };
+            particle.params = { 1.0f, angle * 0.7f, 0.0f, 0.0f };
 
-        m_alphaParticles.push_back(particle);
-    }
+            m_additiveParticles.push_back(particle);
+        }
 
-    // --- (2-b) 地表の霧 : 床を突き抜ける板 ---------------------------------
-    //   ★ ソフトパーティクルが効いているかは、これで見ます。
-    //     板は必ずカメラを向くので、床すれすれに置くと必ず床を貫きます。
-    //     深度で薄めないと、そこに直線の切り口が出ます。
-    for (uint32_t i = 0; i < kFogCount; ++i)
-    {
-        const float fi    = static_cast<float>(i);
-        const float angle = fi / kFogCount * XM_2PI + time * 0.05f;
+        // --- (2) アルファ合成の板 : ゆっくり漂う煙 -----------------------------
+        for (uint32_t i = 0; i < kSmokeCount; ++i)
+        {
+            const float fi = static_cast<float>(i);
+            const float drift = time * 0.16f + fi * 0.83f;
 
-        const float radius = 1.55f + 0.35f * std::sin(fi * 1.7f);
+            VfxParticle particle = {};
+            particle.positionSize = {
+                std::cos(drift * 0.7f + fi) * (0.9f + 0.5f * std::sin(fi * 2.3f)),
+                0.30f + std::fmod(drift, 2.2f),
+                std::sin(drift * 0.5f + fi * 1.7f) * (0.9f + 0.5f * std::cos(fi * 1.9f)),
+                0.42f + 0.22f * std::sin(fi * 3.1f)
+            };
 
-        VfxParticle particle = {};
-        particle.positionSize = {
-            std::cos(angle) * radius,
-            0.16f + 0.05f * std::sin(time * 0.4f + fi),
-            std::sin(angle) * radius,
-            0.80f
-        };
+            // 上へ行くほど薄くなる
+            const float height = (particle.positionSize.y - 0.30f) / 2.2f;
+            particle.color = { 0.55f, 0.58f, 0.66f, 0.30f * (1.0f - height) };
+            particle.params = { 1.0f, fi * 1.31f + time * 0.15f, 0.0f, 0.0f };
 
-        particle.color  = { 0.72f, 0.76f, 0.86f, 0.42f };
-        particle.params = { 0.85f, fi * 0.77f, 0.0f, 0.0f };
+            m_alphaParticles.push_back(particle);
+        }
 
-        m_alphaParticles.push_back(particle);
+        // --- (2-b) 地表の霧 : 床を突き抜ける板 ---------------------------------
+        //   ★ ソフトパーティクルが効いているかは、これで見ます。
+        //     板は必ずカメラを向くので、床すれすれに置くと必ず床を貫きます。
+        //     深度で薄めないと、そこに直線の切り口が出ます。
+        for (uint32_t i = 0; i < kFogCount; ++i)
+        {
+            const float fi    = static_cast<float>(i);
+            const float angle = fi / kFogCount * XM_2PI + time * 0.05f;
+
+            const float radius = 1.55f + 0.35f * std::sin(fi * 1.7f);
+
+            VfxParticle particle = {};
+            particle.positionSize = {
+                std::cos(angle) * radius,
+                0.16f + 0.05f * std::sin(time * 0.4f + fi),
+                std::sin(angle) * radius,
+                0.80f
+            };
+
+            particle.color  = { 0.72f, 0.76f, 0.86f, 0.42f };
+            particle.params = { 0.85f, fi * 0.77f, 0.0f, 0.0f };
+
+            m_alphaParticles.push_back(particle);
+        }
     }
 
     // --- (3) アルファ合成は「奥から手前へ」並べ替える ----------------------
@@ -645,16 +664,10 @@ void Renderer::RecordVfxDrawCommands(uint32_t frameIndex)
                   });
     }
 
-    const XMMATRIX viewProjection = m_camera.ViewProjectionMatrix();
-    const XMMATRIX projection     = m_camera.ProjectionMatrix();
-
-    const float fadeDistance = m_softParticlesEnabled ? kSoftParticleFadeDistance
-                                                      : 0.0f;
-
-    m_vfxPipeline.Update(frameIndex, 0, viewProjection, cameraRight, cameraUp,
-                         projection, fadeDistance, m_alphaParticles);
-    m_vfxPipeline.Update(frameIndex, 1, viewProjection, cameraRight, cameraUp,
-                         projection, fadeDistance, m_additiveParticles);
+    m_vfxPipeline.Update(frameIndex, 0, viewProjectionMatrix, cameraRight, cameraUp,
+                         projectionMatrix, fadeDistance, m_alphaParticles);
+    m_vfxPipeline.Update(frameIndex, 1, viewProjectionMatrix, cameraRight, cameraUp,
+                         projectionMatrix, fadeDistance, m_additiveParticles);
 
     // --- 深度バッファを「読める状態」へ移す --------------------------------
     //   ★ 書き込み可のままシェーダーから読むことはできない。
@@ -683,6 +696,15 @@ void Renderer::RecordVfxDrawCommands(uint32_t frameIndex)
     m_vfxPipeline.Record(m_commandList.Get(), frameIndex, 1, BlendMode::Additive,
                          m_depthBuffer.ShaderResourceView(),
                          static_cast<uint32_t>(m_additiveParticles.size()));
+
+    // --- GPU パーティクル ---------------------------------------------------
+    //   更新はこのフレームの先頭で済んでいる。ここでは描くだけ。
+    if (m_gpuParticlesEnabled)
+    {
+        m_gpuParticles.RecordDraw(m_commandList.Get(), frameIndex,
+                                  m_depthBuffer.ShaderResourceView(),
+                                  m_gpuParticleCount);
+    }
 
     // 次のフレームのために書き込み可へ戻す。
     RecordResourceBarrier(
@@ -725,6 +747,44 @@ void Renderer::ToggleSoftParticles()
     Log(m_softParticlesEnabled
             ? L"ソフトパーティクルを有効にしました。"
             : L"ソフトパーティクルを無効にしました（対照実験）。");
+}
+
+
+/// <summary>
+/// GPU パーティクルの入り切りを切り替えます。
+/// </summary>
+void Renderer::ToggleGpuParticles()
+{
+    m_gpuParticlesEnabled = !m_gpuParticlesEnabled;
+    Log(m_gpuParticlesEnabled ? L"GPU パーティクルを有効にしました。"
+                              : L"GPU パーティクルを無効にしました。");
+}
+
+
+/// <summary>
+/// GPU パーティクルの数を切り替えます。
+/// </summary>
+void Renderer::CycleGpuParticleCount()
+{
+    m_gpuParticleCount *= 4;
+
+    if (m_gpuParticleCount > GpuParticleSystem::kMaxParticles)
+    {
+        m_gpuParticleCount = 1024;
+    }
+
+    Log(std::format(L"GPU パーティクルを {} 個にしました。", m_gpuParticleCount));
+}
+
+
+/// <summary>
+/// 垂直同期の入り切りを切り替えます。
+/// </summary>
+void Renderer::ToggleVSync()
+{
+    m_vsyncEnabled = !m_vsyncEnabled;
+    Log(m_vsyncEnabled ? L"垂直同期を有効にしました。"
+                       : L"垂直同期を無効にしました（速度計測用）。");
 }
 
 
@@ -872,6 +932,15 @@ void Renderer::Render()
     ID3D12DescriptorHeap* const descriptorHeaps[] = { m_descriptorHeap.Get() };
     m_commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
+    // (2-c-2) GPU パーティクルを 1 フレームぶん進める
+    //   ★ 描画より前に済ませる。コンピュートはレンダーターゲットを使わないので、
+    //     描画先を決める前のここが置き場所として素直。
+    if (m_gpuParticlesEnabled && !m_shaderLabEnabled)
+    {
+        m_gpuParticles.RecordUpdate(m_commandList.Get(), frameIndex,
+                                    m_gpuParticleCount);
+    }
+
     // (2-d) 第 1 パス : 光源から見た深度をシャドウマップへ描く
     //   ★ 画面を描く前に済ませておく必要があります。
     //     第 2 パスは、この結果をテクスチャとして読むためです。
@@ -961,7 +1030,7 @@ void Renderer::Render()
     // (7-b-2) 半透明の描画
     //   ★ 不透明な物と背景をすべて描いたあとに描く。
     //     半透明は深度を書かないので、先に描くと後ろの物に上書きされる。
-    if (m_vfxEnabled)
+    if (m_vfxEnabled || m_gpuParticlesEnabled)
     {
         RecordVfxDrawCommands(frameIndex);
     }
@@ -993,7 +1062,7 @@ void Renderer::Render()
 
     // (11) 画面に表示
     //   ★ この呼び出しで SwapChain の「現在のバックバッファ番号」が変わります。
-    m_swapChain.Present(kEnableVSync);
+    m_swapChain.Present(m_vsyncEnabled);
 
     // (12) このフレームの「完了印」を予約する
     //   Signal() はコマンドキューの末尾に積まれるだけで、
