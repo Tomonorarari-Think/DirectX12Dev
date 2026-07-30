@@ -54,7 +54,8 @@ $names = @(
     '12_mandelbrot', '13_truchet', '14_effects', '15_hash', '16_kaleidoscope',
     '17_fire', '18_starfield', '19_metaball', '20_bezier', '21_glitch',
     '22_mandelbulb', '23_lensflare', '24_thinfilm', '25_lightning',
-    '26_woodmarble', '27_caustics'
+    '26_woodmarble', '27_caustics', '28_dissolve', '29_shockwave',
+    '30_portal', '31_shield', '32_explosion', '33_trail'
 )
 
 Add-Type @"

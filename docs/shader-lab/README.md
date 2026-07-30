@@ -61,6 +61,19 @@
 | 26 | [木目と大理石](26_木目と大理石.md) | sin の中にノイズを入れる | [26_woodmarble.hlsl](../../shaders/lab/26_woodmarble.hlsl) |
 | 27 | [コースティクス](27_コースティクス.md) | 面積の伸び縮みが明るさ | [27_caustics.hlsl](../../shaders/lab/27_caustics.hlsl) |
 
+### VFX（28〜33）
+
+動きが本体なので、解説ページの図は GIF です。
+
+| # | 習作 | 何が分かるか | ソース |
+|---|------|------------|--------|
+| 28 | [ディゾルブの作り分け](28_ディゾルブの作り分け.md) | 模様を変えると消え方が変わる | [28_dissolve.hlsl](../../shaders/lab/28_dissolve.hlsl) |
+| 29 | [衝撃波](29_衝撃波.md) | 物を描かず、読む位置をずらす | [29_shockwave.hlsl](../../shaders/lab/29_shockwave.hlsl) |
+| 30 | [魔法陣とポータル](30_魔法陣とポータル.md) | 角度に時間を足すと回る | [30_portal.hlsl](../../shaders/lab/30_portal.hlsl) |
+| 31 | [エネルギーシールド](31_シールド.md) | 縁が光れば、そこに膜がある | [31_shield.hlsl](../../shaders/lab/31_shield.hlsl) |
+| 32 | [爆発](32_爆発.md) | 時間差で重なる 5 つの層 | [32_explosion.hlsl](../../shaders/lab/32_explosion.hlsl) |
+| 33 | [軌跡](33_軌跡.md) | 過去を記録せず、式で巻き戻す | [33_trail.hlsl](../../shaders/lab/33_trail.hlsl) |
+
 ---
 
 ## 全体の仕組み
@@ -136,7 +149,7 @@ GPU が**リニア → sRGB の変換**を掛けてしまいます。
 ## 画像を撮り直すには
 
 ```powershell
-.	ools\capture-shader-lab.ps1
+.\tools\capture-shader-lab.ps1
 ```
 
 アプリを起動し、習作を 1 本ずつ切り替えながら撮影して、
@@ -146,6 +159,19 @@ Python と Pillow が要ります（`pip install pillow`）。
 
 > **`PrintWindow` は起動直後に不安定です。** 捨てショットで温めてから
 > 撮るようにしてあります。省くと最初の数枚が保存されません。
+
+### 動くものは GIF で
+
+```powershell
+.\tools\capture-gif.ps1 -LabIndex 32 -Out docs\shader-lab\images\32_explosion.gif
+```
+
+既定で 110 枚を撮り、**1 枚あたりに掛かった実測時間**を再生間隔に使います。
+実時間どおりの速さで、およそ 10 秒の GIF になります。
+
+> **習作の送りが速すぎるとキーを取りこぼします。**
+> 1 つ手前の習作を撮ってしまい、気づかず資料に貼りかけました。
+> `→` の間隔は 350 ms 空けています。
 
 ---
 

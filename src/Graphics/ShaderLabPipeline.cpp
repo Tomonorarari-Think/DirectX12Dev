@@ -64,6 +64,12 @@ constexpr ShaderEntry kShaderFiles[] = {
     { L"25_lightning.hlsl",   L"25 稲妻" },
     { L"26_woodmarble.hlsl",  L"26 木目と大理石" },
     { L"27_caustics.hlsl",    L"27 コースティクス" },
+    { L"28_dissolve.hlsl",    L"28 ディゾルブの作り分け" },
+    { L"29_shockwave.hlsl",   L"29 衝撃波（歪み）" },
+    { L"30_portal.hlsl",      L"30 魔法陣とポータル" },
+    { L"31_shield.hlsl",      L"31 エネルギーシールド" },
+    { L"32_explosion.hlsl",   L"32 爆発" },
+    { L"33_trail.hlsl",       L"33 軌跡（トレイル）" },
 };
 } // namespace
 
