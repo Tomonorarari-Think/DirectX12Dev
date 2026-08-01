@@ -12,15 +12,27 @@
 // カメラとライトは 1 フレームに 1 回、変換行列はオブジェクトごとに変わる。
 
 // 1 フレームのあいだ、描くもの全てで共通の値。
+// カスケード（段）の枚数。C++ 側の ShadowMap::kCascadeCount と合わせること。
+#define kCascadeCount 3
+
 cbuffer FrameConstants : register(b0)
 {
     // ビュー行列 × 射影行列。HLSL は列優先で読むため C++ 側で転置してある。
     float4x4 g_viewProjection;
 
-    // 光源から見たビュー行列 × 射影行列。
+    // 段ごとの、光源から見たビュー行列 × 射影行列。
     // シャドウマップを描くときは変換行列として、画面を描くときは
     // 「この点が影の中か」を調べる座標変換として、同じ行列を 2 度使う。
-    float4x4 g_lightViewProjection;
+    float4x4 g_lightViewProjection[kCascadeCount];
+
+    // x, y, z = 段の切れ目（カメラからの距離）。w は未使用。
+    float4 g_cascadeSplits;
+
+    // xyz = カメラの前方向（正規化済み）。段を選ぶのに使う。w は未使用。
+    float4 g_cameraForward;
+
+    // x = 1 なら、どの段を使ったかを色で塗る（確認用）。y, z, w は未使用。
+    float4 g_debugFlags;
 
     // xyz = 光が進む向き（正規化済み）。w は未使用。
     float4 g_lightDirection;
@@ -30,6 +42,13 @@ cbuffer FrameConstants : register(b0)
 
     // xyz = 視点のワールド座標。鏡面反射に使う。w は未使用。
     float4 g_cameraPosition;
+};
+
+// 影のパスで「いま何段目を描いているか」。ルート定数 1 個だけ。
+//   ★ 定数バッファを作るまでもない小さな値には、これがいちばん安い。
+cbuffer CascadeConstants : register(b3)
+{
+    uint g_cascadeIndex;
 };
 
 // オブジェクト 1 個ごとに変わる値。描く直前に差し替える。
@@ -71,7 +90,8 @@ SamplerState g_sampler : register(s0);
 // 光源から見た深度を書き込んだテクスチャ。
 //   ★ 毎フレーム 1 回しか結び直さないものは、テーブルのままでよい。
 //     ビンドレスが効くのは「描くたびに変わる」材質のテクスチャ。
-Texture2D g_shadowMap : register(t1);
+// ★ 段ごとに 1 枚。配列テクスチャとして 1 つの SRV で読む。
+Texture2DArray g_shadowMap : register(t1);
 
 // 周囲の景色。正距円筒図法で、段が進むほどぼけている。
 Texture2D g_environment : register(t3);
@@ -227,7 +247,8 @@ ShadowVSOutput VSShadow(VSInput input)
     float4 world = mul(float4(input.position, 1.0f), g_world);
 
     // カメラの代わりに光源から見た行列を掛ける。それ以外は通常の描画と同じ。
-    output.position      = mul(world, g_lightViewProjection);
+    //   ★ どの段を描いているかは、ルート定数で 1 つだけ渡してもらう。
+    output.position      = mul(world, g_lightViewProjection[g_cascadeIndex]);
     output.worldPosition = world.xyz;
 
     return output;
@@ -247,11 +268,32 @@ void PSShadow(ShadowVSOutput input)
     }
 }
 
+// この点がどの段に入るかを返す。
+//   カメラの前方向へ測った距離で決める。半径で決めるより、
+//   視錐台の切り方と一致するので無駄が出ない。
+uint SelectCascade(float3 worldPosition)
+{
+    float viewDepth = dot(worldPosition - g_cameraPosition.xyz, g_cameraForward.xyz);
+
+    [unroll]
+    for (uint i = 0; i < kCascadeCount - 1; ++i)
+    {
+        if (viewDepth < g_cascadeSplits[i])
+        {
+            return i;
+        }
+    }
+
+    return kCascadeCount - 1;
+}
+
 // この点が影の中にあるかを 0（完全な影）〜1（当たっている）で返す。
 float SampleShadow(float3 worldPosition)
 {
-    // (1) ワールド座標を、光源から見たクリップ空間へ移す。
-    float4 lightSpace = mul(float4(worldPosition, 1.0f), g_lightViewProjection);
+    uint cascade = SelectCascade(worldPosition);
+
+    // (1) ワールド座標を、その段の光源から見たクリップ空間へ移す。
+    float4 lightSpace = mul(float4(worldPosition, 1.0f), g_lightViewProjection[cascade]);
 
     // (2) 透視除算。正射影なので w は 1 だが、一般形で書いておく。
     float3 projected = lightSpace.xyz / lightSpace.w;
@@ -285,7 +327,9 @@ float SampleShadow(float3 worldPosition)
 
             // SampleCmpLevelZero : 「記録された深度 <= 渡した深度」の割合を返す。
             //   合格 = 遮る物が無い = 光が当たっている。
-            lit += g_shadowMap.SampleCmpLevelZero(g_shadowSampler, uv + offset, projected.z);
+            // 第 1 引数の z が「配列の何層目か」。段の番号をそのまま渡す。
+            lit += g_shadowMap.SampleCmpLevelZero(
+                g_shadowSampler, float3(uv + offset, cascade), projected.z);
         }
     }
 
@@ -515,6 +559,22 @@ float4 PSMain(VSOutput input) : SV_TARGET
         edge = pow(edge, 2.2f);
 
         lit += g_dissolveEdgeColor.rgb * edge;
+    }
+
+    // --- 確認用 : どの段を使ったかを色で塗る --------------------------------
+    //   ★ 段の切り替わりが見えないと、正しく切れているか確かめようがない。
+    //     赤 = 手前、緑 = 中間、青 = 奥。
+    if (g_debugFlags.x > 0.5f)
+    {
+        const float3 kCascadeColors[3] = {
+            float3(1.0f, 0.35f, 0.35f),
+            float3(0.35f, 1.0f, 0.35f),
+            float3(0.35f, 0.55f, 1.0f),
+        };
+
+        uint cascade = SelectCascade(input.worldPosition);
+
+        lit = lerp(lit, kCascadeColors[cascade] * (0.35f + 0.65f * shadow), 0.75f);
     }
 
     // ★ ここでは圧縮しない。1.0 を超えたまま中間バッファへ書き、

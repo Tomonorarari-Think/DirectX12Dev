@@ -8,6 +8,7 @@
 #pragma once
 
 #include "../Common/GraphicsCommon.h"
+#include "ShadowMap.h"
 #include "ConstantBuffer.h"
 
 // DirectXMath : Windows SDK に同梱される数学ライブラリ。
@@ -33,12 +34,21 @@ struct FrameConstants
     /// <summary>ビュー行列 × 射影行列。カメラが決まれば全オブジェクトで共通。</summary>
     DirectX::XMFLOAT4X4 viewProjection;
 
-    /// <summary>光源から見たビュー行列 × 射影行列。影の判定に使います。</summary>
+    /// <summary>段ごとの、光源から見たビュー行列 × 射影行列。</summary>
     /// <remarks>
     /// シャドウマップを描くときは変換行列として、画面を描くときは
     /// 「この点が影の中かどうか」を調べる座標変換として、同じ行列を 2 度使います。
     /// </remarks>
-    DirectX::XMFLOAT4X4 lightViewProjection;
+    DirectX::XMFLOAT4X4 lightViewProjection[ShadowMap::kCascadeCount];
+
+    /// <summary>段の切れ目（カメラからの距離）。w は未使用。</summary>
+    DirectX::XMFLOAT4 cascadeSplits;
+
+    /// <summary>カメラの前方向 (xyz)。段を選ぶのに使います。w は未使用。</summary>
+    DirectX::XMFLOAT4 cameraForward;
+
+    /// <summary>x = 1 なら、使った段を色で塗ります（確認用）。</summary>
+    DirectX::XMFLOAT4 debugFlags;
 
     /// <summary>平行光源の進む向き (xyz)。正規化済み。w は未使用。</summary>
     /// <remarks>
@@ -154,11 +164,23 @@ public:
     /// <param name="frameIndex">書き込み先のフレーム番号。</param>
     /// <param name="viewProjection">カメラのビュー行列 × 射影行列。</param>
     /// <param name="cameraPosition">視点のワールド座標。</param>
-    /// <param name="lightViewProjection">光源から見たビュー行列 × 射影行列。</param>
+    /// <param name="shadowMap">段ごとの行列と切れ目を持つシャドウマップ。</param>
+    /// <param name="cameraForward">カメラの前方向（正規化済み）。</param>
+    /// <param name="showCascades">段を色で塗るなら `true`。</param>
     void UpdateFrameConstants(uint32_t frameIndex,
                               const DirectX::XMMATRIX& viewProjection,
                               const DirectX::XMFLOAT3& cameraPosition,
-                              const DirectX::XMMATRIX& lightViewProjection);
+                              const ShadowMap& shadowMap,
+                              const DirectX::XMFLOAT3& cameraForward,
+                              bool showCascades);
+
+    /// <summary>
+    /// 影のパスで描く段の番号を設定します。
+    /// </summary>
+    /// <param name="commandList">記録先のコマンドリスト。</param>
+    /// <param name="cascadeIndex">段の番号。</param>
+    void SetCascadeIndex(ID3D12GraphicsCommandList* commandList,
+                         uint32_t cascadeIndex) const;
 
     /// <summary>
     /// オブジェクト 1 個ぶんの定数（変換行列）を書き込みます。

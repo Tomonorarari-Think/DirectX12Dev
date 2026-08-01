@@ -140,9 +140,14 @@ constexpr float kFloorUvTiling = 1.0f;
 constexpr uint32_t kShadowMapSize = 2048;
 
 /// <summary>
-/// 影を落とす範囲の半径。この球に収まる範囲だけがシャドウマップに入ります。
+/// 影を落とす最大距離。カメラからこれより遠い所には影が出ません。
 /// </summary>
-constexpr float kSceneRadius = 3.6f;
+/// <remarks>
+/// 1 枚のシャドウマップだった頃は、この値を大きくすると影が粗くなりました。
+/// 段に分けたので、遠くまで伸ばしても手前の細かさが落ちません
+/// （[34 章](../../docs/tutorial/34_カスケードシャドウマップ.md)）。
+/// </remarks>
+constexpr float kShadowDistance = 40.0f;
 
 /// <summary>
 /// 床に貼る画像（プロジェクトルートからの相対パス）。
@@ -295,11 +300,8 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
     // (9) 描くもの（形状データ）
     CreateSceneMeshes();
 
-    // (10) 光源から見た深度を書き込む先と、その視点
-    //     ライトの設定は MeshPipeline が持っているので、そこから受け取る。
-    m_shadowMap.SetLight(MeshPipeline::LightDirection(),
-                         DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f),
-                         kSceneRadius);
+    // (10) 光源から見た行列は毎フレーム計算する。
+    //     カメラの視錐台に合わせて段を切り直すため、ここでは何もしない。
 
     // (11) ビューポート／シザー矩形
     UpdateViewportAndScissor(width, height);
@@ -502,8 +504,21 @@ void Renderer::UpdateConstants(uint32_t frameIndex)
 
     // カメラとライトは全オブジェクト共通なので 1 回だけ書く。
     // 光源から見た行列も渡す。影を描くときと、影の中かを調べるときの両方で使う。
+    // カメラの前方向。段を選ぶのに使う。
+    const XMVECTOR eyeVector    = XMLoadFloat3(&m_camera.Position());
+    const XMVECTOR targetVector = XMLoadFloat3(&m_camera.Target());
+
+    XMFLOAT3 cameraForward;
+    XMStoreFloat3(&cameraForward,
+                  XMVector3Normalize(XMVectorSubtract(targetVector, eyeVector)));
+
+    // ★ 毎フレーム、カメラの視錐台に合わせて段を切り直す。
+    //   カメラが動けば影の範囲も動く。
+    m_shadowMap.SetLight(MeshPipeline::LightDirection(), m_camera, kShadowDistance);
+
     m_meshPipeline.UpdateFrameConstants(
-        frameIndex, viewProjection, m_camera.Position(), m_shadowMap.LightViewProjection());
+        frameIndex, viewProjection, m_camera.Position(), m_shadowMap,
+        cameraForward, m_showCascades);
 
     // 背景は「無限に遠い」ものとして描くので、視点の位置は渡さない。
     //   環境光の強さは物体側と同じ値を使う（食い違うと空だけ浮いて見える）。
@@ -860,6 +875,18 @@ void Renderer::CycleMeshRepeatCount()
 
 
 /// <summary>
+/// 段を色で塗る表示の入り切りを切り替えます。
+/// </summary>
+void Renderer::ToggleCascadeView()
+{
+    m_showCascades = !m_showCascades;
+
+    Log(m_showCascades ? L"影の段を色で塗ります（赤 = 手前、緑 = 中間、青 = 奥）。"
+                       : L"通常の表示に戻しました。");
+}
+
+
+/// <summary>
 /// 動きを止める・再開するを切り替えます。
 /// </summary>
 void Renderer::ToggleTimePause()
@@ -908,20 +935,27 @@ void Renderer::RecordShadowPass(uint32_t frameIndex)
 {
     ID3D12GraphicsCommandList* commandList = m_commandList.Get();
 
-    // バリア・ビューポート・描画先の設定・クリアまでを ShadowMap が行う。
-    m_shadowMap.BeginRender(commandList);
+    // バリアは段ごとではなく、パス全体で 1 回。
+    m_shadowMap.BeginShadowPass(commandList);
 
     // 影の形しか要らないので、専用の（ピクセルシェーダーの無い）設定を使う。
     m_meshPipeline.BindShadowPass(commandList, frameIndex);
 
-    // ★ 画面を描くときと同じメッシュを、同じワールド行列で描く。
-    //   ここがずれると、物体と影の位置が合わなくなる。
-    //   影の形しか要らないので、材質で区切らずメッシュ全体を一度に描く。
-    m_meshPipeline.BindObject(commandList, frameIndex, kFloorObjectIndex);
-    m_floor.RecordDrawCommands(commandList);
+    // ★ 段の数だけシーンを描き直す。ここが「3 倍描く」の実体。
+    for (uint32_t cascade = 0; cascade < ShadowMap::kCascadeCount; ++cascade)
+    {
+        m_shadowMap.BeginRender(commandList, cascade);
+        m_meshPipeline.SetCascadeIndex(commandList, cascade);
 
-    m_meshPipeline.BindObject(commandList, frameIndex, kModelObjectIndex);
-    m_model.RecordDrawCommands(commandList);
+        // ★ 画面を描くときと同じメッシュを、同じワールド行列で描く。
+        //   ここがずれると、物体と影の位置が合わなくなる。
+        //   影の形しか要らないので、材質で区切らずメッシュ全体を一度に描く。
+        m_meshPipeline.BindObject(commandList, frameIndex, kFloorObjectIndex);
+        m_floor.RecordDrawCommands(commandList);
+
+        m_meshPipeline.BindObject(commandList, frameIndex, kModelObjectIndex);
+        m_model.RecordDrawCommands(commandList);
+    }
 
     // テクスチャとして読める状態に戻す。
     m_shadowMap.EndRender(commandList);

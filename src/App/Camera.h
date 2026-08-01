@@ -67,6 +67,14 @@ public:
     /// <returns>幅 ÷ 高さ。</returns>
     float AspectRatio() const noexcept { return m_aspectRatio; }
 
+    /// <summary>手前のクリップ面までの距離を返します。</summary>
+    /// <returns>距離（ワールド単位）。</returns>
+    float NearPlane() const noexcept { return m_nearZ; }
+
+    /// <summary>奥のクリップ面までの距離を返します。</summary>
+    /// <returns>距離（ワールド単位）。</returns>
+    float FarPlane() const noexcept { return m_farZ; }
+
     /// <summary>ビュー行列（ワールド空間をカメラ基準へ移す行列）を返します。</summary>
     /// <returns>左手座標系のビュー行列。</returns>
     DirectX::XMMATRIX ViewMatrix() const;

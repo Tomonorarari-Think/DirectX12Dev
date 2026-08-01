@@ -74,6 +74,7 @@ void PrintControls()
     dx12::Log(L"  K                 明るさの集計 Wave / 共有メモリ");
     dx12::Log(L"  J                 明るさを測る解像度（1/4 → 1/1）");
     dx12::Log(L"  M                 シーンを何回ぶん記録するか（計測用）");
+    dx12::Log(L"  C                 影の段を色で塗る（確認用）");
     dx12::Log(L"  T                 垂直同期（速度計測用）");
     dx12::Log(L"  P                 動きを止める・再開する");
     dx12::Log(L"  ESC               終了");
@@ -210,6 +211,12 @@ int main()
             if (input.WasKeyPressed('M'))
             {
                 renderer.CycleMeshRepeatCount();
+            }
+
+            // C : 影の段を色で塗る（確認用）
+            if (input.WasKeyPressed('C'))
+            {
+                renderer.ToggleCascadeView();
             }
 
             // P : 動きを止める・再開する（対照実験用）

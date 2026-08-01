@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 320" width="720" height="320"
+     role="img" aria-label="カメラの視錐台を 3 段に切り、段ごとに別のシャドウマップを割り当てる。手前ほど狭い範囲を同じ枚数で写すので細かくなる">
+  <rect x="0" y="0" width="720" height="320" fill="#f6f8fa"/>
+
+  <text x="24" y="34" font-family="Meiryo, sans-serif" font-size="17" fill="#1f2328">
+    視錐台を段に切り、段ごとに 1 枚ずつ割り当てる
+  </text>
+
+  <!-- カメラ -->
+  <path d="M40 150 L40 178 L62 188 L62 140 Z" fill="#eaeef2" stroke="#1f2328" stroke-width="1.5"/>
+  <text x="30" y="208" font-family="Meiryo, sans-serif" font-size="12" fill="#1f2328">カメラ</text>
+
+  <!-- 視錐台 -->
+  <path d="M62 164 L660 74 L660 254 Z" fill="#ffffff" stroke="#8c959f" stroke-width="1"/>
+
+  <!-- 段 0 -->
+  <path d="M62 164 L118 155 L118 173 Z" fill="#ffd8b5" stroke="#1f2328" stroke-width="1"/>
+  <!-- 段 1 -->
+  <path d="M118 155 L216 141 L216 187 L118 173 Z" fill="#dafbe1" stroke="#1f2328" stroke-width="1"/>
+  <!-- 段 2 -->
+  <path d="M216 141 L660 74 L660 254 L216 187 Z" fill="#ddf4ff" stroke="#1f2328" stroke-width="1"/>
+
+  <!-- 目盛り -->
+  <g stroke="#8c959f" stroke-width="1" stroke-dasharray="3 3">
+    <line x1="118" y1="74" x2="118" y2="264"/>
+    <line x1="216" y1="74" x2="216" y2="264"/>
+    <line x1="660" y1="74" x2="660" y2="264"/>
+  </g>
+  <g font-family="Meiryo, sans-serif" font-size="12" fill="#3d444d" text-anchor="middle">
+    <text x="118" y="282">3.9</text>
+    <text x="216" y="282">10.8</text>
+    <text x="660" y="282">40.0</text>
+  </g>
+  <text x="62" y="282" font-family="Meiryo, sans-serif" font-size="12" fill="#3d444d"
+        text-anchor="middle">0.1</text>
+
+  <!-- 各段の細かさ -->
+  <g font-family="Meiryo, sans-serif" font-size="12" fill="#1f2328">
+    <rect x="90" y="94" width="150" height="22" rx="3" fill="#ffd8b5" stroke="#1f2328" stroke-width="1"/>
+    <text x="98" y="110">段 0 : 410 テクセル / 単位</text>
+
+    <rect x="264" y="94" width="150" height="22" rx="3" fill="#dafbe1" stroke="#1f2328" stroke-width="1"/>
+    <text x="272" y="110">段 1 : 228 テクセル</text>
+
+    <rect x="440" y="94" width="150" height="22" rx="3" fill="#ddf4ff" stroke="#1f2328" stroke-width="1"/>
+    <text x="448" y="110">段 2 : 53 テクセル</text>
+  </g>
+
+  <text x="24" y="308" font-family="Meiryo, sans-serif" font-size="12" fill="#3d444d">
+    どの段も 2048 x 2048 の 1 枚。同じ枚数で狭い範囲を写すほど、1 単位あたりのテクセルが増える。
+  </text>
+</svg>
