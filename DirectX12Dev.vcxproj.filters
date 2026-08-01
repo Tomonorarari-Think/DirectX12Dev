@@ -89,6 +89,9 @@
     <ClCompile Include="src\Graphics\Texture2D.cpp">
       <Filter>src\Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="src\Graphics\GpuTimer.cpp">
+      <Filter>src\Graphics</Filter>
+    </ClCompile>
     <ClCompile Include="src\Graphics\GpuParticleSystem.cpp">
       <Filter>src\Graphics</Filter>
     </ClCompile>
@@ -195,6 +198,9 @@
       <Filter>src\Graphics</Filter>
     </ClInclude>
     <ClInclude Include="src\Graphics\Texture2D.h">
+      <Filter>src\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Graphics\GpuTimer.h">
       <Filter>src\Graphics</Filter>
     </ClInclude>
     <ClInclude Include="src\Graphics\GpuParticleSystem.h">

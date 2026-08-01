@@ -39,6 +39,16 @@ public:
     double FramesPerSecond() const noexcept { return m_framesPerSecond; }
 
     /// <summary>
+    /// このフレームで FPS のログを出したかどうかを返します。
+    /// </summary>
+    /// <returns>出したなら `true`。</returns>
+    /// <remarks>
+    /// GPU の計測結果を FPS と同じ間隔で出すために使います。
+    /// 毎フレーム出すと、ログ出力自体が計測結果を歪めます。
+    /// </remarks>
+    bool ReportedThisFrame() const noexcept { return m_reportedThisFrame; }
+
+    /// <summary>
     /// 最初の `Tick` からの累計経過秒数を取得します。
     /// </summary>
     /// <returns>経過秒数。</returns>
@@ -89,6 +99,11 @@ private:
     /// 直近 1 秒間の平均 FPS。
     /// </summary>
     double m_framesPerSecond = 0.0;
+
+    /// <summary>
+    /// このフレームで FPS のログを出したか。
+    /// </summary>
+    bool m_reportedThisFrame = false;
 };
 
 } // namespace dx12

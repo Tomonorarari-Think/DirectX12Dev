@@ -35,6 +35,8 @@ void FrameTimer::Tick()
         return;
     }
 
+    m_reportedThisFrame = false;
+
     // 前フレームからの経過時間
     //   duration<double> は「秒を double で表す時間差」の型。
     m_deltaSeconds = std::chrono::duration<double>(now - m_previousTime).count();
@@ -62,6 +64,7 @@ void FrameTimer::Tick()
 
         m_lastReportTime    = now;
         m_framesSinceReport = 0;
+        m_reportedThisFrame = true;
     }
 }
 

@@ -22,6 +22,7 @@
 #include "PostProcessPipeline.h"
 #include "ShaderLabPipeline.h"
 #include "GpuParticleSystem.h"
+#include "GpuTimer.h"
 #include "VfxPipeline.h"
 #include "RenderTexture.h"
 
@@ -324,6 +325,9 @@ private:
 
     /// <summary>ソフトパーティクル（深度で薄める）を使うかどうか。</summary>
     bool m_softParticlesEnabled = true;
+
+    /// <summary>GPU の処理時間をパスごとに測る道具。</summary>
+    GpuTimer m_gpuTimer;
 
     /// <summary>GPU 上で動かすパーティクル。</summary>
     GpuParticleSystem m_gpuParticles;
