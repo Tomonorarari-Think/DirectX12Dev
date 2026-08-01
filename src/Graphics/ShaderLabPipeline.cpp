@@ -117,8 +117,9 @@ void ShaderLabPipeline::Initialize(ID3D12Device* device,
                                          IID_PPV_ARGS(&m_rootSignature)));
 
     // --- (2) 頂点シェーダーは 1 つを使い回す --------------------------------
-    ComPtr<ID3DBlob> vertexShader =
-        shader::Compile(ResolveAssetPath(kVertexShaderPath), "VSMain", "vs_5_0");
+    shader::Bytecode vertexShader = shader::Compile(
+        ResolveAssetPath(kVertexShaderPath), L"VSMain",
+        shader::kVertexShaderTarget);
 
     D3D12_RASTERIZER_DESC rasterizerDesc = {};
     rasterizerDesc.FillMode        = D3D12_FILL_MODE_SOLID;
@@ -141,7 +142,8 @@ void ShaderLabPipeline::Initialize(ID3D12Device* device,
         const std::wstring path =
             ResolveAssetPath(std::wstring(L"shaders/lab/") + entry.fileName);
 
-        ComPtr<ID3DBlob> pixelShader = shader::Compile(path, "PSMain", "ps_5_0");
+        shader::Bytecode pixelShader =
+            shader::Compile(path, L"PSMain", shader::kPixelShaderTarget);
 
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
         psoDesc.pRootSignature        = m_rootSignature.Get();

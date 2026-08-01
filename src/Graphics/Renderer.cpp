@@ -4,6 +4,8 @@
 //=============================================================================
 #include "Renderer.h"
 
+#include "ShaderCompiler.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -297,6 +299,14 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
     UpdateViewportAndScissor(width, height);
 
     m_initialized = true;
+    // シェーダーのコンパイルに掛かった時間。起動時間の内訳を見るため。
+    uint32_t shaderCount = 0;
+    double   shaderMilliseconds = 0.0;
+    shader::GetStatistics(shaderCount, shaderMilliseconds);
+
+    Log(std::format(L"シェーダーを {} 本コンパイルしました（合計 {:.0f} ms）。",
+                    shaderCount, shaderMilliseconds));
+
     Log(L"レンダラの初期化が完了しました。");
 }
 
