@@ -70,3 +70,11 @@ desktop.ini
 .vscode/ipch/
 .vscode/*.db
 .vscode/settings.local.json
+
+# ---------------------------------------------------------------------------
+# Node の依存（tools/checks/mermaid で Mermaid の構文検証に使う）
+#   package.json は追跡し、取得結果は追跡しない。
+#     cd tools\checks\mermaid; npm install
+# ---------------------------------------------------------------------------
+node_modules/
+package-lock.json

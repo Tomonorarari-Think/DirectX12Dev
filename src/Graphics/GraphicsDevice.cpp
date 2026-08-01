@@ -124,13 +124,15 @@ void GraphicsDevice::SelectAdapter()
         // 実際にデバイスを作れるか「試し打ち」する
         //   第 3・第 4 引数に「型 ID と nullptr」を渡すと、
         //   デバイスを実際には作らずに「作れるかどうか」だけを検査できます。
-        if (SUCCEEDED(::D3D12CreateDevice(adapter.Get(), kMinimumFeatureLevel, __uuidof(ID3D12Device), nullptr)))
+        if (SUCCEEDED(::D3D12CreateDevice(adapter.Get(), kMinimumFeatureLevel,
+                                          __uuidof(ID3D12Device), nullptr)))
         {
             m_adapter = adapter;
 
             // VRAM 量はバイト単位なので MB に直して表示する
             const uint64_t videoMemoryMB = desc.DedicatedVideoMemory / (1024ull * 1024ull);
-            Log(std::format(L"使用する GPU : {} (VRAM {} MB)", desc.Description, videoMemoryMB));
+            Log(std::format(L"使用する GPU : {} (VRAM {} MB)",
+                            desc.Description, videoMemoryMB));
             return;
         }
     }

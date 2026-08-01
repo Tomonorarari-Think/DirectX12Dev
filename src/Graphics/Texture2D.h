@@ -154,6 +154,7 @@ private:
 /// <param name="height">生成する高さ（ピクセル）。</param>
 /// <param name="cellSize">1 マスの大きさ（ピクセル）。</param>
 /// <returns>RGBA 順に並んだピクセル列（要素数は width × height × 4）。</returns>
-std::vector<uint8_t> CreateCheckerboardPixels(uint32_t width, uint32_t height, uint32_t cellSize);
+std::vector<uint8_t> CreateCheckerboardPixels(uint32_t width, uint32_t height,
+                                              uint32_t cellSize);
 
 } // namespace dx12

@@ -80,7 +80,8 @@ void SwapChain::Initialize(IDXGIFactory6* factory,
     DX_CHECK(device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
 
     // ディスクリプタ 1 個のサイズを取得しておく（GPU ごとに異なる）
-    m_rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    m_rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(
+        D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
     // (6) バックバッファを取得して RTV を作る
     CreateRenderTargetViews(device);

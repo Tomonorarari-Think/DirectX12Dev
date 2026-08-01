@@ -115,7 +115,8 @@ private:
     /// <param name="wParam">メッセージ固有のパラメータ 1。</param>
     /// <param name="lParam">メッセージ固有のパラメータ 2。</param>
     /// <returns>メッセージの処理結果。</returns>
-    static LRESULT CALLBACK StaticWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
+    static LRESULT CALLBACK StaticWindowProc(HWND hwnd, UINT message,
+                                             WPARAM wParam, LPARAM lParam);
 
     /// <summary>
     /// インスタンス単位の実際のメッセージ処理。
