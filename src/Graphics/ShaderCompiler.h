@@ -58,6 +58,26 @@ Bytecode Compile(const std::wstring& filePath,
                  const wchar_t* target);
 
 /// <summary>
+/// 追加の引数を渡して HLSL をコンパイルします。
+/// </summary>
+/// <param name="filePath">`.hlsl` ファイルの絶対パス。</param>
+/// <param name="entryPoint">入口となる関数名。</param>
+/// <param name="target">シェーダーモデル。</param>
+/// <param name="extraArguments">`dxc.exe` に渡すのと同じ形の追加引数。</param>
+/// <param name="extraArgumentCount">追加引数の数。</param>
+/// <returns>コンパイル済みのバイトコード。</returns>
+/// <exception cref="HrException">コンパイルに失敗した場合。</exception>
+/// <remarks>
+/// `-D NAME=1` のように 2 個で 1 組の引数も、そのまま並べて渡します。
+/// 同じソースを別々の設定で 2 通りコンパイルしたいときに使います。
+/// </remarks>
+Bytecode Compile(const std::wstring& filePath,
+                 const wchar_t* entryPoint,
+                 const wchar_t* target,
+                 const wchar_t* const* extraArguments,
+                 size_t extraArgumentCount);
+
+/// <summary>
 /// これまでにコンパイルした本数と、それに掛かった合計時間を返します。
 /// </summary>
 /// <param name="outCount">コンパイルした本数の受け取り先。</param>
