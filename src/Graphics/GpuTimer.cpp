@@ -18,6 +18,7 @@ const std::array<const wchar_t*, GpuTimer::kPassCount> GpuTimer::kPassNames = {
     L"シーン",
     L"背景",
     L"半透明",
+    L"露出",
     L"後処理",
     L"全体",
 };

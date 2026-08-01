@@ -53,6 +53,7 @@ C++ の基礎が分かり、Unity 等での開発経験はあるが、
 | 29 | [GPU パーティクル](tutorial/29_GPUパーティクル.md) | 構造化バッファ、コンピュートシェーダー、UAV バリア |
 | 30 | [GPU の時間を測る](tutorial/30_GPUの時間を測る.md) | タイムスタンプクエリ、READBACK ヒープ、Resolve |
 | 31 | [DXC とシェーダーモデル 6](tutorial/31_DXCとシェーダーモデル6.md) | DXIL、HLSL 2021、dxil.dll による署名 |
+| 32 | [自動露出と Wave 命令](tutorial/32_自動露出とWave命令.md) | 並列リダクション、WaveActiveSum、InterlockedAdd |
 
 ---
 

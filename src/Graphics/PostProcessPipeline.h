@@ -27,6 +27,9 @@ struct PostProcessConstants
 
     /// <summary>xy = 画面の大きさ、zw = その逆数。</summary>
     DirectX::XMFLOAT4 screenSize;
+
+    /// <summary>x = 1 なら自動露出を使う。y, z, w は未使用。</summary>
+    DirectX::XMFLOAT4 options;
 };
 
 
@@ -92,6 +95,7 @@ public:
     void Record(ID3D12GraphicsCommandList* commandList,
                 uint32_t frameIndex,
                 const RenderTexture& scene,
+                D3D12_GPU_DESCRIPTOR_HANDLE exposureState,
                 D3D12_CPU_DESCRIPTOR_HANDLE backBufferView,
                 const D3D12_VIEWPORT& viewport,
                 const D3D12_RECT& scissor);
@@ -104,6 +108,13 @@ public:
     /// <summary>ブルームが有効かを返します。</summary>
     /// <returns>有効なら `true`。</returns>
     bool IsBloomEnabled() const noexcept { return m_bloomEnabled; }
+
+    /// <summary>自動露出を使うかどうかを設定します。</summary>
+    /// <param name="enabled">使うなら `true`。</param>
+    void SetAutoExposureEnabled(bool enabled) noexcept
+    {
+        m_autoExposureEnabled = enabled;
+    }
 
 private:
     /// <summary>ルートシグネチャ（3 パス共通）。</summary>
@@ -135,6 +146,9 @@ private:
 
     /// <summary>ブルームを有効にするか。</summary>
     bool m_bloomEnabled = true;
+
+    /// <summary>自動露出を使うかどうか。</summary>
+    bool m_autoExposureEnabled = true;
 };
 
 } // namespace dx12
