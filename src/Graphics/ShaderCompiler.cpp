@@ -1,4 +1,4 @@
-//=============================================================================
+﻿//=============================================================================
 // ShaderCompiler.cpp
 //   ShaderCompiler の実装。
 //=============================================================================
@@ -104,6 +104,19 @@ Bytecode Compile(const std::wstring& filePath,
                  const wchar_t* entryPoint,
                  const wchar_t* target)
 {
+    return Compile(filePath, entryPoint, target, nullptr, 0);
+}
+
+
+/// <summary>
+/// 追加の引数を渡して HLSL をコンパイルします。
+/// </summary>
+Bytecode Compile(const std::wstring& filePath,
+                 const wchar_t* entryPoint,
+                 const wchar_t* target,
+                 const wchar_t* const* extraArguments,
+                 size_t extraArgumentCount)
+{
     const auto startTime = std::chrono::steady_clock::now();
 
     Compiler& dxc = GetCompiler();
@@ -140,8 +153,10 @@ Bytecode Compile(const std::wstring& filePath,
     arguments.push_back(L"-T");
     arguments.push_back(target);
 
-    // 行優先の行列。HLSL の既定は列優先なので、FXC の既定と合わせる。
-    arguments.push_back(DXC_ARG_PACK_MATRIX_ROW_MAJOR);
+    // ★ 行列の並びは指定しない（＝ HLSL の既定の列優先のまま）。
+    //   FXC も既定は列優先で、C++ 側は XMMatrixTranspose してから渡している。
+    //   ここで -Zpr（行優先）を足すと、同じ行列が転置されて解釈され、
+    //   カメラも物体も違う場所へ行く。絵は出るので気付きにくい。
 
     // 警告を見落とさないよう、すべて表示する。
     arguments.push_back(DXC_ARG_WARNINGS_ARE_ERRORS);
@@ -156,6 +171,11 @@ Bytecode Compile(const std::wstring& filePath,
     arguments.push_back(L"-Qstrip_debug");
     arguments.push_back(L"-Qstrip_reflect");
 #endif
+
+    for (size_t i = 0; i < extraArgumentCount; ++i)
+    {
+        arguments.push_back(extraArguments[i]);
+    }
 
     // --- (3) コンパイル -------------------------------------------------------
     ComPtr<IDxcResult> result;
