@@ -13,6 +13,11 @@ import pathlib
 import xml.etree.ElementTree as ET
 from collections import Counter
 
+# 標準出力を UTF-8 に固定する。
+#   ★ Windows の既定は環境によって cp932 や cp1252 になる。
+#     日本語を出した瞬間に UnicodeEncodeError で落ちるため、ここで揃える。
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+
 NS = '{http://www.w3.org/2000/svg}'
 PAGE = '#f6f8fa'
 

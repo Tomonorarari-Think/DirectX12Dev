@@ -28,7 +28,7 @@ jobs:
         configuration: [Debug, Release]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: MSBuild を使えるようにする
         uses: microsoft/setup-msbuild@v2
@@ -52,13 +52,13 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
 
@@ -69,4 +69,7 @@ jobs:
 
       - name: 検査
         shell: pwsh
+        env:
+          # ランナーの既定は cp1252。日本語を出した瞬間に落ちるので固定する。
+          PYTHONIOENCODING: utf-8
         run: .\tools\check-docs.ps1

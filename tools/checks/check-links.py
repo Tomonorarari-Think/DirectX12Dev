@@ -8,6 +8,11 @@ import re
 import sys
 from urllib.parse import unquote
 
+# 標準出力を UTF-8 に固定する。
+#   ★ Windows の既定は環境によって cp932 や cp1252 になる。
+#     日本語を出した瞬間に UnicodeEncodeError で落ちるため、ここで揃える。
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+
 ROOT = pathlib.Path(sys.argv[1] if len(sys.argv) > 1
                     else pathlib.Path(__file__).resolve().parents[2])
 LINK = re.compile(r'\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)')
