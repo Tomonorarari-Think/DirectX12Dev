@@ -191,6 +191,16 @@ void MaterialSet::Initialize(ID3D12Device* device,
                                      materials[i].normalScale,
                                      0.0f };
 
+        // ★ テクスチャの「場所」ではなく「番号」を持たせる。
+        //   描くたびにディスクリプタテーブルを結び直す必要がなくなる。
+        constants.textureIndices[0] =
+            m_textures[m_textureIndices[i]]->DescriptorIndex();
+        constants.textureIndices[1] =
+            m_textures[m_metallicRoughnessIndices[i]]->DescriptorIndex();
+        constants.textureIndices[2] =
+            m_textures[m_normalMapIndices[i]]->DescriptorIndex();
+        constants.textureIndices[3] = 0;
+
         m_constants.Update(static_cast<uint32_t>(i), &constants, sizeof(constants));
     }
 

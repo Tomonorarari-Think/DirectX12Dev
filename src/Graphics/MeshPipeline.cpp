@@ -64,39 +64,28 @@ constexpr uint32_t kFrameConstantsRootParameterIndex = 0;
 constexpr uint32_t kObjectConstantsRootParameterIndex = 1;
 
 /// <summary>
-/// テクスチャ（SRV）を結び付けるルートパラメータの番号。
-/// </summary>
-constexpr uint32_t kTextureRootParameterIndex = 2;
-
-/// <summary>
 /// シャドウマップ（SRV）を結び付けるルートパラメータの番号。
 /// </summary>
-constexpr uint32_t kShadowMapRootParameterIndex = 3;
+constexpr uint32_t kShadowMapRootParameterIndex = 2;
 
 /// <summary>
 /// 材質別の定数バッファを結び付けるルートパラメータの番号。
 /// </summary>
-constexpr uint32_t kMaterialConstantsRootParameterIndex = 4;
-
-/// <summary>
-/// 金属らしさ・粗さのテクスチャを結び付けるルートパラメータの番号。
-/// </summary>
-constexpr uint32_t kMetallicRoughnessRootParameterIndex = 5;
+/// <remarks>
+/// 材質のテクスチャは、この定数の中の**番号**で引きます（ビンドレス）。
+/// 描くたびに結び直すのは、この定数バッファ 1 本だけです。
+/// </remarks>
+constexpr uint32_t kMaterialConstantsRootParameterIndex = 3;
 
 /// <summary>
 /// 環境マップ（映り込み用）を結び付けるルートパラメータの番号。
 /// </summary>
-constexpr uint32_t kEnvironmentRootParameterIndex = 6;
+constexpr uint32_t kEnvironmentRootParameterIndex = 4;
 
 /// <summary>
 /// 積分済みの環境光を結び付けるルートパラメータの番号。
 /// </summary>
-constexpr uint32_t kIrradianceRootParameterIndex = 7;
-
-/// <summary>
-/// 法線マップを結び付けるルートパラメータの番号。
-/// </summary>
-constexpr uint32_t kNormalMapRootParameterIndex = 8;
+constexpr uint32_t kIrradianceRootParameterIndex = 5;
 
 /// <summary>
 /// ディゾルブの燃え際の幅。模様の値でどれだけの範囲を光らせるか。
@@ -176,7 +165,7 @@ void MeshPipeline::Initialize(ID3D12Device* device,
 void MeshPipeline::CreateRootSignature(ID3D12Device* device)
 {
     // ルートパラメータ : シェーダーへ何を渡すかの定義。関数の引数リストに相当する。
-    D3D12_ROOT_PARAMETER rootParameters[9] = {};
+    D3D12_ROOT_PARAMETER rootParameters[6] = {};
 
     // 0 番 : フレーム共通の定数バッファ（カメラとライト）
     rootParameters[kFrameConstantsRootParameterIndex].ParameterType =
@@ -204,29 +193,9 @@ void MeshPipeline::CreateRootSignature(ID3D12Device* device)
     rootParameters[kObjectConstantsRootParameterIndex].ShaderVisibility =
         D3D12_SHADER_VISIBILITY_ALL;
 
-    // 2 番 : テクスチャ（ディスクリプタテーブル）
-    D3D12_DESCRIPTOR_RANGE srvRange = {};
-    srvRange.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-    srvRange.NumDescriptors     = 1;
-    srvRange.BaseShaderRegister = 0;   // HLSL の register(t0) に対応
-    srvRange.RegisterSpace      = 0;
-
-    // テーブル先頭からのオフセット。APPEND は「直前のレンジの続きから」の意味。
-    srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-    rootParameters[kTextureRootParameterIndex].ParameterType =
-        D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-    rootParameters[kTextureRootParameterIndex].DescriptorTable.NumDescriptorRanges = 1;
-    rootParameters[kTextureRootParameterIndex].DescriptorTable.pDescriptorRanges   = &srvRange;
-
-    // テクスチャを読むのはピクセルシェーダーだけなので PIXEL に限定する。
-    rootParameters[kTextureRootParameterIndex].ShaderVisibility =
-        D3D12_SHADER_VISIBILITY_PIXEL;
-
-    // 3 番 : シャドウマップ（ディスクリプタテーブル）
-    //   基本色テクスチャと 1 つのテーブルにまとめることもできるが、
-    //   その場合はヒープ上で連続していなければならない。別々にしておくと
-    //   確保した順序に依存しない。
+    // 2 番 : シャドウマップ（ディスクリプタテーブル）
+    //   毎フレーム 1 回しか結び直さないので、テーブルのままでよい。
+    //   ビンドレスが効くのは「描くたびに変わる」材質のテクスチャのほう。
     D3D12_DESCRIPTOR_RANGE shadowRange = {};
     shadowRange.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
     shadowRange.NumDescriptors     = 1;
@@ -242,7 +211,7 @@ void MeshPipeline::CreateRootSignature(ID3D12Device* device)
     rootParameters[kShadowMapRootParameterIndex].ShaderVisibility =
         D3D12_SHADER_VISIBILITY_PIXEL;
 
-    // 4 番 : 材質別の定数バッファ（基本色）
+    // 3 番 : 材質別の定数バッファ（基本色とテクスチャ番号）
     //   サブメッシュを描く直前に差し替える。読むのはピクセルシェーダーだけ。
     rootParameters[kMaterialConstantsRootParameterIndex].ParameterType =
         D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -251,25 +220,7 @@ void MeshPipeline::CreateRootSignature(ID3D12Device* device)
     rootParameters[kMaterialConstantsRootParameterIndex].ShaderVisibility =
         D3D12_SHADER_VISIBILITY_PIXEL;
 
-    // 5 番 : 金属らしさ・粗さのテクスチャ（ディスクリプタテーブル）
-    D3D12_DESCRIPTOR_RANGE metallicRoughnessRange = {};
-    metallicRoughnessRange.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-    metallicRoughnessRange.NumDescriptors     = 1;
-    metallicRoughnessRange.BaseShaderRegister = 2;   // HLSL の register(t2) に対応
-    metallicRoughnessRange.RegisterSpace      = 0;
-    metallicRoughnessRange.OffsetInDescriptorsFromTableStart =
-        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-    rootParameters[kMetallicRoughnessRootParameterIndex].ParameterType =
-        D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-    rootParameters[kMetallicRoughnessRootParameterIndex]
-        .DescriptorTable.NumDescriptorRanges = 1;
-    rootParameters[kMetallicRoughnessRootParameterIndex]
-        .DescriptorTable.pDescriptorRanges = &metallicRoughnessRange;
-    rootParameters[kMetallicRoughnessRootParameterIndex].ShaderVisibility =
-        D3D12_SHADER_VISIBILITY_PIXEL;
-
-    // 6 番・7 番 : 環境マップと、積分済みの環境光
+    // 4 番・5 番 : 環境マップと、積分済みの環境光
     //   材質ではなくシーン全体で共通なので、Bind で 1 度だけ結び付ける。
     D3D12_DESCRIPTOR_RANGE environmentRange = {};
     environmentRange.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -303,25 +254,6 @@ void MeshPipeline::CreateRootSignature(ID3D12Device* device)
     rootParameters[kIrradianceRootParameterIndex]
         .DescriptorTable.pDescriptorRanges = &irradianceRange;
     rootParameters[kIrradianceRootParameterIndex].ShaderVisibility =
-        D3D12_SHADER_VISIBILITY_PIXEL;
-
-    // 8 番 : 法線マップ（ディスクリプタテーブル）
-    //   材質ごとに違うので、BindMaterial で差し替える。
-    D3D12_DESCRIPTOR_RANGE normalMapRange = {};
-    normalMapRange.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-    normalMapRange.NumDescriptors     = 1;
-    normalMapRange.BaseShaderRegister = 5;   // register(t5)
-    normalMapRange.RegisterSpace      = 0;
-    normalMapRange.OffsetInDescriptorsFromTableStart =
-        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-    rootParameters[kNormalMapRootParameterIndex].ParameterType =
-        D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-    rootParameters[kNormalMapRootParameterIndex]
-        .DescriptorTable.NumDescriptorRanges = 1;
-    rootParameters[kNormalMapRootParameterIndex]
-        .DescriptorTable.pDescriptorRanges = &normalMapRange;
-    rootParameters[kNormalMapRootParameterIndex].ShaderVisibility =
         D3D12_SHADER_VISIBILITY_PIXEL;
 
     // 静的サンプラー (Static Sampler)
@@ -378,7 +310,13 @@ void MeshPipeline::CreateRootSignature(ID3D12Device* device)
 
     // ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT フラグ
     //   「頂点バッファから入力レイアウト経由で頂点を読み込む」ことを許可します。
-    rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+    //
+    // CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED フラグ
+    //   ★ シェーダーが `ResourceDescriptorHeap` でヒープを直接引くことを
+    //     許可します。これが無いと、番号で引いた時点で不正になります。
+    rootSignatureDesc.Flags =
+        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+        D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
 
     // ルートシグネチャは 2 段階で作ります。
     ComPtr<ID3DBlob> serializedRootSignature;
@@ -494,9 +432,11 @@ void MeshPipeline::CreatePipelineState(ID3D12Device* device,
     Log(L"シェーダーを読み込みます: " + shaderPath);
 
     shader::Bytecode vertexShader =
-        shader::Compile(shaderPath, L"VSMain", shader::kVertexShaderTarget);
+        shader::Compile(shaderPath, L"VSMain",
+                        shader::kBindlessVertexShaderTarget);
     shader::Bytecode pixelShader =
-        shader::Compile(shaderPath, L"PSMain", shader::kPixelShaderTarget);
+        shader::Compile(shaderPath, L"PSMain",
+                        shader::kBindlessPixelShaderTarget);
 
     // (2) 入力レイアウト
     //   「頂点バッファのバイト列を、どう切り分けてシェーダーに渡すか」の定義。
@@ -676,13 +616,15 @@ void MeshPipeline::CreateShadowPipelineState(ID3D12Device* device,
     const std::wstring shaderPath = ResolveAssetPath(kShaderRelativePath);
 
     shader::Bytecode vertexShader =
-        shader::Compile(shaderPath, L"VSShadow", shader::kVertexShaderTarget);
+        shader::Compile(shaderPath, L"VSShadow",
+                        shader::kBindlessVertexShaderTarget);
 
     // ★ 色は要らないが、ピクセルシェーダーは必要になった。
     //   ディゾルブで消えた部分の影を落とさないために clip するためだけのもの。
     //   色を書かないので、レンダーターゲットは 0 枚のまま。
     shader::Bytecode pixelShader =
-        shader::Compile(shaderPath, L"PSShadow", shader::kPixelShaderTarget);
+        shader::Compile(shaderPath, L"PSShadow",
+                        shader::kBindlessPixelShaderTarget);
 
     D3D12_RASTERIZER_DESC rasterizerDesc = {};
     rasterizerDesc.FillMode              = D3D12_FILL_MODE_SOLID;
@@ -872,22 +814,12 @@ void MeshPipeline::BindShadowPass(ID3D12GraphicsCommandList* commandList,
 /// これから描くサブメッシュの材質を結び付けます。
 /// </summary>
 void MeshPipeline::BindMaterial(ID3D12GraphicsCommandList* commandList,
-                                D3D12_GPU_VIRTUAL_ADDRESS constantAddress,
-                                D3D12_GPU_DESCRIPTOR_HANDLE textureView,
-                                D3D12_GPU_DESCRIPTOR_HANDLE metallicRoughnessView,
-                                D3D12_GPU_DESCRIPTOR_HANDLE normalMapView) const
+                                D3D12_GPU_VIRTUAL_ADDRESS constantAddress) const
 {
+    // ★ 描くたびに結び直すのは、これ 1 本だけになった。
+    //   テクスチャは定数の中の番号で引かれる（ビンドレス）。
     commandList->SetGraphicsRootConstantBufferView(
         kMaterialConstantsRootParameterIndex, constantAddress);
-
-    commandList->SetGraphicsRootDescriptorTable(
-        kTextureRootParameterIndex, textureView);
-
-    commandList->SetGraphicsRootDescriptorTable(
-        kMetallicRoughnessRootParameterIndex, metallicRoughnessView);
-
-    commandList->SetGraphicsRootDescriptorTable(
-        kNormalMapRootParameterIndex, normalMapView);
 }
 
 
