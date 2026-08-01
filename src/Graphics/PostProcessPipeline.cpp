@@ -80,12 +80,13 @@ ComPtr<ID3D12PipelineState> CreateFullScreenPipelineState(
     ID3D12Device* device,
     ID3D12RootSignature* rootSignature,
     const std::wstring& shaderPath,
-    const char* pixelEntryPoint,
+    const wchar_t* pixelEntryPoint,
     DXGI_FORMAT renderTargetFormat)
 {
-    ComPtr<ID3DBlob> vertexShader = shader::Compile(shaderPath, "VSMain", "vs_5_0");
-    ComPtr<ID3DBlob> pixelShader  = shader::Compile(shaderPath, pixelEntryPoint,
-                                                    "ps_5_0");
+    shader::Bytecode vertexShader =
+        shader::Compile(shaderPath, L"VSMain", shader::kVertexShaderTarget);
+    shader::Bytecode pixelShader = shader::Compile(shaderPath, pixelEntryPoint,
+                                                    shader::kPixelShaderTarget);
 
     D3D12_RASTERIZER_DESC rasterizerDesc = {};
     rasterizerDesc.FillMode              = D3D12_FILL_MODE_SOLID;
@@ -228,16 +229,16 @@ void PostProcessPipeline::Initialize(ID3D12Device* device,
     const std::wstring postPath  = ResolveAssetPath(kPostProcessShaderPath);
 
     m_thresholdPipelineState = CreateFullScreenPipelineState(
-        device, m_rootSignature.Get(), bloomPath, "PSThreshold",
+        device, m_rootSignature.Get(), bloomPath, L"PSThreshold",
         RenderTexture::kFormat);
 
     m_blurPipelineState = CreateFullScreenPipelineState(
-        device, m_rootSignature.Get(), bloomPath, "PSBlur",
+        device, m_rootSignature.Get(), bloomPath, L"PSBlur",
         RenderTexture::kFormat);
 
     // ★ 合成だけは書き込み先がスワップチェーン（sRGB）。形式が違う。
     m_compositePipelineState = CreateFullScreenPipelineState(
-        device, m_rootSignature.Get(), postPath, "PSMain",
+        device, m_rootSignature.Get(), postPath, L"PSMain",
         SwapChain::kRenderTargetViewFormat);
 
     // --- (3) 作業用テクスチャ（半分の解像度）---------------------------------

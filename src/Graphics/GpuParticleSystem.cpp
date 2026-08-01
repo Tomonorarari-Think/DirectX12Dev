@@ -203,8 +203,9 @@ void GpuParticleSystem::Initialize(ID3D12Device* device,
 
     CreateRootSignature(device, computeRootDesc, m_computeRootSignature);
 
-    ComPtr<ID3DBlob> computeShader =
-        shader::Compile(ResolveAssetPath(kUpdateShaderPath), "CSMain", "cs_5_0");
+    shader::Bytecode computeShader = shader::Compile(
+        ResolveAssetPath(kUpdateShaderPath), L"CSMain",
+        shader::kComputeShaderTarget);
 
     D3D12_COMPUTE_PIPELINE_STATE_DESC computePsoDesc = {};
     computePsoDesc.pRootSignature = m_computeRootSignature.Get();
@@ -258,8 +259,10 @@ void GpuParticleSystem::Initialize(ID3D12Device* device,
 
     const std::wstring drawPath = ResolveAssetPath(kDrawShaderPath);
 
-    ComPtr<ID3DBlob> vertexShader = shader::Compile(drawPath, "VSMain", "vs_5_0");
-    ComPtr<ID3DBlob> pixelShader  = shader::Compile(drawPath, "PSMain", "ps_5_0");
+    shader::Bytecode vertexShader =
+        shader::Compile(drawPath, L"VSMain", shader::kVertexShaderTarget);
+    shader::Bytecode pixelShader =
+        shader::Compile(drawPath, L"PSMain", shader::kPixelShaderTarget);
 
     D3D12_RASTERIZER_DESC rasterizerDesc = {};
     rasterizerDesc.FillMode        = D3D12_FILL_MODE_SOLID;

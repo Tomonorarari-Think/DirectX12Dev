@@ -80,6 +80,15 @@ private:
     void CreateDevice();
 
     /// <summary>
+    /// この GPU が対応しているシェーダーモデルの最大値をログに出します。
+    /// </summary>
+    /// <remarks>
+    /// DXC が出す DXIL はシェーダーモデル 6 以降です。GPU が対応していなければ
+    /// PSO の生成が失敗するので、起動時に分かるようにしています。
+    /// </remarks>
+    void LogShaderModel();
+
+    /// <summary>
     /// デバッグメッセージの扱いを設定します（Debug ビルドのみ）。
     /// </summary>
     void ConfigureInfoQueue();

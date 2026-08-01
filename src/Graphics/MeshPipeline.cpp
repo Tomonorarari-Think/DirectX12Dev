@@ -488,13 +488,15 @@ void MeshPipeline::CreatePipelineState(ID3D12Device* device,
                                        DXGI_FORMAT shadowMapFormat)
 {
     // (1) シェーダーのコンパイル
-    //   "vs_5_0" の意味 : vs = Vertex Shader、5_0 = シェーダーモデル 5.0
-    //   "ps_5_0" の意味 : ps = Pixel Shader
+    //   shader::kVertexShaderTarget の意味 : vs = Vertex Shader、5_0 = シェーダーモデル 5.0
+    //   shader::kPixelShaderTarget の意味 : ps = Pixel Shader
     const std::wstring shaderPath = ResolveAssetPath(kShaderRelativePath);
     Log(L"シェーダーを読み込みます: " + shaderPath);
 
-    ComPtr<ID3DBlob> vertexShader = shader::Compile(shaderPath, "VSMain", "vs_5_0");
-    ComPtr<ID3DBlob> pixelShader  = shader::Compile(shaderPath, "PSMain", "ps_5_0");
+    shader::Bytecode vertexShader =
+        shader::Compile(shaderPath, L"VSMain", shader::kVertexShaderTarget);
+    shader::Bytecode pixelShader =
+        shader::Compile(shaderPath, L"PSMain", shader::kPixelShaderTarget);
 
     // (2) 入力レイアウト
     //   「頂点バッファのバイト列を、どう切り分けてシェーダーに渡すか」の定義。
@@ -673,12 +675,14 @@ void MeshPipeline::CreateShadowPipelineState(ID3D12Device* device,
 {
     const std::wstring shaderPath = ResolveAssetPath(kShaderRelativePath);
 
-    ComPtr<ID3DBlob> vertexShader = shader::Compile(shaderPath, "VSShadow", "vs_5_0");
+    shader::Bytecode vertexShader =
+        shader::Compile(shaderPath, L"VSShadow", shader::kVertexShaderTarget);
 
     // ★ 色は要らないが、ピクセルシェーダーは必要になった。
     //   ディゾルブで消えた部分の影を落とさないために clip するためだけのもの。
     //   色を書かないので、レンダーターゲットは 0 枚のまま。
-    ComPtr<ID3DBlob> pixelShader = shader::Compile(shaderPath, "PSShadow", "ps_5_0");
+    shader::Bytecode pixelShader =
+        shader::Compile(shaderPath, L"PSShadow", shader::kPixelShaderTarget);
 
     D3D12_RASTERIZER_DESC rasterizerDesc = {};
     rasterizerDesc.FillMode              = D3D12_FILL_MODE_SOLID;
