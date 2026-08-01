@@ -26,7 +26,8 @@ std::wstring HResultToMessage(HRESULT hr)
     // FORMAT_MESSAGE_FROM_SYSTEM     : システム定義のエラーテーブルから探す
     // FORMAT_MESSAGE_IGNORE_INSERTS  : "%1" 等の差し込み指定を展開しない
     const DWORD length = ::FormatMessageW(
-        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+            FORMAT_MESSAGE_IGNORE_INSERTS,
         nullptr,
         static_cast<DWORD>(hr),
         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
@@ -46,7 +47,9 @@ std::wstring HResultToMessage(HRESULT hr)
     ::LocalFree(buffer);
 
     // 末尾の改行・空白を取り除く（FormatMessageW は "\r\n" を付けてくる）
-    while (!message.empty() && (message.back() == L'\r' || message.back() == L'\n' || message.back() == L' '))
+    while (!message.empty() && (message.back() == L'\r' ||
+                                message.back() == L'\n' ||
+                                message.back() == L' '))
     {
         message.pop_back();
     }
@@ -64,7 +67,8 @@ std::filesystem::path GetExecutableDirectory()
     std::wstring buffer(1024, L'\0');
 
     // 第 1 引数 nullptr は「自分自身（実行中の exe）」を意味する
-    const DWORD length = ::GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+    const DWORD length = ::GetModuleFileNameW(
+        nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
     if (length == 0)
     {
         return std::filesystem::current_path();
@@ -108,7 +112,8 @@ void ThrowIfFailed(HRESULT hr, const char* expression, const char* file, int lin
     const std::wstring detail = HResultToMessage(hr);
 
     // ログにも残しておく（例外が握り潰されても痕跡が残るように）
-    LogError(std::format(L"HRESULT 失敗 (0x{:08X}) : {}", static_cast<unsigned int>(hr), detail));
+    LogError(std::format(L"HRESULT 失敗 (0x{:08X}) : {}",
+                         static_cast<unsigned int>(hr), detail));
 
     // 例外メッセージは std::runtime_error に合わせて std::string で組み立てる
     const std::string message = std::format(

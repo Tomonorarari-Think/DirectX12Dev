@@ -33,9 +33,21 @@ DirectX 12 の**学習**を目的としたプロジェクトです。
 ```powershell
 .\tools\build.ps1                      # Debug x64
 .\tools\build.ps1 -Configuration Release
+.\tools\check-docs.ps1                 # 資料の検査（CI と同じもの）
 ```
 
 コードを変更したら **Debug と Release の両方をビルドし、実行して確認する**まで完了としない。
+
+資料を変えたら `check-docs.ps1` を通す。リンク切れ・図の配色・コントラスト・
+行幅・文字の混入・`.ps1` の文字コード・Mermaid の構文をまとめて見る。
+CI（`.github/workflows/ci.yml`）が push のたびに同じものを実行する。
+
+**PowerShell スクリプトは UTF-8 BOM 付きで保存する。** BOM が無いと
+Windows PowerShell 5.1 が CP932 として読み、日本語コメント以降が
+構文エラーになる。`check-docs.ps1` が検査する。
+
+資料の撮影は `tools/AppLauncher.ps1` を通す。サブディスプレイに出し、
+フォーカスを奪わないので、撮影中も手元の作業を続けられる。
 
 ## Git
 

@@ -19,8 +19,8 @@
       docs/shader-lab/images/00_index.png … 一覧シート
 
     注意:
-      PrintWindow は起動直後に不安定なため、捨てショットで温めてから撮る。
-      これを省くと、最初の数枚が保存されないか、縮小された絵になる。
+      起動・撮影・キー送りは AppLauncher.ps1 に集約してある。
+      既定ではサブディスプレイに出し、作業中のフォーカスも奪わない。
 ================================================================================
 #>
 [CmdletBinding()]
@@ -30,19 +30,20 @@ param(
     [string]$Configuration = 'Debug',
 
     # 待ち時間（ミリ秒）。動く習作が展開しきるまで待つ。
-    [int]$SettleMs = 900
+    [int]$SettleMs = 900,
+
+    # ウィンドウを出すディスプレイ。
+    [ValidateSet('Secondary', 'Primary', 'Current')]
+    [string]$Monitor = 'Secondary'
 )
 
 $ErrorActionPreference = 'Stop'
 
+. "$PSScriptRoot\AppLauncher.ps1"
+
 $root = Split-Path -Parent $PSScriptRoot
-$exe  = Join-Path $root ("build\x64\{0}\DirectX12Dev.exe" -f $Configuration)
 $temp = Join-Path $env:TEMP 'dx12dev-labshot'
 $dest = Join-Path $root 'docs\shader-lab\images'
-
-if (-not (Test-Path $exe)) {
-    throw "実行ファイルがありません: $exe（先に .\tools\build.ps1 を実行してください）"
-}
 
 New-Item -ItemType Directory -Force $temp | Out-Null
 New-Item -ItemType Directory -Force $dest | Out-Null
@@ -58,66 +59,23 @@ $names = @(
     '30_portal', '31_shield', '32_explosion', '33_trail'
 )
 
-Add-Type @"
-using System;
-using System.Drawing;
-using System.Runtime.InteropServices;
-public class LabCapture {
-    [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr dc, uint f);
-    [DllImport("user32.dll")] public static extern IntPtr PostMessage(IntPtr h, uint msg, IntPtr w, IntPtr l);
-    public const uint WM_KEYDOWN = 0x0100, WM_KEYUP = 0x0101;
-    public static void Shot(IntPtr hwnd, string path) {
-        using (var bmp = new Bitmap(1280, 720))
-        using (var g = Graphics.FromImage(bmp)) {
-            IntPtr dc = g.GetHdc();
-            PrintWindow(hwnd, dc, 2);
-            g.ReleaseHdc(dc);
-            bmp.Save(path, System.Drawing.Imaging.ImageFormat.Png);
-        }
-    }
-    public static void Key(IntPtr h, int vk) {
-        PostMessage(h, WM_KEYDOWN, (IntPtr)vk, (IntPtr)0);
-        System.Threading.Thread.Sleep(40);
-        PostMessage(h, WM_KEYUP, (IntPtr)vk, (IntPtr)0);
-    }
-}
-"@ -ReferencedAssemblies System.Drawing
+$app = Start-DemoApp -Configuration $Configuration -Monitor $Monitor
 
-Get-Process DirectX12Dev -ErrorAction SilentlyContinue | Stop-Process -Force
-Start-Sleep -Milliseconds 400
-
-$proc = Start-Process -FilePath $exe -PassThru
-Start-Sleep -Milliseconds 2500
-$hwnd = $proc.MainWindowHandle
-
-if ($hwnd -eq [IntPtr]::Zero) {
-    Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-    throw 'ウィンドウを取得できませんでした。アプリが起動できているか確認してください。'
-}
-
-# PrintWindow を温める（捨てショット）
-for ($i = 0; $i -lt 3; $i++) {
-    [LabCapture]::Shot($hwnd, (Join-Path $temp 'warm.png'))
-    Start-Sleep -Milliseconds 250
-}
-
-[LabCapture]::Key($hwnd, 0x4C)   # L : 習作モードへ
-Start-Sleep -Milliseconds 500
-[LabCapture]::Key($hwnd, 0x31)   # 1 : 先頭へ
-Start-Sleep -Milliseconds 500
+Send-DemoKey $app 'L' -SettleMs 500          # 習作モードへ
+Send-DemoKey $app '1' -SettleMs 500          # 先頭へ
 
 for ($i = 1; $i -le $names.Count; $i++) {
     Start-Sleep -Milliseconds $SettleMs
-    [LabCapture]::Shot($hwnd, (Join-Path $temp ("raw{0:D2}.png" -f $i)))
+    Save-DemoShot $app (Join-Path $temp ("raw{0:D2}.png" -f $i))
     Write-Output ("撮影 {0:D2} / {1}" -f $i, $names.Count)
 
     if ($i -lt $names.Count) {
-        [LabCapture]::Key($hwnd, 0x27)   # →
-        Start-Sleep -Milliseconds 350
+        # ★ 送りが速すぎるとキーを取りこぼし、1 つ手前の習作を撮ってしまう。
+        Send-DemoKey $app 0x27 -SettleMs 350   # →
     }
 }
 
-Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+Stop-DemoApp $app
 
 # --- 切り出し・縮小・一覧シートの作成は Python に任せる -----------------------
 $script = Join-Path $temp 'process.py'

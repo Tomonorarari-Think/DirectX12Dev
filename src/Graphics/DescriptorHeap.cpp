@@ -35,9 +35,11 @@ void DescriptorHeap::Initialize(ID3D12Device* device, uint32_t capacity)
     DX_CHECK(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_heap)));
 
     // ディスクリプタ 1 個のサイズは GPU ごとに異なるため、実行時に取得する。
-    m_descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    m_descriptorSize = device->GetDescriptorHandleIncrementSize(
+        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-    Log(std::format(L"シェーダー可視ディスクリプタヒープを生成しました（{} 個ぶん）", capacity));
+    Log(std::format(L"シェーダー可視ディスクリプタヒープを生成しました（{} 個ぶん）",
+                    capacity));
 }
 
 
@@ -49,7 +51,8 @@ uint32_t DescriptorHeap::Allocate()
     if (m_allocatedCount >= m_capacity)
     {
         // 学習用に固定容量で作っているため、超えたら明確に落とす。
-        throw std::runtime_error("ディスクリプタヒープの容量を超えました。capacity を増やしてください。");
+        throw std::runtime_error(
+            "ディスクリプタヒープの容量を超えました。capacity を増やしてください。");
     }
 
     return m_allocatedCount++;

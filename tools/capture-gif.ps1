@@ -21,7 +21,8 @@
         減色したうえでディザ（誤差拡散）を掛けている。
       ・色数を減らすとファイルが小さくなる。空のような広いグラデーションが
         あると、色数を削ったときに縞が目立ちやすい。
-      ・PrintWindow は起動直後に不安定なため、捨てショットで温めてから撮る。
+      ・起動・撮影・キー送りは AppLauncher.ps1 に集約してある。
+        既定ではサブディスプレイに出し、作業中のフォーカスも奪わない。
       ・撮影の 1 枚あたりに掛かった実測時間を GIF の再生間隔に使う。
         こうすると再生速度が実時間と一致する（既定でおよそ 10 秒）。
 ================================================================================
@@ -57,18 +58,19 @@ param(
     [int]$WarmupMs = 1200,
 
     # 撮影前に押しておくキー（英字 1 文字ずつ）。例: -PressKeys F,V
-    [string[]]$PressKeys = @()
+    [string[]]$PressKeys = @(),
+
+    # ウィンドウを出すディスプレイ。
+    [ValidateSet('Secondary', 'Primary', 'Current')]
+    [string]$Monitor = 'Secondary'
 )
 
 $ErrorActionPreference = 'Stop'
 
-$root = Split-Path -Parent $PSScriptRoot
-$exe  = Join-Path $root ("build\x64\{0}\DirectX12Dev.exe" -f $Configuration)
-$temp = Join-Path $env:TEMP 'dx12dev-gif'
+. "$PSScriptRoot\AppLauncher.ps1"
 
-if (-not (Test-Path $exe)) {
-    throw "実行ファイルがありません: $exe（先に .\tools\build.ps1 を実行してください）"
-}
+$root = Split-Path -Parent $PSScriptRoot
+$temp = Join-Path $env:TEMP 'dx12dev-gif'
 
 if (-not [IO.Path]::IsPathRooted($Out)) {
     $Out = Join-Path $root $Out
@@ -78,68 +80,22 @@ New-Item -ItemType Directory -Force $temp | Out-Null
 New-Item -ItemType Directory -Force (Split-Path -Parent $Out) | Out-Null
 Get-ChildItem $temp -Filter '*.png' -ErrorAction SilentlyContinue | Remove-Item -Force
 
-Add-Type @"
-using System;
-using System.Drawing;
-using System.Runtime.InteropServices;
-public class GifCapture {
-    [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr dc, uint f);
-    [DllImport("user32.dll")] public static extern IntPtr PostMessage(IntPtr h, uint msg, IntPtr w, IntPtr l);
-    public const uint WM_KEYDOWN = 0x0100, WM_KEYUP = 0x0101;
-    public static void Shot(IntPtr hwnd, string path) {
-        using (var bmp = new Bitmap(1280, 720))
-        using (var g = Graphics.FromImage(bmp)) {
-            IntPtr dc = g.GetHdc();
-            PrintWindow(hwnd, dc, 2);
-            g.ReleaseHdc(dc);
-            bmp.Save(path, System.Drawing.Imaging.ImageFormat.Png);
-        }
-    }
-    public static void Key(IntPtr h, int vk) {
-        PostMessage(h, WM_KEYDOWN, (IntPtr)vk, (IntPtr)0);
-        System.Threading.Thread.Sleep(40);
-        PostMessage(h, WM_KEYUP, (IntPtr)vk, (IntPtr)0);
-    }
-}
-"@ -ReferencedAssemblies System.Drawing
-
-Get-Process DirectX12Dev -ErrorAction SilentlyContinue | Stop-Process -Force
-Start-Sleep -Milliseconds 400
-
-$proc = Start-Process -FilePath $exe -PassThru
-Start-Sleep -Milliseconds 2500
-$hwnd = $proc.MainWindowHandle
-
-if ($hwnd -eq [IntPtr]::Zero) {
-    Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-    throw 'ウィンドウを取得できませんでした。'
-}
-
-# PrintWindow を温める（捨てショット）
-for ($i = 0; $i -lt 3; $i++) {
-    [GifCapture]::Shot($hwnd, (Join-Path $temp 'warm.png'))
-    Start-Sleep -Milliseconds 250
-}
-Remove-Item (Join-Path $temp 'warm.png') -Force -ErrorAction SilentlyContinue
+$app = Start-DemoApp -Configuration $Configuration -Monitor $Monitor
 
 if ($LabIndex -gt 0) {
-    [GifCapture]::Key($hwnd, 0x4C)   # L : 習作モードへ
-    Start-Sleep -Milliseconds 500
-    [GifCapture]::Key($hwnd, 0x31)   # 1 : 先頭へ
-    Start-Sleep -Milliseconds 400
+    Send-DemoKey $app 'L' -SettleMs 500   # 習作モードへ
+    Send-DemoKey $app '1' -SettleMs 400   # 先頭へ
 
     # ★ 送りが速すぎるとキーが取りこぼされ、1 つ手前の習作を撮ってしまう。
     #   capture-shader-lab.ps1 と同じ 350 ms まで落とすと取りこぼさない。
     for ($i = 1; $i -lt $LabIndex; $i++) {
-        [GifCapture]::Key($hwnd, 0x27)   # →
-        Start-Sleep -Milliseconds 350
+        Send-DemoKey $app 0x27 -SettleMs 350   # →
     }
     Start-Sleep -Milliseconds 400
 }
 
 foreach ($key in $PressKeys) {
-    [GifCapture]::Key($hwnd, [int][char]([string]$key).ToUpper()[0])
-    Start-Sleep -Milliseconds 300
+    Send-DemoKey $app $key -SettleMs 300
 }
 
 Start-Sleep -Milliseconds $WarmupMs
@@ -149,14 +105,14 @@ Start-Sleep -Milliseconds $WarmupMs
 $watch = [Diagnostics.Stopwatch]::StartNew()
 
 for ($i = 0; $i -lt $Frames; $i++) {
-    [GifCapture]::Shot($hwnd, (Join-Path $temp ("f{0:D3}.png" -f $i)))
+    Save-DemoShot $app (Join-Path $temp ("f{0:D3}.png" -f $i))
     Start-Sleep -Milliseconds $IntervalMs
 }
 
 $watch.Stop()
 $delayMs = [int][Math]::Round($watch.Elapsed.TotalMilliseconds / $Frames)
 
-Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+Stop-DemoApp $app
 Write-Output ("{0} 枚を撮影しました（実測 {1:F1} 秒 / 1 枚 {2} ms）。" -f `
               $Frames, $watch.Elapsed.TotalSeconds, $delayMs)
 

@@ -119,7 +119,13 @@ DirectX12Dev/
 ├── shaders/Mesh.hlsl                 頂点シェーダー・ピクセルシェーダー
 ├── assets/models/                    サンプルモデル（本リポジトリで作成）
 ├── assets/textures/                  サンプルテクスチャ（本リポジトリで作成）
-├── tools/build.ps1                   MSBuild 呼び出しスクリプト
+├── tools/                            ビルド・撮影・検査のスクリプト
+│   ├── build.ps1                     MSBuild 呼び出し
+│   ├── check-docs.ps1                資料の検査をまとめて実行
+│   ├── AppLauncher.ps1               撮影用にアプリを起動する共通部品
+│   ├── capture-shader-lab.ps1        習作の画像を一括で撮り直す
+│   ├── capture-gif.ps1               動きのある表現を GIF で撮る
+│   └── checks/                       リンク・コントラスト・行幅などの検査
 ├── docs/                             学習資料（tutorial / design / misc）
 └── .vscode/                          VSCode のビルド・デバッグ設定
 ```
@@ -177,6 +183,32 @@ DirectX12Dev/
 
 ---
 
+## 検査
+
+資料もコードと同じ成果物として扱うため、機械で検査しています。
+[GitHub Actions](.github/workflows/ci.yml) が push のたびに、
+Debug / Release の両方のビルドとあわせて実行します。
+
+```powershell
+.	ools\check-docs.ps1
+```
+
+| 検査 | 内容 |
+|------|------|
+| 図の配色 | Mermaid の `style` に `color:` があるか。SVG の文字色 |
+| 相対リンク | Markdown のリンク切れ |
+| コントラスト | SVG の文字と背景が 7:1 以上か |
+| 行幅 | コメントを含む 1 行が表示幅 96 桁以内か |
+| 文字の混入 | キリル文字などが紛れていないか |
+| 文字コード | `.ps1` が UTF-8 BOM 付きか |
+| Mermaid 構文 | `mermaid.parse` が通るか |
+
+Python 3 が要ります。Mermaid の検証だけ Node.js を使い、
+入っていなければ自動で飛ばします（初回のみ
+`cd tools\checks\mermaid; npm install`）。
+
+---
+
 ## ブランチ運用
 
 git-flow に従います。詳細は [Git 運用ルール](docs/misc/conventions/Git運用ルール.md)。
@@ -184,3 +216,14 @@ git-flow に従います。詳細は [Git 運用ルール](docs/misc/conventions
 - `main` … リリース可能な状態
 - `develop` … 開発の統合先
 - `feature/*` … 機能単位の作業ブランチ（**マージ後に必ず削除**）
+
+---
+
+## ライセンス
+
+[MIT License](LICENSE)。
+
+同梱のモデルとテクスチャも**すべて本リポジトリで生成したもの**で、
+外部から取り込んだ素材は含まれていません
+（[assets/models/](assets/models/) と [assets/textures/](assets/textures/) の
+それぞれの README を参照）。
