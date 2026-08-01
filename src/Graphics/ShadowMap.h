@@ -7,6 +7,7 @@
 //=============================================================================
 #pragma once
 
+#include "../App/Camera.h"
 #include "../Common/GraphicsCommon.h"
 
 #include <DirectXMath.h>
@@ -40,6 +41,14 @@ public:
     /// <summary>クリアに使う深度値（一番奥）。</summary>
     static constexpr float kClearDepth = 1.0f;
 
+    /// <summary>カスケードの枚数。</summary>
+    /// <remarks>
+    /// 手前ほど細かく、奥ほど広く写す段を重ねます。枚数を増やすほど
+    /// 影は細かくなりますが、影のパスをその回数だけ描き直します。
+    /// `Mesh.hlsl` の `kCascadeCount` と一致させること。
+    /// </remarks>
+    static constexpr uint32_t kCascadeCount = 3;
+
     /// <summary>既定のコンストラクタ。まだ何も生成されません。</summary>
     ShadowMap() = default;
 
@@ -62,34 +71,52 @@ public:
     void Initialize(ID3D12Device* device, DescriptorHeap& descriptorHeap, uint32_t size);
 
     /// <summary>
-    /// 光源をカメラに見立てた変換行列を計算します。
+    /// カメラの視錐台を段に切り、段ごとの光源行列を計算します。
     /// </summary>
     /// <param name="lightDirection">光が進む向き。正規化されていなくても構いません。</param>
-    /// <param name="sceneCenter">影を落とす範囲の中心。</param>
-    /// <param name="sceneRadius">影を落とす範囲の半径。</param>
+    /// <param name="camera">影を合わせる対象のカメラ。</param>
+    /// <param name="shadowDistance">
+    /// 影を落とす最大距離。カメラの奥のクリップ面より手前で切ります。
+    /// </param>
     /// <remarks>
-    /// 平行光源には位置がないため、範囲全体が収まる位置へ仮の視点を置きます。
+    /// 平行光源には位置がないため、段ごとに範囲が収まる位置へ仮の視点を置きます。
     /// 遠近感を付けてはいけないので、透視投影ではなく**正射影**を使います。
     /// </remarks>
     void SetLight(const DirectX::XMFLOAT3& lightDirection,
-                  const DirectX::XMFLOAT3& sceneCenter,
-                  float sceneRadius);
+                  const Camera& camera,
+                  float shadowDistance);
 
     /// <summary>
-    /// 光源から見たビュー行列 × 射影行列を返します。
+    /// 指定した段の、光源から見たビュー行列 × 射影行列を返します。
     /// </summary>
+    /// <param name="cascadeIndex">段の番号（0 が最も手前）。</param>
     /// <returns>`SetLight` で計算した行列。</returns>
-    DirectX::XMMATRIX LightViewProjection() const;
+    DirectX::XMMATRIX LightViewProjection(uint32_t cascadeIndex) const;
+
+    /// <summary>
+    /// 段の切れ目（カメラからの距離）を返します。
+    /// </summary>
+    /// <param name="cascadeIndex">段の番号。</param>
+    /// <returns>その段が受け持つ最も遠い距離。</returns>
+    float CascadeSplit(uint32_t cascadeIndex) const;
 
     /// <summary>
     /// シャドウマップへの描き込みを開始します。
     /// </summary>
     /// <param name="commandList">記録先の（Reset 済みで開いている）コマンドリスト。</param>
+    /// <param name="cascadeIndex">描き込む段の番号。</param>
     /// <remarks>
-    /// バリア（テクスチャ → 深度バッファ）、ビューポート、描画先の設定、
-    /// クリアまでを行います。この後にメッシュを描くと深度が書き込まれます。
+    /// ビューポート、描画先の設定、クリアまでを行います。
+    /// バリアは段ごとではなく `BeginShadowPass` / `EndRender` で 1 回ずつです。
     /// </remarks>
-    void BeginRender(ID3D12GraphicsCommandList* commandList) const;
+    void BeginRender(ID3D12GraphicsCommandList* commandList,
+                     uint32_t cascadeIndex) const;
+
+    /// <summary>
+    /// 影のパス全体を開始します（バリアを 1 回だけ張ります）。
+    /// </summary>
+    /// <param name="commandList">記録先のコマンドリスト。</param>
+    void BeginShadowPass(ID3D12GraphicsCommandList* commandList) const;
 
     /// <summary>
     /// シャドウマップへの描き込みを終え、テクスチャとして読める状態に戻します。
@@ -117,12 +144,21 @@ private:
     /// <summary>シェーダー可視ヒープ上の SRV の位置。</summary>
     D3D12_GPU_DESCRIPTOR_HANDLE m_shaderResourceView = {};
 
+    /// <summary>段ごとの切れ目（カメラからの距離）。</summary>
+    float m_cascadeSplits[kCascadeCount] = {};
+
+    /// <summary>段の情報を 1 度だけログに出したか。</summary>
+    mutable bool m_logged = false;
+
+    /// <summary>DSV 1 個あたりのバイト数。</summary>
+    uint32_t m_dsvDescriptorSize = 0;
+
     /// <summary>光源から見たビュー行列 × 射影行列。</summary>
     /// <remarks>
     /// `XMMATRIX` は 16 バイト境界に揃える必要があるため、
     /// メンバでは `XMFLOAT4X4` で持ち、使うときに読み込みます。
     /// </remarks>
-    DirectX::XMFLOAT4X4 m_lightViewProjection = {};
+    DirectX::XMFLOAT4X4 m_lightViewProjection[kCascadeCount] = {};
 
     /// <summary>一辺のピクセル数。</summary>
     uint32_t m_size = 0;
