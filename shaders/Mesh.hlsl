@@ -59,19 +59,19 @@ cbuffer MaterialConstants : register(b2)
 
     // x = 金属らしさ、y = 粗さ、z = 法線マップの効き具合。w は未使用。
     float4 g_materialParams;
+
+    // x = 基本色、y = 金属らしさと粗さ、z = 法線マップ。
+    // いずれもシェーダー可視ヒープの中での番号（ビンドレス）。
+    uint4 g_textureIndices;
 };
 
-// t = テクスチャ (SRV)、s = サンプラー。
-// Texture2D が「画像データ」、SamplerState が「その読み方」。
-Texture2D    g_texture : register(t0);
+// s = サンプラー。読み方は材質によらないので、これは今までどおり結び付ける。
 SamplerState g_sampler : register(s0);
 
 // 光源から見た深度を書き込んだテクスチャ。
+//   ★ 毎フレーム 1 回しか結び直さないものは、テーブルのままでよい。
+//     ビンドレスが効くのは「描くたびに変わる」材質のテクスチャ。
 Texture2D g_shadowMap : register(t1);
-
-// 金属らしさと粗さのテクスチャ。緑が粗さ、青が金属らしさ（glTF の決まり）。
-// 色ではなく数値なので、C++ 側で sRGB ではない形式として作っている。
-Texture2D g_metallicRoughness : register(t2);
 
 // 周囲の景色。正距円筒図法で、段が進むほどぼけている。
 Texture2D g_environment : register(t3);
@@ -79,10 +79,20 @@ Texture2D g_environment : register(t3);
 // 拡散反射用に、あらゆる方向から届く光を積分したもの。
 Texture2D g_irradiance : register(t4);
 
-// 法線マップ。接線空間の法線を RGB に詰めたもの。
-// 色ではなくベクトルなので、C++ 側で sRGB ではない形式として作っている。
-// 持たない材質には (128, 128, 255) の 1 ピクセルが割り当てられる。
-Texture2D g_normalMap : register(t5);
+
+//-----------------------------------------------------------------------------
+// ビンドレスで材質のテクスチャを引く
+//-----------------------------------------------------------------------------
+//   ResourceDescriptorHeap は、いま設定されているシェーダー可視ヒープそのもの。
+//   ルートシグネチャに登録しなくても、番号だけで直接引ける。
+//   シェーダーモデル 6.6 以降で使える。
+//
+//   NonUniformResourceIndex は「番号が波の中でそろっていないかもしれない」と
+//   伝える印。付けないと、1 つの波が別々の材質を描いたときに壊れる。
+Texture2D MaterialTexture(uint index)
+{
+    return ResourceDescriptorHeap[NonUniformResourceIndex(index)];
+}
 
 // 環境マップの段数。C++ 側の kEnvironmentMipCount と合わせること。
 static const float kEnvironmentMipCount = 6.0f;
@@ -360,7 +370,9 @@ float3 ApplyNormalMap(float2 uv, float3 worldNormal, float4 worldTangent)
 {
     // 0〜1 で記録されている値を -1〜1 へ戻す。
     //   ★ この画像を sRGB として読んではいけない。色ではなく座標だから。
-    float3 tangentNormal = g_normalMap.Sample(g_sampler, uv).rgb * 2.0f - 1.0f;
+    float3 tangentNormal =
+        MaterialTexture(g_textureIndices.z).Sample(g_sampler, uv).rgb
+            * 2.0f - 1.0f;
 
     // 効き具合。XY だけを弱めると、0 で「傾き無し」になる。
     tangentNormal.xy *= g_materialParams.z;
@@ -421,11 +433,13 @@ float4 PSMain(VSOutput input) : SV_TARGET
     // 物体そのものの色 ＝ 頂点カラー × 材質の基本色 × テクスチャ。
     float4 baseColor = input.color
                      * g_baseColorFactor
-                     * g_texture.Sample(g_sampler, input.uv);
+                     * MaterialTexture(g_textureIndices.x)
+                           .Sample(g_sampler, input.uv);
 
     // 金属らしさと粗さ。テクスチャの緑が粗さ、青が金属らしさ。
     //   テクスチャを持たない材質には白が割り当てられるので、掛けても値は変わらない。
-    float4 materialSample = g_metallicRoughness.Sample(g_sampler, input.uv);
+    float4 materialSample =
+        MaterialTexture(g_textureIndices.y).Sample(g_sampler, input.uv);
 
     float metallic  = saturate(g_materialParams.x * materialSample.b);
     float roughness = clamp(g_materialParams.y * materialSample.g, 0.03f, 1.0f);

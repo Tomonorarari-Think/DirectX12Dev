@@ -168,6 +168,7 @@ DirectX12Dev/
 - [x] **Step 30**: GPU の時間を測る（タイムスタンプクエリ・READBACK ヒープ・Resolve）
 - [x] **Step 31**: DXC とシェーダーモデル 6（DXIL・HLSL 2021・dxil.dll による署名）
 - [x] **Step 32**: 自動露出と Wave 命令（並列リダクション・WaveActiveSum・InterlockedAdd）
+- [x] **Step 33**: ビンドレス（ResourceDescriptorHeap・NonUniformResourceIndex）
 
 ---
 

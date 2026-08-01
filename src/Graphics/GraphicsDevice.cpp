@@ -198,13 +198,43 @@ void GraphicsDevice::LogShaderModel()
             const uint32_t major = (data.HighestShaderModel >> 4) & 0xF;
             const uint32_t minor = data.HighestShaderModel & 0xF;
 
-            Log(std::format(L"対応シェーダーモデル : 最大 {}.{}"
-                            L"（このプロジェクトは 6.0 を使用）", major, minor));
+            Log(std::format(L"対応シェーダーモデル : 最大 {}.{}", major, minor));
+
+            // ★ ビンドレス（ResourceDescriptorHeap）は 6.6 以降。
+            //   足りないと、PSO の生成ではなくシェーダーのコンパイルで落ちる。
+            if (data.HighestShaderModel < D3D_SHADER_MODEL_6_6)
+            {
+                LogError(L"シェーダーモデル 6.6 に対応していません。"
+                         L"材質のビンドレス参照が動きません。");
+            }
+
+            LogResourceBindingTier();
             return;
         }
     }
 
     LogError(L"シェーダーモデル 6 に対応していません。DXC のシェーダーは動きません。");
+}
+
+
+/// <summary>
+/// リソースの結び付けの段階（Tier）をログに出します。
+/// </summary>
+void GraphicsDevice::LogResourceBindingTier()
+{
+    D3D12_FEATURE_DATA_D3D12_OPTIONS options = {};
+
+    if (FAILED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS,
+                                             &options, sizeof(options))))
+    {
+        return;
+    }
+
+    // Tier 3 だと、ヒープに置けるディスクリプタの数が実質メモリ次第になる。
+    // ビンドレスで何千枚ものテクスチャを扱うには、この段階が要る。
+    const uint32_t tier = static_cast<uint32_t>(options.ResourceBindingTier);
+
+    Log(std::format(L"リソース結び付けの段階 : Tier {}", tier));
 }
 
 

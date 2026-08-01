@@ -135,6 +135,13 @@ public:
     /// <remarks>集計の量を変えて、Wave 命令の効き目を測るための機能です。</remarks>
     void CycleExposureSampleRate();
 
+    /// <summary>シーンを何回ぶん記録するかを 1 → 16 → 128 と切り替えます。</summary>
+    /// <remarks>
+    /// **記録に掛かる CPU 時間を測るための機能です。** 同じものを何度も
+    /// 描くので絵は変わりませんが、命令の数だけが増えます。
+    /// </remarks>
+    void CycleMeshRepeatCount();
+
     /// <summary>動きを止める・再開するを切り替えます。</summary>
     /// <remarks>
     /// **対照実験のための機能です。** 時間を止めておくと、設定を切り替えても
@@ -340,6 +347,15 @@ private:
 
     /// <summary>GPU の処理時間をパスごとに測る道具。</summary>
     GpuTimer m_gpuTimer;
+
+    /// <summary>シーンを何回ぶん記録するか（計測用）。</summary>
+    uint32_t m_meshRepeatCount = 1;
+
+    /// <summary>直近 1 秒間の、メッシュ記録に掛かった CPU 時間の合計（マイクロ秒）。</summary>
+    double m_meshRecordMicroseconds = 0.0;
+
+    /// <summary>直近 1 秒間に記録したフレーム数。</summary>
+    uint32_t m_meshRecordSamples = 0;
 
     /// <summary>画面の明るさから露出を決める仕組み。</summary>
     AutoExposure m_autoExposure;
