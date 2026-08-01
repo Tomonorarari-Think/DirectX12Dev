@@ -51,6 +51,7 @@ Unity で `GameObject` にマテリアルを付ければ絵が出ますが、
 | 29 | [GPU パーティクル](29_GPUパーティクル.md) | 構造化バッファ、コンピュートシェーダー、UAV バリア |
 | 30 | [GPU の時間を測る](30_GPUの時間を測る.md) | タイムスタンプクエリ、READBACK ヒープ、Resolve |
 | 31 | [DXC とシェーダーモデル 6](31_DXCとシェーダーモデル6.md) | DXIL、HLSL 2021、dxil.dll による署名 |
+| 32 | [自動露出と Wave 命令](32_自動露出とWave命令.md) | 並列リダクション、WaveActiveSum、InterlockedAdd |
 
 ```mermaid
 flowchart LR
@@ -84,10 +85,11 @@ flowchart LR
     AB --> AC["29 GPU パーティクル"]
     AC --> AD["30 GPU の時間を測る"]
     AD --> AE["31 DXC と SM6"]
+    AE --> AF["32 自動露出と Wave"]
 
     style A fill:#dafbe1,stroke:#0d4f21,color:#1f2328
     style F fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
-    style AE fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
+    style AF fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
 ```
 
 ## 関連する資料

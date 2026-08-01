@@ -250,6 +250,7 @@ xcopy /D /Y "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(OutDi
     <ClCompile Include="src\Graphics\DepthBuffer.cpp" />
     <ClCompile Include="src\Graphics\DescriptorHeap.cpp" />
     <ClCompile Include="src\Graphics\Texture2D.cpp" />
+    <ClCompile Include="src\Graphics\AutoExposure.cpp" />
     <ClCompile Include="src\Graphics\GpuParticleSystem.cpp" />
     <ClCompile Include="src\Graphics\GpuTimer.cpp" />
     <ClCompile Include="src\Graphics\VfxPipeline.cpp" />
@@ -297,6 +298,7 @@ xcopy /D /Y "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(OutDi
     <ClInclude Include="src\Graphics\DepthBuffer.h" />
     <ClInclude Include="src\Graphics\DescriptorHeap.h" />
     <ClInclude Include="src\Graphics\Texture2D.h" />
+    <ClInclude Include="src\Graphics\AutoExposure.h" />
     <ClInclude Include="src\Graphics\GpuParticleSystem.h" />
     <ClInclude Include="src\Graphics\GpuTimer.h" />
     <ClInclude Include="src\Graphics\VfxPipeline.h" />

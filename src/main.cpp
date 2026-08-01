@@ -70,6 +70,9 @@ void PrintControls()
     dx12::Log(L"  N                 ソフトパーティクル（対照実験）");
     dx12::Log(L"  G                 GPU パーティクル");
     dx12::Log(L"  H                 GPU パーティクルの数（1024 → 16384）");
+    dx12::Log(L"  E                 自動露出");
+    dx12::Log(L"  K                 明るさの集計 Wave / 共有メモリ");
+    dx12::Log(L"  J                 明るさを測る解像度（1/4 → 1/1）");
     dx12::Log(L"  T                 垂直同期（速度計測用）");
     dx12::Log(L"  P                 動きを止める・再開する");
     dx12::Log(L"  ESC               終了");
@@ -182,6 +185,24 @@ int main()
             if (input.WasKeyPressed('T'))
             {
                 renderer.ToggleVSync();
+            }
+
+            // E : 自動露出の入り切り
+            if (input.WasKeyPressed('E'))
+            {
+                renderer.ToggleAutoExposure();
+            }
+
+            // K : 明るさの集計を Wave / 共有メモリで切り替える（対照実験用）
+            if (input.WasKeyPressed('K'))
+            {
+                renderer.ToggleReductionMode();
+            }
+
+            // J : 明るさを測る解像度を切り替える（対照実験用）
+            if (input.WasKeyPressed('J'))
+            {
+                renderer.CycleExposureSampleRate();
             }
 
             // P : 動きを止める・再開する（対照実験用）

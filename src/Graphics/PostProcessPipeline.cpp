@@ -31,6 +31,9 @@ constexpr uint32_t kSourceRootParameterIndex = 1;
 /// <summary>ブルーム画像（t1）のルートパラメータ番号。</summary>
 constexpr uint32_t kBloomRootParameterIndex = 2;
 
+/// <summary>自動露出の結果（t2）を渡すルートパラメータの番号。</summary>
+constexpr uint32_t kExposureRootParameterIndex = 3;
+
 /// <summary>画面いっぱいの三角形に要る頂点数。</summary>
 constexpr uint32_t kFullScreenTriangleVertexCount = 3;
 
@@ -139,7 +142,7 @@ void PostProcessPipeline::Initialize(ID3D12Device* device,
     m_height = height;
 
     // --- (1) ルートシグネチャ（3 パス共通）-----------------------------------
-    D3D12_ROOT_PARAMETER rootParameters[3] = {};
+    D3D12_ROOT_PARAMETER rootParameters[4] = {};
 
     rootParameters[kConstantsRootParameterIndex].ParameterType =
         D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -177,6 +180,21 @@ void PostProcessPipeline::Initialize(ID3D12Device* device,
     rootParameters[kBloomRootParameterIndex].DescriptorTable.pDescriptorRanges =
         &bloomRange;
     rootParameters[kBloomRootParameterIndex].ShaderVisibility =
+        D3D12_SHADER_VISIBILITY_PIXEL;
+
+    D3D12_DESCRIPTOR_RANGE exposureRange = {};
+    exposureRange.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    exposureRange.NumDescriptors     = 1;
+    exposureRange.BaseShaderRegister = 2;   // t2
+    exposureRange.OffsetInDescriptorsFromTableStart =
+        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    rootParameters[kExposureRootParameterIndex].ParameterType =
+        D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParameters[kExposureRootParameterIndex].DescriptorTable.NumDescriptorRanges = 1;
+    rootParameters[kExposureRootParameterIndex].DescriptorTable.pDescriptorRanges =
+        &exposureRange;
+    rootParameters[kExposureRootParameterIndex].ShaderVisibility =
         D3D12_SHADER_VISIBILITY_PIXEL;
 
     D3D12_STATIC_SAMPLER_DESC staticSampler = {};
@@ -267,6 +285,7 @@ void PostProcessPipeline::Initialize(ID3D12Device* device,
 void PostProcessPipeline::Record(ID3D12GraphicsCommandList* commandList,
                                  uint32_t frameIndex,
                                  const RenderTexture& scene,
+                                 D3D12_GPU_DESCRIPTOR_HANDLE exposureState,
                                  D3D12_CPU_DESCRIPTOR_HANDLE backBufferView,
                                  const D3D12_VIEWPORT& viewport,
                                  const D3D12_RECT& scissor)
@@ -378,6 +397,8 @@ void PostProcessPipeline::Record(ID3D12GraphicsCommandList* commandList,
                                  static_cast<float>(m_height),
                                  1.0f / static_cast<float>(m_width),
                                  1.0f / static_cast<float>(m_height) };
+        constants.options = { m_autoExposureEnabled ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f };
+
         m_compositeConstants.Update(frameIndex, &constants, sizeof(constants));
 
         commandList->RSSetViewports(1, &viewport);
@@ -395,6 +416,10 @@ void PostProcessPipeline::Record(ID3D12GraphicsCommandList* commandList,
             kSourceRootParameterIndex, scene.ShaderResourceView());
         commandList->SetGraphicsRootDescriptorTable(
             kBloomRootParameterIndex, m_bloomTexture[0].ShaderResourceView());
+
+        // t2 = 自動露出が求めた値。
+        commandList->SetGraphicsRootDescriptorTable(
+            kExposureRootParameterIndex, exposureState);
 
         commandList->DrawInstanced(kFullScreenTriangleVertexCount, 1, 0, 0);
     }
