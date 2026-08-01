@@ -267,6 +267,10 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
     m_vfxPipeline.Initialize(device, RenderTexture::kFormat, DepthBuffer::kFormat,
                              SwapChain::kBackBufferCount);
 
+    // (7-d-1) GPU の計測
+    //   ★ キューごとに刻みの速さが違うので、測るキューを渡す。
+    m_gpuTimer.Initialize(device, m_commandQueue.Get(), SwapChain::kBackBufferCount);
+
     // (7-d-2) GPU パーティクル
     //   ★ 更新はコンピュートシェーダー。CPU は数を渡すだけ。
     m_gpuParticles.Initialize(device, m_descriptorHeap, RenderTexture::kFormat,
@@ -922,6 +926,13 @@ void Renderer::Render()
     // (2) コマンドリストのリセット（記録の開始）
     DX_CHECK(m_commandList->Reset(m_commandAllocators[frameIndex].Get(), nullptr));
 
+    // (2-a) 前回このフレーム番号で測った GPU 時間を回収する
+    //   ★ (0) でフェンスを待った直後なので、その submit は完了している。
+    //     待つ前に読むと、まだ GPU が書いている値を読んでしまう。
+    m_gpuTimer.Collect(frameIndex);
+
+    m_gpuTimer.Begin(m_commandList.Get(), frameIndex, GpuPass::Frame);
+
     // (2-b) このフレームの定数（変換行列とライト）を更新する
     //   (0) でこのフレームのフェンスを待っているため、GPU はもうこの領域を読んでいない。
     UpdateConstants(frameIndex);
@@ -937,14 +948,20 @@ void Renderer::Render()
     //     描画先を決める前のここが置き場所として素直。
     if (m_gpuParticlesEnabled && !m_shaderLabEnabled)
     {
+        m_gpuTimer.Begin(m_commandList.Get(), frameIndex, GpuPass::ParticleUpdate);
+
         m_gpuParticles.RecordUpdate(m_commandList.Get(), frameIndex,
                                     m_gpuParticleCount);
+
+        m_gpuTimer.End(m_commandList.Get(), frameIndex, GpuPass::ParticleUpdate);
     }
 
     // (2-d) 第 1 パス : 光源から見た深度をシャドウマップへ描く
     //   ★ 画面を描く前に済ませておく必要があります。
     //     第 2 パスは、この結果をテクスチャとして読むためです。
+    m_gpuTimer.Begin(m_commandList.Get(), frameIndex, GpuPass::Shadow);
     RecordShadowPass(frameIndex);
+    m_gpuTimer.End(m_commandList.Get(), frameIndex, GpuPass::Shadow);
 
     ID3D12Resource* backBuffer = m_swapChain.CurrentBackBuffer();
 
@@ -1019,20 +1036,28 @@ void Renderer::Render()
                         m_environmentMap.ShaderResourceView(),
                         m_irradianceMap.ShaderResourceView());
 
+    m_gpuTimer.Begin(m_commandList.Get(), frameIndex, GpuPass::Scene);
     RecordMeshDrawCommands(frameIndex);
+    m_gpuTimer.End(m_commandList.Get(), frameIndex, GpuPass::Scene);
 
     // (7-b) 背景の描画
     //   ★ 物体のあとに描く。背景は最も奥なので、先に物体を描いておけば
     //     隠れるピクセルの計算が深度テストで省かれる（早期 Z）。
+    m_gpuTimer.Begin(m_commandList.Get(), frameIndex, GpuPass::Skybox);
+
     m_skyboxPipeline.Record(m_commandList.Get(), frameIndex,
                             m_environmentMap.ShaderResourceView());
+
+    m_gpuTimer.End(m_commandList.Get(), frameIndex, GpuPass::Skybox);
 
     // (7-b-2) 半透明の描画
     //   ★ 不透明な物と背景をすべて描いたあとに描く。
     //     半透明は深度を書かないので、先に描くと後ろの物に上書きされる。
     if (m_vfxEnabled || m_gpuParticlesEnabled)
     {
+        m_gpuTimer.Begin(m_commandList.Get(), frameIndex, GpuPass::Transparent);
         RecordVfxDrawCommands(frameIndex);
+        m_gpuTimer.End(m_commandList.Get(), frameIndex, GpuPass::Transparent);
     }
 
     // (7-c) 中間バッファを読める状態へ戻す
@@ -1040,10 +1065,14 @@ void Renderer::Render()
 
     // (7-d) 後処理して画面へ
     //   露出 → ブルーム合成 → トーンマッピング → ビネット、をまとめて行う。
+    m_gpuTimer.Begin(m_commandList.Get(), frameIndex, GpuPass::PostProcess);
+
     m_postProcess.Record(m_commandList.Get(), frameIndex,
                          m_sceneTexture,
                          m_swapChain.CurrentRenderTargetView(),
                          m_viewport, m_scissorRect);
+
+    m_gpuTimer.End(m_commandList.Get(), frameIndex, GpuPass::PostProcess);
 
     // (8) バリア : RENDER_TARGET → PRESENT
     //   描き終わったので、表示できる状態へ戻します。
@@ -1053,9 +1082,22 @@ void Renderer::Render()
         D3D12_RESOURCE_STATE_RENDER_TARGET,
         D3D12_RESOURCE_STATE_PRESENT);
 
+    m_gpuTimer.End(m_commandList.Get(), frameIndex, GpuPass::Frame);
+
+    // (8-b) 測った値を読み出し用バッファへ移す
+    //   ★ Close の直前に置く。この命令を忘れると、クエリは打っているのに
+    //     CPU からは何も読めない。
+    m_gpuTimer.Resolve(m_commandList.Get(), frameIndex);
+
     // (9) 記録の終了
     //   Close を呼ぶまでコマンドリストは GPU に投入できません。
     DX_CHECK(m_commandList->Close());
+
+    // (9-b) 計測結果をログへ。FPS と同じ間隔でしか出さない。
+    if (m_frameTimer.ReportedThisFrame())
+    {
+        Log(m_gpuTimer.Format());
+    }
 
     // (10) GPU へ投入 — ここで初めて GPU が動き始める
     m_commandQueue.ExecuteCommandList(m_commandList.Get());
