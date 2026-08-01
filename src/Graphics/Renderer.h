@@ -142,6 +142,10 @@ public:
     /// </remarks>
     void CycleMeshRepeatCount();
 
+    /// <summary>段を色で塗る表示の入り切りを切り替えます。</summary>
+    /// <remarks>切り替わりが見えないと、正しく切れているか確かめようがありません。</remarks>
+    void ToggleCascadeView();
+
     /// <summary>動きを止める・再開するを切り替えます。</summary>
     /// <remarks>
     /// **対照実験のための機能です。** 時間を止めておくと、設定を切り替えても
@@ -347,6 +351,9 @@ private:
 
     /// <summary>GPU の処理時間をパスごとに測る道具。</summary>
     GpuTimer m_gpuTimer;
+
+    /// <summary>段を色で塗るかどうか。</summary>
+    bool m_showCascades = false;
 
     /// <summary>シーンを何回ぶん記録するか（計測用）。</summary>
     uint32_t m_meshRepeatCount = 1;

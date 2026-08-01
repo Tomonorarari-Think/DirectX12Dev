@@ -78,14 +78,23 @@ constexpr uint32_t kShadowMapRootParameterIndex = 2;
 constexpr uint32_t kMaterialConstantsRootParameterIndex = 3;
 
 /// <summary>
+/// 影のパスで「いま何段目を描いているか」を渡すルートパラメータの番号。
+/// </summary>
+/// <remarks>
+/// **ルート定数**（32 ビット値を直に置く）です。定数バッファを作って
+/// GPU アドレスを渡すより、値 1 個ならこちらのほうが安く済みます。
+/// </remarks>
+constexpr uint32_t kCascadeIndexRootParameterIndex = 4;
+
+/// <summary>
 /// 環境マップ（映り込み用）を結び付けるルートパラメータの番号。
 /// </summary>
-constexpr uint32_t kEnvironmentRootParameterIndex = 4;
+constexpr uint32_t kEnvironmentRootParameterIndex = 5;
 
 /// <summary>
 /// 積分済みの環境光を結び付けるルートパラメータの番号。
 /// </summary>
-constexpr uint32_t kIrradianceRootParameterIndex = 5;
+constexpr uint32_t kIrradianceRootParameterIndex = 6;
 
 /// <summary>
 /// ディゾルブの燃え際の幅。模様の値でどれだけの範囲を光らせるか。
@@ -165,7 +174,7 @@ void MeshPipeline::Initialize(ID3D12Device* device,
 void MeshPipeline::CreateRootSignature(ID3D12Device* device)
 {
     // ルートパラメータ : シェーダーへ何を渡すかの定義。関数の引数リストに相当する。
-    D3D12_ROOT_PARAMETER rootParameters[6] = {};
+    D3D12_ROOT_PARAMETER rootParameters[7] = {};
 
     // 0 番 : フレーム共通の定数バッファ（カメラとライト）
     rootParameters[kFrameConstantsRootParameterIndex].ParameterType =
@@ -220,7 +229,18 @@ void MeshPipeline::CreateRootSignature(ID3D12Device* device)
     rootParameters[kMaterialConstantsRootParameterIndex].ShaderVisibility =
         D3D12_SHADER_VISIBILITY_PIXEL;
 
-    // 4 番・5 番 : 環境マップと、積分済みの環境光
+    // 4 番 : 段の番号（ルート定数）
+    //   画面描画では使わないが、影のパスと番号を揃えておくと BindObject を
+    //   共用できる。使わない側でも枠だけ確保しておく。
+    rootParameters[kCascadeIndexRootParameterIndex].ParameterType =
+        D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+    rootParameters[kCascadeIndexRootParameterIndex].Constants.ShaderRegister = 3;
+    rootParameters[kCascadeIndexRootParameterIndex].Constants.RegisterSpace  = 0;
+    rootParameters[kCascadeIndexRootParameterIndex].Constants.Num32BitValues = 1;
+    rootParameters[kCascadeIndexRootParameterIndex].ShaderVisibility =
+        D3D12_SHADER_VISIBILITY_ALL;
+
+    // 5 番・6 番 : 環境マップと、積分済みの環境光
     //   材質ではなくシーン全体で共通なので、Bind で 1 度だけ結び付ける。
     D3D12_DESCRIPTOR_RANGE environmentRange = {};
     environmentRange.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -356,7 +376,7 @@ void MeshPipeline::CreateShadowRootSignature(ID3D12Device* device)
 {
     // 影の形を作るのに要るのは変換行列だけ。テクスチャもライトも読まない。
     // ルートパラメータの番号は画面描画側と揃えてあるので、BindObject を共用できる。
-    D3D12_ROOT_PARAMETER rootParameters[2] = {};
+    D3D12_ROOT_PARAMETER rootParameters[kCascadeIndexRootParameterIndex + 1] = {};
 
     rootParameters[kFrameConstantsRootParameterIndex].ParameterType =
         D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -373,6 +393,30 @@ void MeshPipeline::CreateShadowRootSignature(ID3D12Device* device)
     //   消えた部分が影だけ残るのを防ぐため。
     rootParameters[kObjectConstantsRootParameterIndex].ShaderVisibility =
         D3D12_SHADER_VISIBILITY_ALL;
+
+    // ★ どの段を描いているかを 32 ビット 1 個で渡す。
+    rootParameters[kCascadeIndexRootParameterIndex].ParameterType =
+        D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+    rootParameters[kCascadeIndexRootParameterIndex].Constants.ShaderRegister = 3;
+    rootParameters[kCascadeIndexRootParameterIndex].Constants.RegisterSpace  = 0;
+    rootParameters[kCascadeIndexRootParameterIndex].Constants.Num32BitValues = 1;
+    rootParameters[kCascadeIndexRootParameterIndex].ShaderVisibility =
+        D3D12_SHADER_VISIBILITY_VERTEX;
+
+    // 使わない枠（2 番・3 番）も、番号を揃えるために形だけ残す。
+    rootParameters[kShadowMapRootParameterIndex].ParameterType =
+        D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+    rootParameters[kShadowMapRootParameterIndex].Constants.ShaderRegister = 10;
+    rootParameters[kShadowMapRootParameterIndex].Constants.Num32BitValues = 1;
+    rootParameters[kShadowMapRootParameterIndex].ShaderVisibility =
+        D3D12_SHADER_VISIBILITY_VERTEX;
+
+    rootParameters[kMaterialConstantsRootParameterIndex].ParameterType =
+        D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+    rootParameters[kMaterialConstantsRootParameterIndex].Constants.ShaderRegister = 11;
+    rootParameters[kMaterialConstantsRootParameterIndex].Constants.Num32BitValues = 1;
+    rootParameters[kMaterialConstantsRootParameterIndex].ShaderVisibility =
+        D3D12_SHADER_VISIBILITY_VERTEX;
 
     D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
     rootSignatureDesc.NumParameters     = _countof(rootParameters);
@@ -686,7 +730,9 @@ void MeshPipeline::CreateShadowPipelineState(ID3D12Device* device,
 void MeshPipeline::UpdateFrameConstants(uint32_t frameIndex,
                                         const DirectX::XMMATRIX& viewProjection,
                                         const DirectX::XMFLOAT3& cameraPosition,
-                                        const DirectX::XMMATRIX& lightViewProjection)
+                                        const ShadowMap& shadowMap,
+                                        const DirectX::XMFLOAT3& cameraForward,
+                                        bool showCascades)
 {
     using namespace DirectX;
 
@@ -694,7 +740,22 @@ void MeshPipeline::UpdateFrameConstants(uint32_t frameIndex,
 
     // HLSL は定数バッファの行列を列優先で読むため、転置してから書き込む。
     XMStoreFloat4x4(&constants.viewProjection, XMMatrixTranspose(viewProjection));
-    XMStoreFloat4x4(&constants.lightViewProjection, XMMatrixTranspose(lightViewProjection));
+
+    float splits[4] = {};
+
+    for (uint32_t cascade = 0; cascade < ShadowMap::kCascadeCount; ++cascade)
+    {
+        XMStoreFloat4x4(&constants.lightViewProjection[cascade],
+                        XMMatrixTranspose(shadowMap.LightViewProjection(cascade)));
+
+        splits[cascade] = shadowMap.CascadeSplit(cascade);
+    }
+
+    constants.cascadeSplits = { splits[0], splits[1], splits[2], splits[3] };
+    constants.cameraForward = { cameraForward.x, cameraForward.y, cameraForward.z,
+                                0.0f };
+
+    constants.debugFlags = { showCascades ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f };
 
     // ライトの向きは長さ 1 でなければ内積が明るさにならない。
     const XMVECTOR lightDirection = XMVector3Normalize(
@@ -807,6 +868,17 @@ void MeshPipeline::BindShadowPass(ID3D12GraphicsCommandList* commandList,
         m_frameConstantBuffer.GpuAddress(frameIndex));
 
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
+
+
+/// <summary>
+/// 影のパスで描く段の番号を設定します。
+/// </summary>
+void MeshPipeline::SetCascadeIndex(ID3D12GraphicsCommandList* commandList,
+                                   uint32_t cascadeIndex) const
+{
+    commandList->SetGraphicsRoot32BitConstant(
+        kCascadeIndexRootParameterIndex, cascadeIndex, 0);
 }
 
 

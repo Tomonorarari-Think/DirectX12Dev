@@ -27,7 +27,7 @@ DirectXTK12 や `d3dx12.h` を使わず、**生の DirectX 12 API だけ**で書
 `W`/`S`/`A`/`D` でも回転、`R` で初期位置へ、`ESC` で終了。
 `L` で**シェーダー習作集**（後述）、`F` でディゾルブ、`V` で半透明の入り切り。
 `G` で GPU パーティクル、`H` でその個数（1024〜262144）。
-`E` で自動露出。
+`E` で自動露出、`C` で影の段を色分け表示。
 `B`（並べ替え）・`N`（ソフトパーティクル）・`P`（動きを止める）・
 `T`（垂直同期）・`K`（Wave / 共有メモリ）・`J`（測る解像度）は
 対照実験と速度計測用。
@@ -169,6 +169,7 @@ DirectX12Dev/
 - [x] **Step 31**: DXC とシェーダーモデル 6（DXIL・HLSL 2021・dxil.dll による署名）
 - [x] **Step 32**: 自動露出と Wave 命令（並列リダクション・WaveActiveSum・InterlockedAdd）
 - [x] **Step 33**: ビンドレス（ResourceDescriptorHeap・NonUniformResourceIndex）
+- [x] **Step 34**: カスケードシャドウマップ（視錐台の分割・テクスチャ配列・ルート定数）
 
 ---
 

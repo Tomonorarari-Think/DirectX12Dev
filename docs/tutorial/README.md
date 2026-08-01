@@ -53,6 +53,7 @@ Unity で `GameObject` にマテリアルを付ければ絵が出ますが、
 | 31 | [DXC とシェーダーモデル 6](31_DXCとシェーダーモデル6.md) | DXIL、HLSL 2021、dxil.dll による署名 |
 | 32 | [自動露出と Wave 命令](32_自動露出とWave命令.md) | 並列リダクション、WaveActiveSum、InterlockedAdd |
 | 33 | [ビンドレス](33_ビンドレス.md) | ResourceDescriptorHeap、NonUniformResourceIndex |
+| 34 | [カスケードシャドウマップ](34_カスケードシャドウマップ.md) | 視錐台の分割、テクスチャ配列、ルート定数 |
 
 ```mermaid
 flowchart LR
@@ -88,10 +89,11 @@ flowchart LR
     AD --> AE["31 DXC と SM6"]
     AE --> AF["32 自動露出と Wave"]
     AF --> AG["33 ビンドレス"]
+    AG --> AH["34 カスケードシャドウ"]
 
     style A fill:#dafbe1,stroke:#0d4f21,color:#1f2328
     style F fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
-    style AG fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
+    style AH fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
 ```
 
 ## 関連する資料
