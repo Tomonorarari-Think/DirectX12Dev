@@ -102,8 +102,15 @@ void Window::Create(const std::wstring& title, uint32_t width, uint32_t height)
         throw std::runtime_error("ウィンドウの生成に失敗しました。");
     }
 
-    // (4) 画面に表示して、最前面に持ってくる
-    ::ShowWindow(m_hwnd, SW_SHOW);
+    // (4) 画面に表示する
+    //   ★ SW_SHOW は「表示して、さらにアクティブにする」。
+    //     SW_SHOWNOACTIVATE は「表示するだけ」で、前面のウィンドウを奪わない。
+    //     資料の撮影中に手元の作業を続けられるよう、環境変数で切り替える。
+    //     撮影は PrintWindow、操作は PostMessage なので前面である必要がない。
+    const bool activate = (::GetEnvironmentVariableW(L"DX12DEV_NO_ACTIVATE",
+                                                     nullptr, 0) == 0);
+
+    ::ShowWindow(m_hwnd, activate ? SW_SHOW : SW_SHOWNOACTIVATE);
     ::UpdateWindow(m_hwnd);
 
     Log(std::format(L"ウィンドウを生成しました ({} x {})", m_width, m_height));

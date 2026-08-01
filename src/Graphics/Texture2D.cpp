@@ -216,7 +216,8 @@ void Texture2D::Initialize(ID3D12Device* device,
         &rowSizeInBytes,
         &totalBytes);
 
-    Log(std::format(L"テクスチャ転送: {} x {}, 実データ {} B/行 → 中継バッファ {} B/行（256 境界に整列）",
+    Log(std::format(L"テクスチャ転送: {} x {}, 実データ {} B/行 → "
+                    L"中継バッファ {} B/行（256 境界に整列）",
                     width, height, rowSizeInBytes, footprint.Footprint.RowPitch));
 
     // (3) UPLOAD ヒープに中継バッファを作る
@@ -294,7 +295,8 @@ void Texture2D::Initialize(ID3D12Device* device,
     srvDesc.Texture2D.PlaneSlice          = 0;
     srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-    device->CreateShaderResourceView(m_texture.Get(), &srvDesc, descriptorHeap.CpuHandle(srvIndex));
+    device->CreateShaderResourceView(m_texture.Get(), &srvDesc,
+                                     descriptorHeap.CpuHandle(srvIndex));
 
     // 描画時に使うのは GPU ハンドルの方。
     m_srvGpuHandle = descriptorHeap.GpuHandle(srvIndex);
@@ -306,11 +308,13 @@ void Texture2D::Initialize(ID3D12Device* device,
 /// <summary>
 /// 市松模様（チェッカーボード）のピクセル列を生成します。
 /// </summary>
-std::vector<uint8_t> CreateCheckerboardPixels(uint32_t width, uint32_t height, uint32_t cellSize)
+std::vector<uint8_t> CreateCheckerboardPixels(uint32_t width, uint32_t height,
+                                              uint32_t cellSize)
 {
     assert(cellSize > 0);
 
-    std::vector<uint8_t> pixels(static_cast<size_t>(width) * height * Texture2D::kBytesPerPixel);
+    std::vector<uint8_t> pixels(
+        static_cast<size_t>(width) * height * Texture2D::kBytesPerPixel);
 
     for (uint32_t y = 0; y < height; ++y)
     {
@@ -319,7 +323,8 @@ std::vector<uint8_t> CreateCheckerboardPixels(uint32_t width, uint32_t height, u
             // マス目の座標が偶数か奇数かで色を切り替える。
             const bool isLight = (((x / cellSize) + (y / cellSize)) % 2) == 0;
 
-            const size_t index = (static_cast<size_t>(y) * width + x) * Texture2D::kBytesPerPixel;
+            const size_t index =
+                (static_cast<size_t>(y) * width + x) * Texture2D::kBytesPerPixel;
 
             if (isLight)
             {

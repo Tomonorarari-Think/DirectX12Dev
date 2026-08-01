@@ -1,0 +1,72 @@
+# =============================================================================
+#  ci.yml
+#    Debug と Release の両方をビルドし、資料の検査まで通す。
+#
+#    このリポジトリでは「Debug と Release の両方をビルドして実行するまで
+#    完了としない」と決めている（CLAUDE.md）。その約束を機械で守らせる。
+#
+#    資料もコードと同じ成果物として扱うため、リンク切れや図の配色も
+#    ビルドと同じ重さで落とす。
+# =============================================================================
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ビルド (${{ matrix.configuration }})
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [Debug, Release]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: MSBuild を使えるようにする
+        uses: microsoft/setup-msbuild@v2
+
+      - name: ビルド
+        shell: pwsh
+        run: |
+          .\tools\build.ps1 -Configuration ${{ matrix.configuration }}
+
+      # 実行の確認は行わない。GitHub のランナーには DirectX 12 に対応した
+      # GPU が無く、デバイスの生成に失敗するため。実行確認は手元で行う。
+      - name: 実行ファイルができたか
+        shell: pwsh
+        run: |
+          $exe = "build\x64\${{ matrix.configuration }}\DirectX12Dev.exe"
+          if (-not (Test-Path $exe)) { throw "$exe がありません。" }
+          Get-Item $exe | Select-Object Name, Length, LastWriteTime | Format-List
+
+  docs:
+    name: 資料の検査
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Mermaid 検証の依存を取得
+        shell: pwsh
+        working-directory: tools/checks/mermaid
+        run: npm install --no-audit --no-fund
+
+      - name: 検査
+        shell: pwsh
+        run: .\tools\check-docs.ps1
