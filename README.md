@@ -187,6 +187,19 @@ DirectX12Dev/
 
 ## 検査
 
+`tools/check-render.ps1` は **3D シーンの見た目**が壊れていないかを見ます。
+実際に起動して撮り、`tools/reference/scene.png` と比べます。
+
+```powershell
+.	ools\check-render.ps1               # 基準と比べる
+.	ools\check-render.ps1 -UpdateBaseline   # 意図して変えたとき
+```
+
+64 x 36 まで縮めてから比べるので、パーティクルの粒の位置は影響しません。
+シェーダーの設定を取り違えて絵が静かに変わるような壊れ方を捕まえます
+（[31 章](docs/tutorial/31_DXCとシェーダーモデル6.md)で実際に起きました）。
+GPU が要るので CI では動かしません。手元で実行してください。
+
 資料もコードと同じ成果物として扱うため、機械で検査しています。
 [GitHub Actions](.github/workflows/ci.yml) が push のたびに、
 Debug / Release の両方のビルドとあわせて実行します。
