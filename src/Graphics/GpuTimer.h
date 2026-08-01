@@ -36,6 +36,9 @@ enum class GpuPass : uint32_t
     /// <summary>半透明（板と GPU パーティクル）。</summary>
     Transparent,
 
+    /// <summary>自動露出（明るさの集計）。</summary>
+    AutoExposure,
+
     /// <summary>後処理。</summary>
     PostProcess,
 

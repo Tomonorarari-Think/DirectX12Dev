@@ -269,6 +269,11 @@ void Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
     m_vfxPipeline.Initialize(device, RenderTexture::kFormat, DepthBuffer::kFormat,
                              SwapChain::kBackBufferCount);
 
+    // (7-c-2) 自動露出
+    //   ★ シーンを描いた HDR の絵を測るので、その中間バッファのあとに作る。
+    m_autoExposure.Initialize(device, m_descriptorHeap, width, height,
+                              SwapChain::kBackBufferCount);
+
     // (7-d-1) GPU の計測
     //   ★ キューごとに刻みの速さが違うので、測るキューを渡す。
     m_gpuTimer.Initialize(device, m_commandQueue.Get(), SwapChain::kBackBufferCount);
@@ -803,6 +808,49 @@ void Renderer::ToggleVSync()
 
 
 /// <summary>
+/// 自動露出の入り切りを切り替えます。
+/// </summary>
+void Renderer::ToggleAutoExposure()
+{
+    m_autoExposureEnabled = !m_autoExposureEnabled;
+    m_postProcess.SetAutoExposureEnabled(m_autoExposureEnabled);
+
+    Log(m_autoExposureEnabled ? L"自動露出を有効にしました。"
+                              : L"自動露出を無効にしました（固定露出）。");
+}
+
+
+/// <summary>
+/// 明るさのまとめ方を切り替えます。
+/// </summary>
+void Renderer::ToggleReductionMode()
+{
+    m_reductionMode = (m_reductionMode == ReductionMode::Wave)
+                          ? ReductionMode::GroupShared
+                          : ReductionMode::Wave;
+
+    Log(m_reductionMode == ReductionMode::Wave
+            ? L"明るさの集計を Wave 命令にしました。"
+            : L"明るさの集計を共有メモリにしました（対照実験）。");
+}
+
+
+/// <summary>
+/// 明るさを測る解像度を切り替えます。
+/// </summary>
+void Renderer::CycleExposureSampleRate()
+{
+    const uint32_t divisor = m_autoExposure.CycleSampleDivisor();
+
+    Log(std::format(L"明るさを 1/{} の解像度で測ります（{} x {} = {} 点）。",
+                    divisor,
+                    m_autoExposure.SampleWidth(),
+                    m_autoExposure.SampleHeight(),
+                    m_autoExposure.SampleWidth() * m_autoExposure.SampleHeight()));
+}
+
+
+/// <summary>
 /// 動きを止める・再開するを切り替えます。
 /// </summary>
 void Renderer::ToggleTimePause()
@@ -1075,10 +1123,24 @@ void Renderer::Render()
 
     // (7-d) 後処理して画面へ
     //   露出 → ブルーム合成 → トーンマッピング → ビネット、をまとめて行う。
+    // (7-c-2) 明るさを測って露出を決める
+    //   ★ シーンを読める状態にしたあと、後処理より前。
+    //     後処理はここで決めた露出をそのまま使う。CPU は経由しない。
+    m_autoExposure.Update(frameIndex,
+                          static_cast<float>(m_frameTimer.DeltaSeconds()));
+
+    m_gpuTimer.Begin(m_commandList.Get(), frameIndex, GpuPass::AutoExposure);
+
+    m_autoExposure.Record(m_commandList.Get(), frameIndex, m_sceneTexture,
+                          m_reductionMode);
+
+    m_gpuTimer.End(m_commandList.Get(), frameIndex, GpuPass::AutoExposure);
+
     m_gpuTimer.Begin(m_commandList.Get(), frameIndex, GpuPass::PostProcess);
 
     m_postProcess.Record(m_commandList.Get(), frameIndex,
                          m_sceneTexture,
+                         m_autoExposure.ShaderResourceView(),
                          m_swapChain.CurrentRenderTargetView(),
                          m_viewport, m_scissorRect);
 
@@ -1140,6 +1202,7 @@ void Renderer::Resize(uint32_t width, uint32_t height)
 
     // 深度バッファもレンダーターゲットと同じ解像度に作り直す。
     m_depthBuffer.Resize(m_graphicsDevice.Device(), width, height);
+    m_autoExposure.Resize(width, height);
 
     UpdateViewportAndScissor(width, height);
 }

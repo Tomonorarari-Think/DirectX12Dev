@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400" width="720" height="400"
+     role="img" aria-label="共有メモリで半分ずつ折りたたむ方法と、Wave 命令で一度に合計する方法の比較。前者は段ごとに全員の足並みをそろえる必要があり、後者は波の中では不要">
+  <rect x="0" y="0" width="720" height="400" fill="#f6f8fa"/>
+
+  <text x="24" y="34" font-family="Meiryo, sans-serif" font-size="17" fill="#1f2328">
+    64 個の値を 1 つにまとめる 2 通り
+  </text>
+
+  <!-- 左 : 共有メモリ -->
+  <text x="24" y="70" font-family="Meiryo, sans-serif" font-size="14" fill="#1f2328">
+    共有メモリで折りたたむ
+  </text>
+
+  <g font-family="Meiryo, sans-serif" font-size="12" fill="#1f2328">
+    <rect x="24" y="86" width="300" height="26" rx="3" fill="#eaeef2" stroke="#1f2328" stroke-width="1"/>
+    <text x="174" y="104" text-anchor="middle">64 個</text>
+
+    <rect x="24" y="126" width="150" height="26" rx="3" fill="#eaeef2" stroke="#1f2328" stroke-width="1"/>
+    <text x="99" y="144" text-anchor="middle">32 個</text>
+
+    <rect x="24" y="166" width="75" height="26" rx="3" fill="#eaeef2" stroke="#1f2328" stroke-width="1"/>
+    <text x="61" y="184" text-anchor="middle">16</text>
+
+    <rect x="24" y="206" width="38" height="26" rx="3" fill="#eaeef2" stroke="#1f2328" stroke-width="1"/>
+    <text x="43" y="224" text-anchor="middle">8</text>
+
+    <rect x="24" y="246" width="19" height="26" rx="3" fill="#eaeef2" stroke="#1f2328" stroke-width="1"/>
+    <rect x="24" y="286" width="12" height="26" rx="3" fill="#eaeef2" stroke="#1f2328" stroke-width="1"/>
+    <rect x="24" y="326" width="10" height="26" rx="3" fill="#ffd8b5" stroke="#1f2328" stroke-width="1"/>
+  </g>
+
+  <g font-family="Meiryo, sans-serif" font-size="12" fill="#3d444d" font-weight="bold">
+    <text x="200" y="144">← 足並みをそろえる</text>
+    <text x="200" y="184">← そろえる</text>
+    <text x="200" y="224">← そろえる</text>
+    <text x="200" y="264">← そろえる</text>
+    <text x="200" y="304">← そろえる</text>
+    <text x="200" y="344">← そろえる</text>
+  </g>
+
+  <!-- 区切り -->
+  <line x1="376" y1="60" x2="376" y2="376" stroke="#8c959f" stroke-width="1"/>
+
+  <!-- 右 : Wave -->
+  <text x="400" y="70" font-family="Meiryo, sans-serif" font-size="14" fill="#1f2328">
+    Wave 命令でまとめる
+  </text>
+
+  <g font-family="Meiryo, sans-serif" font-size="12" fill="#1f2328">
+    <rect x="400" y="86" width="140" height="26" rx="3" fill="#ddf4ff" stroke="#0a4f9e" stroke-width="1"/>
+    <text x="470" y="104" text-anchor="middle">波 1（32 個）</text>
+
+    <rect x="552" y="86" width="140" height="26" rx="3" fill="#ddf4ff" stroke="#0a4f9e" stroke-width="1"/>
+    <text x="622" y="104" text-anchor="middle">波 2（32 個）</text>
+  </g>
+
+  <g stroke="#0a4f9e" stroke-width="1.5" fill="#0a4f9e">
+    <line x1="470" y1="112" x2="470" y2="140"/><path d="M470 146 l-5 -8 l10 0 Z"/>
+    <line x1="622" y1="112" x2="622" y2="140"/><path d="M622 146 l-5 -8 l10 0 Z"/>
+  </g>
+
+  <text x="400" y="134" font-family="Meiryo, sans-serif" font-size="12" fill="#0a4f9e">
+    WaveActiveSum（命令 1 つ）
+  </text>
+
+  <g font-family="Meiryo, sans-serif" font-size="12" fill="#1f2328">
+    <rect x="446" y="152" width="48" height="26" rx="3" fill="#ddf4ff" stroke="#0a4f9e" stroke-width="1"/>
+    <rect x="598" y="152" width="48" height="26" rx="3" fill="#ddf4ff" stroke="#0a4f9e" stroke-width="1"/>
+  </g>
+
+  <text x="400" y="204" font-family="Meiryo, sans-serif" font-size="12" fill="#3d444d" font-weight="bold">
+    ← 足並みをそろえるのはここ 1 回だけ
+  </text>
+
+  <g stroke="#0a4f9e" stroke-width="1.5" fill="#0a4f9e">
+    <line x1="470" y1="212" x2="530" y2="240"/>
+    <line x1="622" y1="212" x2="562" y2="240"/>
+  </g>
+
+  <rect x="536" y="246" width="20" height="26" rx="3" fill="#ffd8b5" stroke="#1f2328" stroke-width="1"/>
+
+  <text x="400" y="300" font-family="Meiryo, sans-serif" font-size="12" fill="#3d444d">
+    波の中は元々そろって動いているので、
+  </text>
+  <text x="400" y="320" font-family="Meiryo, sans-serif" font-size="12" fill="#3d444d">
+    共有メモリも同期も要らない。
+  </text>
+  <text x="400" y="348" font-family="Meiryo, sans-serif" font-size="12" fill="#3d444d">
+    波の幅は GPU により 4〜128 と違う。
+  </text>
+  <text x="400" y="368" font-family="Meiryo, sans-serif" font-size="12" fill="#3d444d">
+    WaveGetLaneCount() で聞く。
+  </text>
+</svg>

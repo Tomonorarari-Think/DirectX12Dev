@@ -22,6 +22,7 @@
 #include "PostProcessPipeline.h"
 #include "ShaderLabPipeline.h"
 #include "GpuParticleSystem.h"
+#include "AutoExposure.h"
 #include "GpuTimer.h"
 #include "VfxPipeline.h"
 #include "RenderTexture.h"
@@ -122,6 +123,17 @@ public:
     /// 描画がどれだけ速くても表示の間隔で頭打ちになり、差が見えません。
     /// </remarks>
     void ToggleVSync();
+
+    /// <summary>自動露出の入り切りを切り替えます。</summary>
+    void ToggleAutoExposure();
+
+    /// <summary>明るさのまとめ方（Wave / 共有メモリ）を切り替えます。</summary>
+    /// <remarks>Wave 命令がどれだけ効くかを測るための切り替えです。</remarks>
+    void ToggleReductionMode();
+
+    /// <summary>明るさを測る解像度を切り替えます。</summary>
+    /// <remarks>集計の量を変えて、Wave 命令の効き目を測るための機能です。</remarks>
+    void CycleExposureSampleRate();
 
     /// <summary>動きを止める・再開するを切り替えます。</summary>
     /// <remarks>
@@ -328,6 +340,15 @@ private:
 
     /// <summary>GPU の処理時間をパスごとに測る道具。</summary>
     GpuTimer m_gpuTimer;
+
+    /// <summary>画面の明るさから露出を決める仕組み。</summary>
+    AutoExposure m_autoExposure;
+
+    /// <summary>自動露出を使うかどうか。</summary>
+    bool m_autoExposureEnabled = true;
+
+    /// <summary>明るさのまとめ方。</summary>
+    ReductionMode m_reductionMode = ReductionMode::Wave;
 
     /// <summary>GPU 上で動かすパーティクル。</summary>
     GpuParticleSystem m_gpuParticles;

@@ -10,11 +10,15 @@
 
 cbuffer PostProcessConstants : register(b0)
 {
-    // x = 露出、y = トーンマッピングの白点、z = ブルームの強さ、w = ビネットの強さ。
+    // x = 露出（自動が切のときに使う）、y = トーンマッピングの白点、
+    // z = ブルームの強さ、w = ビネットの強さ。
     float4 g_params;
 
     // xy = 画面の大きさ（ピクセル）、zw = その逆数。
     float4 g_screenSize;
+
+    // x = 1 なら自動露出を使う。y, z, w は未使用。
+    float4 g_options;
 };
 
 // 描き終えたシーン（HDR）。
@@ -22,6 +26,10 @@ Texture2D g_scene : register(t0);
 
 // ぼかしたブルーム画像。
 Texture2D g_bloom : register(t1);
+
+// 自動露出が求めた値。[0] = 集計中の合計、[4] = 露出。
+//   ★ 露出は CPU を経由しない。GPU が測り、GPU が使う。
+ByteAddressBuffer g_exposureState : register(t2);
 
 SamplerState g_sampler : register(s0);
 
@@ -43,6 +51,12 @@ float4 PSMain(FullScreenVSOutput input) : SV_TARGET
 {
     float exposure    = g_params.x;
     float whitePoint  = g_params.y;
+
+    if (g_options.x > 0.5f)
+    {
+        exposure = asfloat(g_exposureState.Load(4));
+    }
+
     float bloomAmount = g_params.z;
     float vignette    = g_params.w;
 
