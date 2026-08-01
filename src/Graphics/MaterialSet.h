@@ -39,6 +39,17 @@ struct MaterialConstants
     /// </summary>
     /// <remarks>16 バイト単位に揃えるため、3 つの値でも `XMFLOAT4` にしています。</remarks>
     DirectX::XMFLOAT4 materialParams;
+
+    /// <summary>
+    /// x = 基本色、y = 金属らしさと粗さ、z = 法線マップ。
+    /// いずれもシェーダー可視ヒープの中での番号。w は未使用。
+    /// </summary>
+    /// <remarks>
+    /// **ビンドレスの要です。** ディスクリプタテーブルを結び付ける代わりに、
+    /// この番号を渡してシェーダーが `ResourceDescriptorHeap[番号]` で引きます
+    /// （[33 章](../../docs/tutorial/33_ビンドレス.md)）。
+    /// </remarks>
+    uint32_t textureIndices[4];
 };
 
 

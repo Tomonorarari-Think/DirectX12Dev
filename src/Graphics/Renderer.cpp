@@ -7,6 +7,7 @@
 #include "ShaderCompiler.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 
 #include "../Assets/EnvironmentPrefilter.h"
@@ -479,10 +480,7 @@ void Renderer::RecordMeshWithMaterials(ID3D12GraphicsCommandList* commandList,
             (subMesh.materialIndex < materials.Count()) ? subMesh.materialIndex : 0;
 
         m_meshPipeline.BindMaterial(commandList,
-                                    materials.ConstantAddress(materialIndex),
-                                    materials.TextureView(materialIndex),
-                                    materials.MetallicRoughnessView(materialIndex),
-                                    materials.NormalMapView(materialIndex));
+                                    materials.ConstantAddress(materialIndex));
 
         mesh.RecordDrawCommands(commandList, subMesh.indexOffset, subMesh.indexCount);
     }
@@ -851,6 +849,17 @@ void Renderer::CycleExposureSampleRate()
 
 
 /// <summary>
+/// シーンを何回ぶん記録するかを切り替えます。
+/// </summary>
+void Renderer::CycleMeshRepeatCount()
+{
+    m_meshRepeatCount = (m_meshRepeatCount >= 128) ? 1 : (m_meshRepeatCount * 16);
+
+    Log(std::format(L"シーンを {} 回ぶん記録します（計測用）。", m_meshRepeatCount));
+}
+
+
+/// <summary>
 /// 動きを止める・再開するを切り替えます。
 /// </summary>
 void Renderer::ToggleTimePause()
@@ -868,12 +877,27 @@ void Renderer::RecordMeshDrawCommands(uint32_t frameIndex)
 {
     ID3D12GraphicsCommandList* commandList = m_commandList.Get();
 
-    // オブジェクトごとに定数を差し替え、その中で材質ごとにさらに区切って描く。
-    m_meshPipeline.BindObject(commandList, frameIndex, kFloorObjectIndex);
-    RecordMeshWithMaterials(commandList, m_floor, m_floorMaterials);
+    // ★ 記録に掛かる CPU 時間を測る。GPU の時間ではなく、
+    //   「命令を並べるのにどれだけ掛かったか」を見る。
+    //   ビンドレスで減るのはここ。
+    const auto startTime = std::chrono::steady_clock::now();
 
-    m_meshPipeline.BindObject(commandList, frameIndex, kModelObjectIndex);
-    RecordMeshWithMaterials(commandList, m_model, m_modelMaterials);
+    // 同じものを何回ぶん記録するか。1 なら通常。増やしても絵は変わらない。
+    for (uint32_t repeat = 0; repeat < m_meshRepeatCount; ++repeat)
+    {
+        // オブジェクトごとに定数を差し替え、その中で材質ごとにさらに区切って描く。
+        m_meshPipeline.BindObject(commandList, frameIndex, kFloorObjectIndex);
+        RecordMeshWithMaterials(commandList, m_floor, m_floorMaterials);
+
+        m_meshPipeline.BindObject(commandList, frameIndex, kModelObjectIndex);
+        RecordMeshWithMaterials(commandList, m_model, m_modelMaterials);
+    }
+
+    const auto endTime = std::chrono::steady_clock::now();
+
+    m_meshRecordMicroseconds +=
+        std::chrono::duration<double, std::micro>(endTime - startTime).count();
+    ++m_meshRecordSamples;
 }
 
 
@@ -1169,6 +1193,16 @@ void Renderer::Render()
     if (m_frameTimer.ReportedThisFrame())
     {
         Log(m_gpuTimer.Format());
+
+        if (m_meshRecordSamples > 0)
+        {
+            Log(std::format(L"CPU: メッシュ記録 {:.1f} us / フレーム（{} 回ぶん）",
+                            m_meshRecordMicroseconds / m_meshRecordSamples,
+                            m_meshRepeatCount));
+        }
+
+        m_meshRecordMicroseconds = 0.0;
+        m_meshRecordSamples      = 0;
     }
 
     // (10) GPU へ投入 — ここで初めて GPU が動き始める

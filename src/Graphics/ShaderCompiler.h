@@ -41,6 +41,18 @@ constexpr const wchar_t* kPixelShaderTarget   = L"ps_6_0";
 constexpr const wchar_t* kComputeShaderTarget = L"cs_6_0";
 
 /// <summary>
+/// ビンドレス（`ResourceDescriptorHeap`）を使うシェーダーのモデル。
+/// </summary>
+/// <remarks>
+/// **6.6 以降でしか通りません。** ヒープを番号で直接引く機能が
+/// 入ったのがこの版です（[33 章](../../docs/tutorial/33_ビンドレス.md)）。
+/// </remarks>
+constexpr const wchar_t* kBindlessVertexShaderTarget = L"vs_6_6";
+
+/// <summary>ビンドレスを使うピクセルシェーダーのモデル。</summary>
+constexpr const wchar_t* kBindlessPixelShaderTarget = L"ps_6_6";
+
+/// <summary>
 /// HLSL ファイルをコンパイルして、GPU 用のバイトコードを得ます。
 /// </summary>
 /// <param name="filePath">`.hlsl` ファイルの絶対パス。</param>

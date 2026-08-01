@@ -113,6 +113,18 @@ public:
     D3D12_GPU_DESCRIPTOR_HANDLE ShaderResourceView() const noexcept { return m_srvGpuHandle; }
 
     /// <summary>
+    /// シェーダー可視ヒープの中で、この SRV が何番目かを返します。
+    /// </summary>
+    /// <returns>0 から始まる番号。</returns>
+    /// <remarks>
+    /// **ビンドレスで使う番号です。** ディスクリプタテーブルを結び付ける
+    /// 代わりに、この番号を定数として渡し、シェーダーが
+    /// `ResourceDescriptorHeap[番号]` で直接引きます
+    /// （[33 章](../../docs/tutorial/33_ビンドレス.md)）。
+    /// </remarks>
+    uint32_t DescriptorIndex() const noexcept { return m_descriptorIndex; }
+
+    /// <summary>
     /// テクスチャの幅を取得します。
     /// </summary>
     /// <returns>幅（ピクセル）。</returns>
@@ -138,6 +150,9 @@ private:
     /// <summary>
     /// 幅（ピクセル）。
     /// </summary>
+    /// <summary>シェーダー可視ヒープの中での SRV の番号。</summary>
+    uint32_t m_descriptorIndex = 0;
+
     uint32_t m_width = 0;
 
     /// <summary>

@@ -89,6 +89,15 @@ private:
     void LogShaderModel();
 
     /// <summary>
+    /// リソースの結び付けの段階（Tier）をログに出します。
+    /// </summary>
+    /// <remarks>
+    /// Tier 3 だと、シェーダー可視ヒープに置けるディスクリプタの数が
+    /// 実質メモリ次第になります。ビンドレスの前提です。
+    /// </remarks>
+    void LogResourceBindingTier();
+
+    /// <summary>
     /// デバッグメッセージの扱いを設定します（Debug ビルドのみ）。
     /// </summary>
     void ConfigureInfoQueue();

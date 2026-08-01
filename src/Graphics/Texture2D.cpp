@@ -136,7 +136,8 @@ void Texture2D::Initialize(ID3D12Device* device,
     device->CreateShaderResourceView(m_texture.Get(), &srvDesc,
                                      descriptorHeap.CpuHandle(descriptorIndex));
 
-    m_srvGpuHandle = descriptorHeap.GpuHandle(descriptorIndex);
+    m_srvGpuHandle   = descriptorHeap.GpuHandle(descriptorIndex);
+    m_descriptorIndex = descriptorIndex;
 
     Log(std::format(L"ミップ付きテクスチャを生成しました（{} x {}, {} 段）",
                     m_width, m_height, mipCount));
@@ -299,7 +300,8 @@ void Texture2D::Initialize(ID3D12Device* device,
                                      descriptorHeap.CpuHandle(srvIndex));
 
     // 描画時に使うのは GPU ハンドルの方。
-    m_srvGpuHandle = descriptorHeap.GpuHandle(srvIndex);
+    m_srvGpuHandle   = descriptorHeap.GpuHandle(srvIndex);
+    m_descriptorIndex = srvIndex;
 
     Log(std::format(L"テクスチャを生成しました（{} x {}, DEFAULT ヒープ）", width, height));
 }
