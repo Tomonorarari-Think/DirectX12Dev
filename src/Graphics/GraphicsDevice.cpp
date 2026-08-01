@@ -160,6 +160,51 @@ void GraphicsDevice::CreateDevice()
         IID_PPV_ARGS(&m_device)));
 
     Log(L"D3D12 デバイスを生成しました。");
+
+    LogShaderModel();
+}
+
+
+/// <summary>
+/// この GPU が対応しているシェーダーモデルの最大値をログに出します。
+/// </summary>
+void GraphicsDevice::LogShaderModel()
+{
+    // ★ 高いほうから順に聞いていく。
+    //   対応していない値を渡すと E_INVALIDARG が返るので、下げながら試す。
+    //   ランタイムが知らない新しい値でも同じく失敗するため、この形になる。
+    constexpr D3D_SHADER_MODEL kCandidates[] = {
+        D3D_SHADER_MODEL_6_7,
+        D3D_SHADER_MODEL_6_6,
+        D3D_SHADER_MODEL_6_5,
+        D3D_SHADER_MODEL_6_4,
+        D3D_SHADER_MODEL_6_3,
+        D3D_SHADER_MODEL_6_2,
+        D3D_SHADER_MODEL_6_1,
+        D3D_SHADER_MODEL_6_0,
+    };
+
+    for (const D3D_SHADER_MODEL candidate : kCandidates)
+    {
+        D3D12_FEATURE_DATA_SHADER_MODEL data = {};
+        data.HighestShaderModel = candidate;
+
+        const HRESULT hr = m_device->CheckFeatureSupport(
+            D3D12_FEATURE_SHADER_MODEL, &data, sizeof(data));
+
+        if (SUCCEEDED(hr))
+        {
+            // 返ってくるのは「実際に使える最大値」で、渡した値とは限らない。
+            const uint32_t major = (data.HighestShaderModel >> 4) & 0xF;
+            const uint32_t minor = data.HighestShaderModel & 0xF;
+
+            Log(std::format(L"対応シェーダーモデル : 最大 {}.{}"
+                            L"（このプロジェクトは 6.0 を使用）", major, minor));
+            return;
+        }
+    }
+
+    LogError(L"シェーダーモデル 6 に対応していません。DXC のシェーダーは動きません。");
 }
 
 

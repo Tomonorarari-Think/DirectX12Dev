@@ -201,14 +201,28 @@
         リンクする DirectX 関連のライブラリ
           d3d12.lib       : Direct3D 12 本体 (D3D12CreateDevice など)
           dxgi.lib        : DXGI (CreateDXGIFactory2 など)
-          d3dcompiler.lib : HLSL の実行時コンパイル (D3DCompileFromFile)
+          dxcompiler.lib  : HLSL の実行時コンパイル (DXC)。シェーダーモデル 6 以降。
           dxguid.lib      : IID_ID3D12Device などの GUID の実体。
                             IID_PPV_ARGS を使うとリンク時にこれが必要になります。
-        ※ .lib は「DLL の呼び出し方が書かれた案内書」で、実体の DLL は
-          Windows に標準搭載されています（別途配布は不要）。
+        ※ d3d12 / dxgi / windowscodecs の .lib は「DLL の呼び出し方が書かれた
+          案内書」で、実体の DLL は Windows に標準搭載されています。
+        ※ dxcompiler.dll と dxil.dll だけは Windows に入っていないため、
+          下の PostBuildEvent で SDK から exe の隣へコピーします。
+          dxil.dll はシェーダーへの署名に要ります。無いと D3D12 が受け取りません。
       -->
-      <AdditionalDependencies>d3d12.lib;dxgi.lib;d3dcompiler.lib;dxguid.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d12.lib;dxgi.lib;dxcompiler.lib;dxguid.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+
+    <!--
+      DXC の DLL を exe の隣へコピーする。
+        Windows SDK の bin\&lt;版&gt;\x64 に入っている。$(WindowsSdkDir) と
+        $(WindowsTargetPlatformVersion) から場所を組み立てる。
+    -->
+    <PostBuildEvent>
+      <Command>xcopy /D /Y "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxcompiler.dll" "$(OutDir)" &gt; nul
+xcopy /D /Y "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(OutDir)" &gt; nul</Command>
+      <Message>DXC の DLL をコピーしています</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
 
   <!--

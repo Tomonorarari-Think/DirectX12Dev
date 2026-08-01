@@ -197,11 +197,18 @@ float3 PaletteWarm(float t)
 }
 
 /// sRGB の記録値をリニアの明るさへ戻す。
+///   ★ HLSL 2021 から、条件がベクトルの `?:` は使えない。
+///     成分ごとに選ぶには select を使う。
+///     以前は `(color <= 0.04045f) ? a : b` と書けたが、これは
+///     「短絡評価される演算子なのに成分ごとに違う枝を通る」という
+///     矛盾を抱えていたため、明示的な関数へ分けられた。
 float3 SrgbToLinear(float3 color)
 {
     color = saturate(color);
-    return (color <= 0.04045f) ? (color / 12.92f)
-                               : pow((color + 0.055f) / 1.055f, 2.4f);
+
+    return select(color <= 0.04045f,
+                  color / 12.92f,
+                  pow((color + 0.055f) / 1.055f, 2.4f));
 }
 
 /// 習作の出力。

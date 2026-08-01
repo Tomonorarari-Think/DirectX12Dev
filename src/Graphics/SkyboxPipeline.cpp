@@ -118,8 +118,10 @@ void SkyboxPipeline::Initialize(ID3D12Device* device, uint32_t frameCount)
     // --- (2) パイプラインステート --------------------------------------------
     const std::wstring shaderPath = ResolveAssetPath(kShaderRelativePath);
 
-    ComPtr<ID3DBlob> vertexShader = shader::Compile(shaderPath, "VSMain", "vs_5_0");
-    ComPtr<ID3DBlob> pixelShader  = shader::Compile(shaderPath, "PSMain", "ps_5_0");
+    shader::Bytecode vertexShader =
+        shader::Compile(shaderPath, L"VSMain", shader::kVertexShaderTarget);
+    shader::Bytecode pixelShader =
+        shader::Compile(shaderPath, L"PSMain", shader::kPixelShaderTarget);
 
     D3D12_RASTERIZER_DESC rasterizerDesc = {};
     rasterizerDesc.FillMode              = D3D12_FILL_MODE_SOLID;
