@@ -7,6 +7,11 @@ Windows PowerShell 5.1 は BOM の無いファイルを CP932 として読む。
 import pathlib
 import sys
 
+# 標準出力を UTF-8 に固定する。
+#   ★ Windows の既定は環境によって cp932 や cp1252 になる。
+#     日本語を出した瞬間に UnicodeEncodeError で落ちるため、ここで揃える。
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+
 ROOT = pathlib.Path(sys.argv[1] if len(sys.argv) > 1
                     else pathlib.Path(__file__).resolve().parents[2])
 
