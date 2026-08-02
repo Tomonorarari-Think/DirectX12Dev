@@ -54,6 +54,7 @@ Unity で `GameObject` にマテリアルを付ければ絵が出ますが、
 | 32 | [自動露出と Wave 命令](32_自動露出とWave命令.md) | 並列リダクション、WaveActiveSum、InterlockedAdd |
 | 33 | [ビンドレス](33_ビンドレス.md) | ResourceDescriptorHeap、NonUniformResourceIndex |
 | 34 | [カスケードシャドウマップ](34_カスケードシャドウマップ.md) | 視錐台の分割、テクスチャ配列、ルート定数 |
+| 35 | [広い場面を作る](35_広い場面を作る.md) | 手続き地形、巻き順、測り直し |
 
 ```mermaid
 flowchart LR
@@ -90,10 +91,11 @@ flowchart LR
     AE --> AF["32 自動露出と Wave"]
     AF --> AG["33 ビンドレス"]
     AG --> AH["34 カスケードシャドウ"]
+    AH --> AI["35 広い場面を作る"]
 
     style A fill:#dafbe1,stroke:#0d4f21,color:#1f2328
     style F fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
-    style AH fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
+    style AI fill:#ddf4ff,stroke:#0a4f9e,color:#1f2328
 ```
 
 ## 関連する資料
