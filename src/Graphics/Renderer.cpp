@@ -37,16 +37,33 @@ constexpr uint32_t kDescriptorHeapCapacity = 32;
 /// <summary>
 /// シーンに置くオブジェクトの数（モデルと床）。
 /// </summary>
-constexpr uint32_t kObjectCount = 2;
+constexpr uint32_t kObjectCount = 4;
 
 /// <summary>
 /// 定数バッファ上でのオブジェクトの通し番号。
 /// </summary>
 enum ObjectIndex : uint32_t
 {
-    kModelObjectIndex = 0,
-    kFloorObjectIndex = 1,
+    kModelObjectIndex   = 0,
+    kFloorObjectIndex   = 1,
+    kTerrainObjectIndex = 2,
+    kPillarObjectIndex  = 3,
 };
+
+/// <summary>地形の中心から端までの距離。</summary>
+constexpr float kTerrainHalfExtent = 60.0f;
+
+/// <summary>地形の一辺の分割数。頂点は (この値 + 1) の 2 乗になります。</summary>
+/// <remarks>
+/// 索引が uint16 なので 255 が上限です。細かくすると影のパスが重くなります。
+/// </remarks>
+constexpr uint32_t kTerrainResolution = 96;
+
+/// <summary>地形の上に置く柱の本数（試みる回数）。</summary>
+constexpr uint32_t kPillarCount = 260;
+
+/// <summary>柱を置かない中心部の半径。既存の床を避けます。</summary>
+constexpr float kPillarClearRadius = 7.5f;
 
 /// <summary>
 /// 読み込むモデル（プロジェクトルートからの相対パス）。
@@ -465,6 +482,21 @@ void Renderer::CreateSceneMeshes()
 
     m_floorMaterials.Initialize(device, m_commandQueue, m_descriptorHeap,
                                 floorData.materials, CreateFloorTexture());
+
+    // (3) 広い地形と、その上に散らばる柱
+    //   ★ 34 章のカスケードシャドウマップは、範囲の広い場面でなければ
+    //     効果が絵に出ない。それを確かめられる場をここで作る。
+    MeshData terrainData = CreateTerrain(kTerrainHalfExtent, kTerrainResolution);
+    m_terrain.Initialize(device, m_commandQueue, terrainData, L"地形");
+    m_terrainMaterials.Initialize(device, m_commandQueue, m_descriptorHeap,
+                                  terrainData.materials);
+
+    MeshData pillarData =
+        CreatePillarField(kTerrainHalfExtent * 0.85f, kPillarCount, kPillarClearRadius);
+
+    m_pillars.Initialize(device, m_commandQueue, pillarData, L"柱");
+    m_pillarMaterials.Initialize(device, m_commandQueue, m_descriptorHeap,
+                                 pillarData.materials);
 }
 
 
@@ -547,6 +579,13 @@ void Renderer::UpdateConstants(uint32_t frameIndex)
     // 床 : 動かさないのでワールド行列は単位行列。
     m_meshPipeline.UpdateObjectConstants(
         frameIndex, kFloorObjectIndex, XMMatrixIdentity(), viewProjection);
+
+    // 地形と柱も動かさない。
+    m_meshPipeline.UpdateObjectConstants(
+        frameIndex, kTerrainObjectIndex, XMMatrixIdentity(), viewProjection);
+
+    m_meshPipeline.UpdateObjectConstants(
+        frameIndex, kPillarObjectIndex, XMMatrixIdentity(), viewProjection);
 }
 
 
@@ -918,6 +957,12 @@ void Renderer::RecordMeshDrawCommands(uint32_t frameIndex)
 
         m_meshPipeline.BindObject(commandList, frameIndex, kModelObjectIndex);
         RecordMeshWithMaterials(commandList, m_model, m_modelMaterials);
+
+        m_meshPipeline.BindObject(commandList, frameIndex, kTerrainObjectIndex);
+        RecordMeshWithMaterials(commandList, m_terrain, m_terrainMaterials);
+
+        m_meshPipeline.BindObject(commandList, frameIndex, kPillarObjectIndex);
+        RecordMeshWithMaterials(commandList, m_pillars, m_pillarMaterials);
     }
 
     const auto endTime = std::chrono::steady_clock::now();
@@ -955,6 +1000,12 @@ void Renderer::RecordShadowPass(uint32_t frameIndex)
 
         m_meshPipeline.BindObject(commandList, frameIndex, kModelObjectIndex);
         m_model.RecordDrawCommands(commandList);
+
+        m_meshPipeline.BindObject(commandList, frameIndex, kTerrainObjectIndex);
+        m_terrain.RecordDrawCommands(commandList);
+
+        m_meshPipeline.BindObject(commandList, frameIndex, kPillarObjectIndex);
+        m_pillars.RecordDrawCommands(commandList);
     }
 
     // テクスチャとして読める状態に戻す。

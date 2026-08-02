@@ -170,6 +170,7 @@ DirectX12Dev/
 - [x] **Step 32**: 自動露出と Wave 命令（並列リダクション・WaveActiveSum・InterlockedAdd）
 - [x] **Step 33**: ビンドレス（ResourceDescriptorHeap・NonUniformResourceIndex）
 - [x] **Step 34**: カスケードシャドウマップ（視錐台の分割・テクスチャ配列・ルート定数）
+- [x] **Step 35**: 広い場面を作る（手続き地形・巻き順・34 章の測り直し）
 
 ---
 
