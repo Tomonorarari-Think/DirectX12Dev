@@ -16,6 +16,7 @@
 #include "MaterialSet.h"
 #include "Mesh.h"
 #include "ShadowMap.h"
+#include "Terrain.h"
 #include "SwapChain.h"
 #include "MeshPipeline.h"
 #include "SkyboxPipeline.h"
@@ -422,6 +423,18 @@ private:
     /// <summary>
     /// モデルを置く床。
     /// </summary>
+    /// <summary>広い地形のメッシュ。</summary>
+    Mesh m_terrain;
+
+    /// <summary>地形の材質。</summary>
+    MaterialSet m_terrainMaterials;
+
+    /// <summary>地形の上に散らばる柱のメッシュ。</summary>
+    Mesh m_pillars;
+
+    /// <summary>柱の材質。</summary>
+    MaterialSet m_pillarMaterials;
+
     Mesh m_floor;
 
     /// <summary>

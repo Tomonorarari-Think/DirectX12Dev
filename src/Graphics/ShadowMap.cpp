@@ -200,27 +200,55 @@ void ShadowMap::SetLight(const XMFLOAT3& lightDirection,
         // --- (3) この段の視錐台を包む球を求める ------------------------------
         //   ★ 箱ではなく球で包むのが要点。球は回しても大きさが変わらないので、
         //     カメラを回しただけで影の解像度が変わる（ちらつく）ことがない。
-        const XMVECTOR nearCenter = XMVectorAdd(eye, XMVectorScale(forward, sliceNear));
-        const XMVECTOR farCenter  = XMVectorAdd(eye, XMVectorScale(forward, sliceFar));
+        //
+        //   ★ 中心は 8 隅の平均で求める。対角にある 2 隅の中点で済ませると、
+        //     球が斜めにずれて視錐台の一部がはみ出す。はみ出した所は
+        //     影が落ちなくなるが、絵としては「影が無い」だけなので気付きにくい。
+        XMVECTOR corners[8];
+        uint32_t cornerCount = 0;
 
-        // 錐台の 8 隅のうち、最も遠い隅までの距離が半径になる。
-        const XMVECTOR farCorner = XMVectorAdd(
-            farCenter,
-            XMVectorAdd(XMVectorScale(right, sliceFar * tanHalfFovX),
-                        XMVectorScale(up,    sliceFar * tanHalfFovY)));
+        for (int side = 0; side < 2; ++side)
+        {
+            const float distance = (side == 0) ? sliceNear : sliceFar;
 
-        const XMVECTOR nearCorner = XMVectorAdd(
-            nearCenter,
-            XMVectorAdd(XMVectorScale(right, sliceNear * tanHalfFovX),
-                        XMVectorScale(up,    sliceNear * tanHalfFovY)));
+            const XMVECTOR sliceCenter =
+                XMVectorAdd(eye, XMVectorScale(forward, distance));
 
-        // 球の中心は、2 つの隅を結ぶ線分の中点として求める。
-        const XMVECTOR center = XMVectorScale(XMVectorAdd(nearCorner, farCorner), 0.5f);
+            const XMVECTOR halfWidth  =
+                XMVectorScale(right, distance * tanHalfFovX);
+            const XMVECTOR halfHeight =
+                XMVectorScale(up, distance * tanHalfFovY);
 
-        float radius = XMVectorGetX(XMVector3Length(XMVectorSubtract(farCorner, center)));
-        radius = std::max(radius,
-                          XMVectorGetX(XMVector3Length(
-                              XMVectorSubtract(nearCorner, center))));
+            for (int y = -1; y <= 1; y += 2)
+            {
+                for (int x = -1; x <= 1; x += 2)
+                {
+                    corners[cornerCount++] = XMVectorAdd(
+                        sliceCenter,
+                        XMVectorAdd(XMVectorScale(halfWidth, static_cast<float>(x)),
+                                    XMVectorScale(halfHeight, static_cast<float>(y))));
+                }
+            }
+        }
+
+        XMVECTOR center = XMVectorZero();
+
+        for (const XMVECTOR& corner : corners)
+        {
+            center = XMVectorAdd(center, corner);
+        }
+
+        center = XMVectorScale(center, 1.0f / 8.0f);
+
+        float radius = 0.0f;
+
+        for (const XMVECTOR& corner : corners)
+        {
+            const float distance =
+                XMVectorGetX(XMVector3Length(XMVectorSubtract(corner, center)));
+
+            radius = std::max(radius, distance);
+        }
 
         // 端数で毎フレーム半径が揺れないよう、少しだけ切り上げて安定させる。
         radius = std::ceil(radius * 16.0f) / 16.0f;
